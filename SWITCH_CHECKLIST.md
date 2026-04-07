@@ -1,27 +1,32 @@
-# Device Switch Checklist
+# 双设备切换清单（SWITCH_CHECKLIST）
 
-## Before Leaving Device A
-- [ ] `git status` is reviewed
-- [ ] update `HANDOFF.md` sections 1-5
-- [ ] commit changes (or create a WIP commit)
-- [ ] `git push` to remote branch
-- [ ] send one short context message in the same Codex thread:
-  - `Continue <task-name>. See HANDOFF.md.`
+## A 设备离开前（必须完成）
+- [ ] 检查改动范围（`git status` 或文件变更列表）
+- [ ] 更新 `HANDOFF.md` 的 1-6 节（目标、状态、已完成、下一步、待确认、风险）
+- [ ] 提交代码（如未完成也要做检查点提交）
+- [ ] 推送到远程分支（通常为 `main`）
+- [ ] 在同一条 Codex 线程补一条接力消息：
+  - `继续 <任务名>，先看 HANDOFF.md 再继续。`
 
-## After Opening Device B
-- [ ] open the same Codex thread
-- [ ] `git pull`
-- [ ] read `HANDOFF.md` sections 1-5
-- [ ] run project startup/test command
-- [ ] continue from `Next Actions`
+## B 设备接手后（5 分钟内）
+- [ ] 打开同一条 Codex 线程（不要新开线程）
+- [ ] 拉取最新代码（`git pull`）
+- [ ] 阅读 `HANDOFF.md` 的 1-6 节
+- [ ] 运行项目并快速验证首页是否可正常进入
+- [ ] 按 `HANDOFF.md -> 下一步（前30分钟）` 直接开始执行
 
-## Recovery Rules
-- If local branch diverged:
-  - stop and check `git status` + `git log --oneline --decorate --graph -20`
-- If context feels missing:
-  - treat `HANDOFF.md` as source of truth
-  - summarize current understanding in-thread before coding
-- If urgent switch with uncommitted changes:
-  - create checkpoint commit:
-    - `git add -A && git commit -m "chore: emergency checkpoint"`
+## 切换过程中的决策规则
+- 若发现分支分叉或冲突：
+  - 先暂停编码，执行 `git status` 与 `git log --oneline --decorate --graph -20`，确认主线后再继续。
+- 若上下文缺失或记忆不一致：
+  - 以 `HANDOFF.md` 为单一事实源；
+  - 先在当前线程写 3 行“我对当前状态的理解”，再开始改代码。
+- 若紧急切换且代码未完成：
+  - 先做检查点提交再离开，避免另一台设备无法复现现场。
 
+## 本项目专项检查（hospital_record）
+- [ ] 首页可显示病人列表，且“在院病人”筛选可切换
+- [ ] 我的页子菜单可进入（数据迁移、密码保护、字段配置）
+- [ ] 字段配置可编辑、显示隐藏、顺序调整（按钮/拖动）
+- [ ] 测评模板可完成病种 -> 版本 -> 测评项配置链路
+- [ ] 页面无乱码、无明显空白区、关键按钮可点击

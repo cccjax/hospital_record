@@ -1,51 +1,62 @@
-# Handoff
+# 项目交接文档（HANDOFF）
 
-Use this file as the single source of truth when switching between devices.
-Update it before ending a coding session.
+本文件用于双设备切换时保持上下文一致。每次结束开发前请更新本文件。
 
-## 1) Current Goal
-- Feature / task:
-- Expected outcome:
-- Priority:
+## 1) 当前目标
+- 项目：住院管理系统原型（移动端优先交互，后续可迁移到 Flutter 多端实现）。
+- 本阶段目标：保证首页、病人明细、入院详情、测评模板、我的页（字段配置/数据迁移/密码保护）可稳定演示。
+- 本次重点：修复乱码与功能回退，恢复关键模块可用性。
 
-## 2) Current Status
-- Branch:
-- Last commit:
-- Working tree state (`clean` or `dirty`):
-- Last sync time:
+## 2) 当前状态（2026-04-08）
+- 仓库：`cccjax/hospital_record`
+- 分支：`main`
+- 本次主要改动文件：`app.js`、`HANDOFF.md`、`SWITCH_CHECKLIST.md`
+- 已恢复模块：
+  - 首页（病人列表、在院筛选、详情跳转）
+  - 病人明细（基础信息、入院记录、入院详情、日常记录详情）
+  - 我的（数据迁移、密码保护、字段配置）
+  - 测评模板（病种/版本/测评项/等级区间增删改）
+- 关键修复：
+  - 清理 `app.js` 中乱码文案与破损标签导致的渲染/点击异常
+  - 新增历史脏数据自愈逻辑：`repairLegacyDataArtifacts()`，用于修补旧缓存中的乱码字段与异常状态值
+  - 保障核心字段规则：病人住院号、入院日期不可删除且必填
 
-## 3) Done In This Session
-- [ ] Item 1
-- [ ] Item 2
-- [ ] Item 3
+## 3) 本次已完成
+- [x] 修复首页与“我的”页面乱码和交互异常
+- [x] 恢复字段配置模块核心能力（显示控制、编辑、删除、排序模式）
+- [x] 修复测评模板模块剩余乱码与提示文案
+- [x] 增加旧数据兼容修复逻辑，降低历史缓存导致的空白页/逻辑异常风险
+- [x] 文档统一改为中文
 
-## 4) Next Actions (First 30 Minutes)
-1. 
-2. 
-3. 
+## 4) 下一步（接手后前 30 分钟）
+1. 启动页面后按路径回归：`首页 -> 病人明细 -> 入院详情 -> 日常详情`，确认无空白、无报错。
+2. 打开 `我的 -> 字段配置`，验证字段隐藏/显示、编辑、删除、排序（按钮+拖动）是否生效。
+3. 打开 `测评模板`，验证病种/版本展开收起与测评项配置流程是否符合最新产品设想。
 
-## 5) Open Questions / Decisions Needed
-- [ ] Question 1
-- [ ] Question 2
+## 5) 待确认事项
+- [ ] 测评模板病种卡片是否继续采用“点击展开版本列表”的交互，还是保持“进入版本页”交互。
+- [ ] 是否开始进入 Flutter 实码阶段，或继续先迭代 Web 原型直至功能冻结。
+- [ ] 离线数据导入导出格式是否需要版本号与校验签名（用于后续兼容）。
 
-## 6) Risks / Notes
-- Risk:
-- Dependency:
-- Reminder:
+## 6) 风险与注意事项
+- 风险：历史本地缓存可能包含旧版本乱码数据，首次打开需依赖自愈逻辑纠正。
+- 风险：当前设备缺少 `git/node` 命令行环境，必要时可用 GitHub 连接器提交；后续建议在开发机补齐环境。
+- 注意：修改字段结构会影响既有数据展示，变更后务必做“病人-入院-日常”三模块联动检查。
 
-## 7) Useful Commands
+## 7) 常用命令（有 git 环境时）
 ```bash
-# before switching devices
+# 切换设备前
 git add -A
-git commit -m "chore: session checkpoint"
+git commit -m "chore: 会话检查点"
 git push
 
-# after switching to another device
+# 设备 B 接手后
 git pull
 ```
 
-## 8) References
-- Issue / ticket:
-- PR:
-- Docs:
-
+## 8) 关键文件
+- 核心逻辑：`/D:/SoftWare/AI/hospital_record/app.js`
+- 页面结构：`/D:/SoftWare/AI/hospital_record/index.html`
+- 样式文件：`/D:/SoftWare/AI/hospital_record/style.css`
+- 交接文档：`/D:/SoftWare/AI/hospital_record/HANDOFF.md`
+- 切换清单：`/D:/SoftWare/AI/hospital_record/SWITCH_CHECKLIST.md`

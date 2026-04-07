@@ -1,0 +1,307 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>住院管理系统原型</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-bg"></div>
+
+  <div class="phone-shell">
+    <header class="app-header">
+      <div class="app-header-top">
+        <div class="header-left">
+          <button id="header-back-btn" class="header-back hidden" aria-label="返回上一页">‹</button>
+          <div id="header-dot" class="logo-dot"></div>
+        </div>
+        <span class="header-badge">原型模式</span>
+      </div>
+      <h1 id="page-title">首页</h1>
+      <p id="page-subtitle">病人信息总览与住院过程管理</p>
+    </header>
+
+    <main id="page-host" class="page-host">
+      <section id="patient-page" class="page active">
+        <div id="patient-list-view">
+          <div class="hero">
+            <div>
+              <h2>概览</h2>
+              <p>病人档案支持实时检索与快速编辑</p>
+            </div>
+            <div class="hero-stats" id="patient-stats"></div>
+          </div>
+
+          <div class="control-row">
+            <input id="patient-search" type="text" placeholder="输入住院号/姓名搜索">
+            <button id="add-patient-btn" class="btn btn-primary">新增</button>
+          </div>
+
+          <div id="patient-list" class="list-stack"></div>
+        </div>
+
+        <div id="patient-detail-view" class="hidden">
+          <div class="hero">
+            <div>
+              <h2 id="patient-detail-name">病人明细</h2>
+              <p id="patient-detail-subtitle">完整档案与住院过程记录</p>
+            </div>
+            <div class="hero-stats" id="patient-detail-stats"></div>
+          </div>
+
+          <div id="patient-detail-list-pane">
+            <div class="section-title">基础信息</div>
+            <div id="patient-detail-basic" class="list-stack"></div>
+
+            <div class="section-title section-title-with-action">
+              <span>入院记录</span>
+              <button id="patient-add-admission-btn" class="btn btn-light btn-small">新增入院</button>
+            </div>
+            <div id="patient-detail-admissions" class="list-stack"></div>
+          </div>
+
+          <div id="patient-admission-detail-pane" class="hidden">
+            <div id="patient-admission-overview-pane">
+              <div class="detail-group">
+                <div class="section-title">入院详情</div>
+                <div id="patient-admission-detail-card" class="list-stack"></div>
+              </div>
+
+              <div class="detail-group">
+                <div class="section-title section-title-with-action">
+                  <span>日常记录</span>
+                  <button id="patient-add-daily-btn" class="btn btn-light btn-small">新增日常</button>
+                </div>
+                <div id="patient-admission-daily" class="list-stack"></div>
+              </div>
+            </div>
+
+            <div id="patient-daily-detail-pane" class="hidden">
+              <div class="detail-group">
+                <div class="section-title">日常记录详情</div>
+                <div id="patient-daily-detail-card" class="list-stack"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="admission-page" class="page">
+        <div class="hero">
+          <div>
+            <h2>住院管理</h2>
+            <p>每条入院记录可挂接多条日常记录</p>
+          </div>
+          <div class="hero-stats" id="admission-stats"></div>
+        </div>
+
+        <div class="control-row">
+          <select id="admission-patient-select"></select>
+          <button id="add-admission-btn" class="btn btn-primary">入院+</button>
+        </div>
+
+        <div class="section-title">入院记录</div>
+        <div id="admission-list" class="list-stack"></div>
+
+        <div class="section-title section-title-with-action">
+          <span>日常记录</span>
+          <button id="add-daily-btn" class="btn btn-light btn-small">新增日常</button>
+        </div>
+        <div id="daily-list" class="list-stack"></div>
+      </section>
+
+      <section id="template-page" class="page">
+        <div class="hero">
+          <div>
+            <h2>测评模板</h2>
+            <p>配置病种、版本、测评项与评分分级规则</p>
+          </div>
+          <div class="hero-stats" id="template-stats"></div>
+        </div>
+
+        <div id="template-disease-pane">
+          <div class="detail-group">
+            <div class="section-title section-title-with-action">
+              <span>病种模板</span>
+              <button id="add-template-disease-btn" class="btn btn-primary btn-small" type="button">新增病种</button>
+            </div>
+            <div id="template-disease-list" class="list-stack"></div>
+          </div>
+        </div>
+
+        <div id="template-version-pane" class="hidden">
+          <div class="detail-group">
+            <div class="section-title section-title-with-action">
+              <span id="template-version-title">版本管理</span>
+              <button id="add-template-version-btn" class="btn btn-light btn-small" type="button">新增版本</button>
+            </div>
+            <div id="template-version-list" class="list-stack"></div>
+          </div>
+        </div>
+
+        <div id="template-config-pane" class="hidden">
+          <div class="detail-group">
+            <div class="section-title section-title-with-action">
+              <span id="template-item-title">测评项配置</span>
+              <button id="add-template-item-btn" class="btn btn-light btn-small" type="button">新增测评项</button>
+            </div>
+            <div id="template-item-list" class="list-stack"></div>
+          </div>
+
+          <div class="detail-group">
+            <div class="section-title section-title-with-action">
+              <span>患病等级区间</span>
+              <button id="add-template-grade-btn" class="btn btn-light btn-small" type="button">新增区间</button>
+            </div>
+            <div id="template-grade-list" class="list-stack"></div>
+          </div>
+
+          <div class="detail-group">
+            <div class="section-title">评分模拟</div>
+            <p class="mine-copy">选择各测评项得分后，系统将按分值占比计算总分并自动判断患病等级。</p>
+            <div id="template-simulator-list" class="list-stack"></div>
+            <div id="template-simulator-result" class="entity-card template-result-card"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="mine-page" class="page">
+        <div class="hero">
+          <div>
+            <h2>我的</h2>
+            <p>安全设置、数据迁移与字段配置集中管理</p>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-card">
+              <div class="k">数据模式</div>
+              <div class="v">离线本机</div>
+            </div>
+            <div class="stat-card">
+              <div class="k">安全状态</div>
+              <div id="mine-security-hero" class="v">未开启</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="mine-home-pane" class="list-stack">
+          <article class="entity-card mine-menu-card" data-action="open-mine-submenu" data-menu="migration">
+            <div class="entity-head">
+              <div class="entity-title">数据迁移</div>
+              <span class="entity-tag">离线转移</span>
+            </div>
+            <p class="mine-copy">导入/导出本机数据，用于设备间迁移与备份。</p>
+            <span class="patient-chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="entity-card mine-menu-card" data-action="open-mine-submenu" data-menu="security">
+            <div class="entity-head">
+              <div class="entity-title">密码保护</div>
+              <span id="mine-security-menu-tag" class="entity-tag">未开启</span>
+            </div>
+            <p class="mine-copy">开启后，每次打开应用都需要先验证密码。</p>
+            <span class="patient-chevron" aria-hidden="true">›</span>
+          </article>
+
+          <article class="entity-card mine-menu-card" data-action="open-mine-submenu" data-menu="fields">
+            <div class="entity-head">
+              <div class="entity-title">字段配置</div>
+              <span class="entity-tag">模块联动</span>
+            </div>
+            <p class="mine-copy">统一管理病人、入院、日常记录的字段结构。</p>
+            <span class="patient-chevron" aria-hidden="true">›</span>
+          </article>
+        </div>
+
+        <div id="mine-migration-pane" class="hidden">
+          <div class="detail-group mine-group">
+            <div class="section-title">数据迁移</div>
+            <p class="mine-copy">导入或导出本机数据，便于在不同设备间转移离线资料。</p>
+            <div class="card-actions">
+              <button id="export-data-btn" class="btn btn-light btn-small" type="button">导出数据</button>
+              <button id="import-data-btn" class="btn btn-primary btn-small" type="button">导入数据</button>
+            </div>
+            <input id="import-file-input" class="hidden-file-input" type="file" accept="application/json">
+          </div>
+        </div>
+
+        <div id="mine-security-pane" class="hidden">
+          <div class="detail-group mine-group">
+            <div class="section-title section-title-with-action">
+              <span>密码保护</span>
+              <span id="mine-security-status" class="entity-tag">未开启</span>
+            </div>
+            <p id="mine-security-hint" class="mine-copy">开启后，应用每次启动都需要先输入密码。</p>
+            <div id="mine-security-actions" class="card-actions"></div>
+          </div>
+        </div>
+
+        <div id="mine-fields-pane" class="hidden">
+          <div class="detail-group mine-group">
+            <div class="section-title">字段配置</div>
+            <div class="hero-stats" id="field-stats"></div>
+
+            <div class="control-row">
+              <select id="schema-module-select">
+                <option value="patient">病人信息模块</option>
+                <option value="admission">入院记录模块</option>
+                <option value="daily">日常记录模块</option>
+              </select>
+              <button id="field-sort-mode-btn" class="btn btn-light btn-icon" type="button" aria-pressed="false" title="进入调整顺序模式">↕ 调序</button>
+              <button id="add-field-btn" class="btn btn-primary">字段+</button>
+            </div>
+
+            <div id="field-list" class="list-stack"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav id="tab-nav" class="tab-bar">
+      <button class="tab-item active" data-module="patient">
+        <span class="tab-icon">⌂</span>
+        <span class="tab-label">首页</span>
+      </button>
+      <button class="tab-item" data-module="template">
+        <span class="tab-icon">◈</span>
+        <span class="tab-label">模板</span>
+      </button>
+      <button class="tab-item" data-module="mine">
+        <span class="tab-icon">◎</span>
+        <span class="tab-label">我的</span>
+      </button>
+    </nav>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title-wrap">
+          <h3 id="modal-title"></h3>
+          <p id="modal-subtitle" class="modal-subtitle">请完善信息后保存，改动会即时生效。</p>
+        </div>
+        <button id="modal-close" class="icon-btn" aria-label="关闭">×</button>
+      </div>
+      <form id="modal-form" class="modal-form"></form>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn btn-light" type="button">取消</button>
+        <button id="modal-submit" class="btn btn-primary" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <div id="app-lock-overlay" class="lock-overlay hidden">
+    <div class="lock-card">
+      <h3>请输入访问密码</h3>
+      <p>已开启应用密码保护，请先验证后继续。</p>
+      <input id="app-lock-input" type="password" placeholder="输入密码">
+      <button id="app-unlock-btn" class="btn btn-primary" type="button">解锁进入</button>
+      <p id="app-lock-error" class="lock-error hidden">密码错误，请重试</p>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
