@@ -6,14 +6,18 @@
   patientDetailAdmissionId: "",
   patientDetailDailyId: "",
   patientDetailAssessmentId: "",
+  patientDetailImagingPreviewId: "",
   patientInHospitalOnly: false,
   mineSubPage: "",
   templateView: "disease",
   templateSelectedDiseaseId: "",
   templateSelectedVersionId: "",
   templateExpandedDiseaseId: "",
+  templateDiseaseSearchQuery: "",
   templateSimSelections: {},
   admissionAssessments: {},
+  admissionImaging: {},
+  admissionImagingPickerOpen: false,
   fieldsSortMode: false,
   schemas: {
     patient: [
@@ -235,7 +239,6 @@ const el = {
   tabNav: document.getElementById("tab-nav"),
   pageHost: document.getElementById("page-host"),
   headerBackBtn: document.getElementById("header-back-btn"),
-  headerDot: document.getElementById("header-dot"),
 
   patientListView: document.getElementById("patient-list-view"),
   patientDetailView: document.getElementById("patient-detail-view"),
@@ -257,6 +260,10 @@ const el = {
   patientAssessmentDetailCard: document.getElementById("patient-assessment-detail-card"),
   admissionAssessmentBtn: document.getElementById("admission-assessment-btn"),
   admissionTemplateSummary: document.getElementById("admission-template-summary"),
+  admissionImagingSourceRow: document.getElementById("admission-imaging-source-row"),
+  admissionImagingCameraInput: document.getElementById("admission-imaging-camera-input"),
+  admissionImagingAlbumInput: document.getElementById("admission-imaging-album-input"),
+  admissionImagingList: document.getElementById("admission-imaging-list"),
 
   patientStats: document.getElementById("patient-stats"),
   patientSearch: document.getElementById("patient-search"),
@@ -278,6 +285,7 @@ const el = {
   addTemplateVersionBtn: document.getElementById("add-template-version-btn"),
   addTemplateItemBtn: document.getElementById("add-template-item-btn"),
   addTemplateGradeBtn: document.getElementById("add-template-grade-btn"),
+  templateDiseaseSearch: document.getElementById("template-disease-search"),
   templateDiseaseList: document.getElementById("template-disease-list"),
   templateVersionTitle: document.getElementById("template-version-title"),
   templateVersionList: document.getElementById("template-version-list"),
@@ -302,7 +310,6 @@ const el = {
   exportDataBtn: document.getElementById("export-data-btn"),
   importDataBtn: document.getElementById("import-data-btn"),
   importFileInput: document.getElementById("import-file-input"),
-  mineSecurityHero: document.getElementById("mine-security-hero"),
   mineSecurityStatus: document.getElementById("mine-security-status"),
   mineSecurityHint: document.getElementById("mine-security-hint"),
   mineSecurityActions: document.getElementById("mine-security-actions"),
@@ -320,6 +327,10 @@ const el = {
   modalClose: document.getElementById("modal-close"),
   modalCancel: document.getElementById("modal-cancel"),
   modalSubmit: document.getElementById("modal-submit"),
+  imagingPreviewOverlay: document.getElementById("imaging-preview-overlay"),
+  imagingPreviewClose: document.getElementById("imaging-preview-close"),
+  imagingPreviewImage: document.getElementById("imaging-preview-image"),
+  imagingPreviewCaption: document.getElementById("imaging-preview-caption"),
 
   toast: document.getElementById("toast")
 };
@@ -356,6 +367,16 @@ function bindEvents() {
   el.addPatientBtn.addEventListener("click", openAddPatientModal);
   el.patientAddAdmissionBtn.addEventListener("click", openAddAdmissionFromPatientDetail);
   el.patientAddDailyBtn.addEventListener("click", openAddDailyFromPatientDetail);
+  if (el.admissionImagingCameraInput) {
+    el.admissionImagingCameraInput.addEventListener("change", () => {
+      handleAdmissionImagingFileInput(el.admissionImagingCameraInput);
+    });
+  }
+  if (el.admissionImagingAlbumInput) {
+    el.admissionImagingAlbumInput.addEventListener("change", () => {
+      handleAdmissionImagingFileInput(el.admissionImagingAlbumInput);
+    });
+  }
   el.headerBackBtn.addEventListener("click", handleHeaderBack);
 
   el.admissionPatientSelect.addEventListener("change", () => {
@@ -370,6 +391,14 @@ function bindEvents() {
   el.addTemplateVersionBtn.addEventListener("click", openAddTemplateVersionModal);
   el.addTemplateItemBtn.addEventListener("click", openAddTemplateItemModal);
   el.addTemplateGradeBtn.addEventListener("click", openAddTemplateGradeModal);
+  if (el.templateDiseaseSearch) {
+    el.templateDiseaseSearch.addEventListener("input", () => {
+      state.templateDiseaseSearchQuery = String(el.templateDiseaseSearch.value || "").trim();
+      if (state.activeModule === "template" && state.templateView === "disease") {
+        renderTemplateSection();
+      }
+    });
+  }
 
   el.schemaModuleSelect.addEventListener("change", renderFieldSection);
   el.addFieldBtn.addEventListener("click", openAddFieldModal);
@@ -396,6 +425,12 @@ function bindEvents() {
   el.patientAdmissionDetailCard.addEventListener("click", handlePatientActions);
   el.patientAdmissionDaily.addEventListener("click", handlePatientActions);
   el.patientDailyDetailCard.addEventListener("click", handlePatientActions);
+  if (el.admissionImagingSourceRow) {
+    el.admissionImagingSourceRow.addEventListener("click", handlePatientActions);
+  }
+  if (el.admissionImagingList) {
+    el.admissionImagingList.addEventListener("click", handlePatientActions);
+  }
   if (el.patientAssessmentDetailCard) {
     el.patientAssessmentDetailCard.addEventListener("click", handlePatientActions);
   }
@@ -426,6 +461,21 @@ function bindEvents() {
   el.modalOverlay.addEventListener("click", (event) => {
     if (event.target === el.modalOverlay) closeModal();
   });
+  if (el.imagingPreviewClose) {
+    el.imagingPreviewClose.addEventListener("click", closeAdmissionImagingPreview);
+  }
+  if (el.imagingPreviewOverlay) {
+    el.imagingPreviewOverlay.addEventListener("click", (event) => {
+      if (event.target === el.imagingPreviewOverlay) {
+        closeAdmissionImagingPreview();
+      }
+    });
+  }
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeAdmissionImagingPreview();
+    }
+  });
 
   el.pageHost.addEventListener("touchstart", handleEdgeSwipeStart, { passive: true });
   el.pageHost.addEventListener("touchmove", handleEdgeSwipeMove, { passive: true });
@@ -444,6 +494,9 @@ function renderAll() {
 
 function switchModule(moduleKey, silent = false) {
   const prevModule = state.activeModule;
+  if (moduleKey !== "patient") {
+    closeAdmissionImagingPreview();
+  }
   if (!el.pages[moduleKey]) {
     moduleKey = "patient";
   }
@@ -474,6 +527,10 @@ function switchModule(moduleKey, silent = false) {
   if (moduleKey === "mine") {
     renderMineSection();
   }
+  if (moduleKey === "template") {
+    // Ensure template pane visibility always matches templateView after tab switch.
+    renderTemplateSection();
+  }
 
   refreshPageHeader();
   refreshFabVisibility();
@@ -481,6 +538,9 @@ function switchModule(moduleKey, silent = false) {
 }
 
 function refreshPageHeader() {
+  let title = "";
+  let subtitle = "";
+
   if (state.activeModule === "patient" && state.patientDetailNo) {
     const admission = state.patientDetailAdmissionId
       ? state.admissions.find((item) =>
@@ -491,62 +551,54 @@ function refreshPageHeader() {
         item._id === state.patientDetailDailyId && item.admissionId === state.patientDetailAdmissionId)
       : null;
     if (admission && daily) {
-      el.pageTitle.textContent = "日常详情";
-      el.pageSubtitle.textContent = `${daily.recordDate || "未填写日期"} · 完整记录`;
-      return;
+      title = "日常详情";
+      subtitle = `${daily.recordDate || "未填写日期"} · 完整记录`;
+    } else if (admission) {
+      title = "入院详情";
+      subtitle = `${admission.admitDate || "未填写日期"} · 入院过程与日常记录`;
+    } else {
+      title = "病人明细";
+      subtitle = "基础信息与住院过程记录";
     }
-    if (admission) {
-      el.pageTitle.textContent = "入院详情";
-      el.pageSubtitle.textContent = `${admission.admitDate || "未填写日期"} · 入院过程与日常记录`;
-      return;
-    }
-    el.pageTitle.textContent = "病人明细";
-    el.pageSubtitle.textContent = "基础信息与住院过程记录";
-    return;
-  }
-
-  if (state.activeModule === "template") {
+  } else if (state.activeModule === "template") {
     const disease = getSelectedTemplateDisease();
     const version = getSelectedTemplateVersion();
     if (state.templateView === "config" && disease && version) {
-      el.pageTitle.textContent = version.versionName || "\u6d4b\u8bc4\u7248\u672c";
-      el.pageSubtitle.textContent = `${disease.diseaseName} \u00b7 \u6d4b\u8bc4\u9879\u914d\u7f6e`;
-      return;
+      title = version.versionName || "\u6d4b\u8bc4\u7248\u672c";
+      subtitle = `${disease.diseaseName} \u00b7 \u6d4b\u8bc4\u9879\u914d\u7f6e`;
+    } else {
+      title = "\u6d4b\u8bc4\u6a21\u677f";
+      subtitle = "\u75c5\u79cd\u5217\u8868";
     }
-    el.pageTitle.textContent = "\u6d4b\u8bc4\u6a21\u677f";
-    el.pageSubtitle.textContent = "\u75c5\u79cd\u5217\u8868";
-    return;
-  }
-
-  if (state.activeModule === "mine" && state.mineSubPage) {
+  } else if (state.activeModule === "mine" && state.mineSubPage) {
     if (state.mineSubPage === "migration") {
-      el.pageTitle.textContent = "数据迁移";
-      el.pageSubtitle.textContent = "导入导出本机数据，支持跨设备离线转移";
-      return;
+      title = "数据迁移";
+      subtitle = "导入导出本机数据，支持跨设备离线转移";
+    } else if (state.mineSubPage === "security") {
+      title = "密码保护";
+      subtitle = "设置访问密码，应用启动前进行校验";
+    } else if (state.mineSubPage === "fields") {
+      title = "字段配置";
+      subtitle = "配置字段并实时同步到业务模块";
     }
-    if (state.mineSubPage === "security") {
-      el.pageTitle.textContent = "密码保护";
-      el.pageSubtitle.textContent = "设置访问密码，应用启动前进行校验";
-      return;
-    }
-    if (state.mineSubPage === "fields") {
-      el.pageTitle.textContent = "字段配置";
-      el.pageSubtitle.textContent = "配置字段并实时同步到业务模块";
-      return;
-    }
+  } else {
+    const meta = moduleMeta[state.activeModule];
+    title = meta.title;
+    subtitle = meta.subtitle;
   }
 
-  const meta = moduleMeta[state.activeModule];
-  el.pageTitle.textContent = meta.title;
-  el.pageSubtitle.textContent = meta.subtitle;
+  const hideHomeSubtitle = state.activeModule === "patient" && !state.patientDetailNo;
+  el.pageTitle.textContent = title;
+  el.pageSubtitle.textContent = hideHomeSubtitle ? "" : subtitle;
+  el.pageSubtitle.classList.toggle("hidden", hideHomeSubtitle || !subtitle);
 }
 
 function refreshFabVisibility() {
-  const showHeaderBack = (state.activeModule === "patient" && !!state.patientDetailNo)
-    || (state.activeModule === "template" && state.templateView !== "disease")
-    || (state.activeModule === "mine" && !!state.mineSubPage);
+  const inRootPatient = state.activeModule === "patient" && !state.patientDetailNo;
+  const inRootTemplate = state.activeModule === "template" && state.templateView === "disease";
+  const inRootMine = state.activeModule === "mine" && !state.mineSubPage;
+  const showHeaderBack = !(inRootPatient || inRootTemplate || inRootMine);
   el.headerBackBtn.classList.toggle("hidden", !showHeaderBack);
-  el.headerDot.classList.toggle("hidden", showHeaderBack);
 }
 
 function handleHeaderBack() {
@@ -558,18 +610,27 @@ function handleHeaderBack() {
     closeMineSubPage();
     return;
   }
+  if (state.activeModule !== "patient") {
+    switchModule("patient", true);
+    renderPatientSection();
+    return;
+  }
   closePatientDetail();
 }
 
 function closePatientDetail(silent = false) {
   if (state.patientDetailAssessmentId) {
     state.patientDetailAssessmentId = "";
+    state.admissionImagingPickerOpen = false;
+    syncAdmissionImagingSourceRow();
     renderPatientSection();
     // no toast on back navigation
     return;
   }
   if (state.patientDetailDailyId) {
     state.patientDetailDailyId = "";
+    state.admissionImagingPickerOpen = false;
+    syncAdmissionImagingSourceRow();
     renderPatientSection();
     // no toast on back navigation
     return;
@@ -578,6 +639,9 @@ function closePatientDetail(silent = false) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
     state.patientDetailAssessmentId = "";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
+    syncAdmissionImagingSourceRow();
     renderPatientSection();
     // no toast on back navigation
     return;
@@ -587,12 +651,15 @@ function closePatientDetail(silent = false) {
   state.patientDetailAdmissionId = "";
   state.patientDetailDailyId = "";
   state.patientDetailAssessmentId = "";
+  state.patientDetailImagingPreviewId = "";
+  state.admissionImagingPickerOpen = false;
+  syncAdmissionImagingSourceRow();
   renderPatientSection();
   // no toast on back navigation
 }
 
 function closeTemplateDetail(silent = false) {
-  if (state.templateView === "config") {
+  if (state.templateView !== "disease") {
     state.templateView = "disease";
     state.templateSelectedVersionId = "";
     state.templateExpandedDiseaseId = state.templateSelectedDiseaseId || state.templateExpandedDiseaseId;
@@ -667,9 +734,10 @@ function handlePatientStatsActions(event) {
 }
 
 function canSwipeBackFromDetail() {
-  return (state.activeModule === "patient" && !!state.patientDetailNo)
-    || (state.activeModule === "template" && state.templateView !== "disease")
-    || (state.activeModule === "mine" && !!state.mineSubPage);
+  const inRootPatient = state.activeModule === "patient" && !state.patientDetailNo;
+  const inRootTemplate = state.activeModule === "template" && state.templateView === "disease";
+  const inRootMine = state.activeModule === "mine" && !state.mineSubPage;
+  return !(inRootPatient || inRootTemplate || inRootMine);
 }
 
 function handleEdgeSwipeStart(event) {
@@ -729,7 +797,7 @@ function renderPatientCard(patient) {
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
 
   return `
-    <article class="entity-card patient-card" data-patient-id="${esc(patient.admissionNo)}">
+    <article class="entity-card patient-card daily-ref-card" data-patient-id="${esc(patient.admissionNo)}">
       <div class="entity-head patient-card-head">
         <div class="entity-title patient-name">${esc(patient.name || "未命名病人")}</div>
         <div class="patient-head-right">
@@ -740,7 +808,7 @@ function renderPatientCard(patient) {
           </div>
         </div>
       </div>
-      <div class="field-grid">${fields}</div>
+      <div class="field-grid overview-field-grid daily-overview-grid">${fields}</div>
       <span class="patient-chevron" aria-hidden="true">›</span>
     </article>
   `;
@@ -749,6 +817,7 @@ function renderPatientCard(patient) {
 function renderPatientDetailView() {
   const patient = state.patients.find((item) => item.admissionNo === state.patientDetailNo);
   if (!patient) {
+    closeAdmissionImagingPreview();
     state.patientDetailNo = "";
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
@@ -783,7 +852,12 @@ function renderPatientDetailView() {
   if (!inAdmissionDetail) {
     state.patientDetailDailyId = "";
     state.patientDetailAssessmentId = "";
-    el.patientDetailName.textContent = "病人明细";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
+    closeAdmissionImagingPreview();
+    syncAdmissionImagingSourceRow();
+    el.patientDetailStats.classList.remove("stats-triple");
+    el.patientDetailName.textContent = "病人概况";
     el.patientDetailSubtitle.textContent = "基础信息与住院过程记录";
     el.patientDetailStats.innerHTML = [
       statItem("入院记录", admissions.length),
@@ -812,6 +886,10 @@ function renderPatientDetailView() {
   if (!admission) {
     state.patientDetailAdmissionId = "";
     state.patientDetailAssessmentId = "";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
+    closeAdmissionImagingPreview();
+    syncAdmissionImagingSourceRow();
     renderPatientDetailView();
     return;
   }
@@ -835,11 +913,18 @@ function renderPatientDetailView() {
   el.patientAssessmentDetailPane.classList.toggle("hidden", !inAssessmentDetail);
 
   if (!inDailyDetail && !inAssessmentDetail) {
-    el.patientDetailName.textContent = `${patient.name} · 入院详情`;
+    const imagingCount = normalizeImageItems(state.admissionImaging?.[admission._id] || []).length;
+    const assessmentCount = assessmentRecords.length;
+    el.patientDetailName.innerHTML = `
+      <span>${esc(patient.name || "未命名病人")}</span>
+      <span class="entity-tag patient-detail-admission-tag">住院号 ${esc(patient.admissionNo)}</span>
+    `;
     el.patientDetailSubtitle.textContent = `${admission.admitDate || "未填写日期"} · ${admission.diagnosis || "未填写诊断"}`;
+    el.patientDetailStats.classList.add("stats-triple");
     el.patientDetailStats.innerHTML = [
-      statItem("住院号", patient.admissionNo),
-      statItem("日常记录", dailyRows.length)
+      statItem("日常记录", dailyRows.length),
+      statItem("影像资料", imagingCount),
+      statItem("住院测评", assessmentCount)
     ].join("");
 
     el.patientAdmissionDetailCard.innerHTML = renderAdmissionDetailCard(admission);
@@ -847,8 +932,13 @@ function renderPatientDetailView() {
       ? dailyRows.map(renderDailyDetailCard).join("")
       : `<div class="empty">当前入院记录暂无日常记录</div>`;
     renderAdmissionAssessmentSection(admission);
+    renderAdmissionImagingSection(admission);
     return;
   }
+
+  state.admissionImagingPickerOpen = false;
+  closeAdmissionImagingPreview();
+  syncAdmissionImagingSourceRow();
 
   if (inDailyDetail) {
     const daily = dailyRows.find((item) => item._id === state.patientDetailDailyId);
@@ -858,7 +948,8 @@ function renderPatientDetailView() {
       return;
     }
 
-    el.patientDetailName.textContent = `${patient.name} · 日常详情`;
+    el.patientDetailStats.classList.remove("stats-triple");
+    el.patientDetailName.textContent = `${patient.name}`;
     el.patientDetailSubtitle.textContent = `${daily.recordDate || "未填写日期"} · ${admission.admitDate || "未填写入院日期"}`;
     el.patientDetailStats.innerHTML = [
       statItem("住院号", patient.admissionNo),
@@ -876,13 +967,14 @@ function renderPatientDetailView() {
   }
 
   const meta = getAssessmentRecordMeta(record);
+  el.patientDetailStats.classList.remove("stats-triple");
   el.patientDetailName.textContent = `${patient.name} · 测评明细`;
   el.patientDetailSubtitle.textContent = `${meta.diseaseName} · ${meta.versionName}`;
   el.patientDetailStats.innerHTML = [
     statItem("住院号", patient.admissionNo),
     statItem("测评时间", formatDateTime(record.createdAt))
   ].join("");
-  el.patientAssessmentDetailCard.innerHTML = renderAssessmentDetailView(record);
+  el.patientAssessmentDetailCard.innerHTML = renderAssessmentDetailView(record, admission);
 }
 
 function renderPatientAdmissionCard(admission) {
@@ -893,7 +985,7 @@ function renderPatientAdmissionCard(admission) {
   const dailyCount = state.dailyRecords.filter((item) => item.admissionId === admission._id).length;
 
   return `
-    <article class="entity-card patient-admission-card" data-action="open-patient-admission-detail" data-id="${esc(admission._id)}">
+    <article class="entity-card patient-admission-card daily-ref-card" data-action="open-patient-admission-detail" data-id="${esc(admission._id)}">
       <div class="entity-head">
         <div class="entity-title">${esc(admission.admitDate || "未填写入院日期")}</div>
         <div class="patient-inline-actions">
@@ -902,7 +994,7 @@ function renderPatientAdmissionCard(admission) {
           <button class="mini-btn delete" data-action="delete-admission-inline" data-id="${esc(admission._id)}">删除</button>
         </div>
       </div>
-      <div class="field-grid">${fields}</div>
+      <div class="field-grid overview-field-grid daily-overview-grid">${fields}</div>
       <span class="patient-chevron admission-chevron" aria-hidden="true">›</span>
     </article>
   `;
@@ -914,15 +1006,14 @@ function renderAdmissionDetailCard(admission) {
     .join("");
 
   return `
-    <article class="entity-card">
+    <article class="entity-card overview-static-card">
       <div class="entity-head">
         <div class="entity-title">${esc(admission.admitDate || "未填写入院日期")}</div>
-        <div class="patient-inline-actions">
-          <span class="entity-tag">入院详情</span>
-          <button class="mini-btn edit" data-action="edit-admission-detail" data-id="${esc(admission._id)}">编辑</button>
+        <div class="patient-inline-actions overview-card-actions">
+          <button class="mini-btn edit overview-action-btn" data-action="edit-admission-detail" data-id="${esc(admission._id)}">编辑</button>
         </div>
       </div>
-      <div class="field-grid">${fields}</div>
+      <div class="field-grid overview-field-grid admission-detail-grid">${fields}</div>
     </article>
   `;
 }
@@ -934,15 +1025,15 @@ function renderDailyDetailCard(row) {
     : fieldItem("提示", "当前未配置日常列表显示字段，请在字段配置中开启");
 
   return `
-    <article class="entity-card patient-daily-card" data-id="${esc(row._id)}">
+    <article class="entity-card patient-daily-card overview-click-card" data-id="${esc(row._id)}">
       <div class="entity-head">
         <div class="entity-title">${esc(row.recordDate || "未填写日期")}</div>
-        <div class="patient-inline-actions">
-          <button class="mini-btn edit" data-action="edit-daily-inline" data-id="${esc(row._id)}">编辑</button>
-          <button class="mini-btn delete" data-action="delete-daily-inline" data-id="${esc(row._id)}">删除</button>
+        <div class="patient-inline-actions overview-card-actions">
+          <button class="mini-btn edit overview-action-btn" data-action="edit-daily-inline" data-id="${esc(row._id)}">编辑</button>
+          <button class="mini-btn delete overview-action-btn" data-action="delete-daily-inline" data-id="${esc(row._id)}">删除</button>
         </div>
       </div>
-      <div class="field-grid">${fields}</div>
+      <div class="field-grid overview-field-grid daily-overview-grid">${fields}</div>
       <span class="patient-chevron daily-chevron" aria-hidden="true">›</span>
     </article>
   `;
@@ -954,16 +1045,15 @@ function renderDailyRecordDetailCard(row) {
     .join("");
 
   return `
-    <article class="entity-card">
+    <article class="entity-card overview-static-card">
       <div class="entity-head">
         <div class="entity-title">${esc(row.recordDate || "未填写日期")}</div>
-        <div class="patient-inline-actions">
-          <span class="entity-tag">日常详情</span>
-          <button class="mini-btn edit" data-action="edit-daily-inline" data-id="${esc(row._id)}">编辑</button>
-          <button class="mini-btn delete" data-action="delete-daily-inline" data-id="${esc(row._id)}">删除</button>
+        <div class="patient-inline-actions overview-card-actions">
+          <button class="mini-btn edit overview-action-btn" data-action="edit-daily-inline" data-id="${esc(row._id)}">编辑</button>
+          <button class="mini-btn delete overview-action-btn" data-action="delete-daily-inline" data-id="${esc(row._id)}">删除</button>
         </div>
       </div>
-      <div class="field-grid">${fields}</div>
+      <div class="field-grid overview-field-grid daily-overview-grid">${fields}</div>
     </article>
   `;
 }
@@ -1022,6 +1112,43 @@ function handlePatientActions(event) {
       return;
     }
 
+    if (action === "admission-imaging-camera") {
+      if (!el.admissionImagingCameraInput || !state.patientDetailAdmissionId) return;
+      el.admissionImagingCameraInput.value = "";
+      el.admissionImagingCameraInput.click();
+      return;
+    }
+
+    if (action === "admission-imaging-album") {
+      if (!el.admissionImagingAlbumInput || !state.patientDetailAdmissionId) return;
+      el.admissionImagingAlbumInput.value = "";
+      el.admissionImagingAlbumInput.click();
+      return;
+    }
+
+    if (action === "select-admission-image") {
+      if (!id) return;
+      state.patientDetailImagingPreviewId = id;
+      openAdmissionImagingPreview(id);
+      renderAdmissionImagingThumbActiveState(id);
+      return;
+    }
+
+    if (action === "remove-admission-image") {
+      if (!id || !state.patientDetailAdmissionId) return;
+      if (!confirm("确认删除该影像资料吗？")) return;
+      const removed = removeAdmissionImagingItem(state.patientDetailAdmissionId, id);
+      if (!removed) return;
+      if (state.patientDetailImagingPreviewId === id) {
+        state.patientDetailImagingPreviewId = "";
+        closeAdmissionImagingPreview();
+      }
+      persistDataState();
+      renderPatientSection();
+      showToast("影像资料已删除");
+      return;
+    }
+
     if (action === "delete-patient") {
       if (!confirm(`确认删除住院号 ${id} 的病人信息吗？`)) return;
 
@@ -1037,6 +1164,11 @@ function handlePatientActions(event) {
           delete state.admissionAssessments[admissionId];
         });
       }
+      if (state.admissionImaging) {
+        affectedAdmissionIds.forEach((admissionId) => {
+          delete state.admissionImaging[admissionId];
+        });
+      }
 
       if (state.selectedPatientNo === id) {
         state.selectedPatientNo = state.patients[0]?.admissionNo || "";
@@ -1047,6 +1179,10 @@ function handlePatientActions(event) {
         state.patientDetailNo = "";
         state.patientDetailAdmissionId = "";
         state.patientDetailAssessmentId = "";
+        state.patientDetailImagingPreviewId = "";
+        state.admissionImagingPickerOpen = false;
+        closeAdmissionImagingPreview();
+        syncAdmissionImagingSourceRow();
       }
 
       persistDataState();
@@ -1061,6 +1197,8 @@ function handlePatientActions(event) {
     state.patientDetailAdmissionId = admissionCard.dataset.id;
     state.patientDetailDailyId = "";
     state.patientDetailAssessmentId = "";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
     renderPatientSection();
     return;
   }
@@ -1087,6 +1225,8 @@ function handlePatientActions(event) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
     state.patientDetailAssessmentId = "";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
     renderPatientSection();
   }
 }
@@ -1230,6 +1370,9 @@ function deleteAdmissionById(id) {
   if (state.admissionAssessments) {
     delete state.admissionAssessments[id];
   }
+  if (state.admissionImaging) {
+    delete state.admissionImaging[id];
+  }
 
   if (state.selectedAdmissionId === id) {
     state.selectedAdmissionId = "";
@@ -1237,6 +1380,10 @@ function deleteAdmissionById(id) {
   if (state.patientDetailAdmissionId === id) {
     state.patientDetailAdmissionId = "";
     state.patientDetailAssessmentId = "";
+    state.patientDetailImagingPreviewId = "";
+    state.admissionImagingPickerOpen = false;
+    closeAdmissionImagingPreview();
+    syncAdmissionImagingSourceRow();
   }
   state.patientDetailDailyId = "";
 
@@ -1268,6 +1415,14 @@ function deleteDailyById(id) {
 function renderTemplateSection() {
   normalizeTemplateSelection();
   const diseases = state.templates;
+  const searchKeyword = String(state.templateDiseaseSearchQuery || "").trim().toLowerCase();
+  const filteredDiseases = searchKeyword
+    ? diseases.filter((disease) => {
+      const nameText = String(disease?.diseaseName || "").toLowerCase();
+      const codeText = String(disease?.diseaseCode || "").toLowerCase();
+      return nameText.includes(searchKeyword) || codeText.includes(searchKeyword);
+    })
+    : diseases;
   let selectedDisease = getSelectedTemplateDisease();
   let selectedVersion = getSelectedTemplateVersion();
 
@@ -1292,10 +1447,21 @@ function renderTemplateSection() {
     statItem("\u75c5\u79cd\u6a21\u677f", diseases.length),
     statItem("\u7248\u672c\u6570\u91cf", versionCount)
   ].join("");
+  if (el.templateDiseaseSearch) {
+    const currentValue = String(el.templateDiseaseSearch.value || "");
+    const targetValue = String(state.templateDiseaseSearchQuery || "");
+    if (currentValue !== targetValue) {
+      el.templateDiseaseSearch.value = targetValue;
+    }
+  }
 
   if (state.templateView === "disease") {
-    el.templateDiseaseList.innerHTML = diseases.length
-      ? diseases
+    if (!diseases.length) {
+      el.templateDiseaseList.innerHTML = `<div class="empty">\u6682\u65e0\u75c5\u79cd\u6a21\u677f\uff0c\u8bf7\u5148\u65b0\u589e\u75c5\u79cd</div>`;
+      return;
+    }
+    el.templateDiseaseList.innerHTML = filteredDiseases.length
+      ? filteredDiseases
         .map((disease) =>
           renderTemplateDiseaseCard(
             disease,
@@ -1303,7 +1469,7 @@ function renderTemplateSection() {
             disease.id === state.templateSelectedDiseaseId
           ))
         .join("")
-      : `<div class="empty">\u6682\u65e0\u75c5\u79cd\u6a21\u677f\uff0c\u8bf7\u5148\u65b0\u589e\u75c5\u79cd</div>`;
+      : `<div class="empty">\u672a\u627e\u5230\u5339\u914d\u7684\u75c5\u79cd\u6a21\u677f\uff0c\u8bf7\u68c0\u67e5\u540d\u79f0\u6216\u7f16\u7801</div>`;
     return;
   }
 
@@ -1608,16 +1774,166 @@ function renderAdmissionAssessmentSection(admission) {
     .join("");
 }
 
-function renderAdmissionAssessmentModalItem(admissionId, item, selections) {
+function getAdmissionImagingItems(admissionId) {
+  if (!admissionId) return [];
+  if (!state.admissionImaging || typeof state.admissionImaging !== "object") {
+    state.admissionImaging = {};
+  }
+  const normalized = normalizeImageItems(state.admissionImaging[admissionId] || []);
+  state.admissionImaging[admissionId] = normalized;
+  return normalized;
+}
+
+function setAdmissionImagingItems(admissionId, items) {
+  if (!admissionId) return [];
+  if (!state.admissionImaging || typeof state.admissionImaging !== "object") {
+    state.admissionImaging = {};
+  }
+  const normalized = normalizeImageItems(items);
+  if (normalized.length) {
+    state.admissionImaging[admissionId] = normalized;
+  } else {
+    delete state.admissionImaging[admissionId];
+  }
+  return normalized;
+}
+
+function removeAdmissionImagingItem(admissionId, imageId) {
+  if (!admissionId || !imageId) return false;
+  const items = getAdmissionImagingItems(admissionId);
+  const next = items.filter((item) => item.id !== imageId);
+  if (next.length === items.length) return false;
+  setAdmissionImagingItems(admissionId, next);
+  return true;
+}
+
+function syncAdmissionImagingSourceRow() {
+  if (!el.admissionImagingSourceRow) return;
+  const visible = state.activeModule === "patient"
+    && !!state.patientDetailAdmissionId
+    && !state.patientDetailDailyId
+    && !state.patientDetailAssessmentId;
+  el.admissionImagingSourceRow.classList.toggle("hidden", !visible);
+}
+
+function handleAdmissionImagingFileInput(input) {
+  const files = Array.from(input?.files || []);
+  const admissionId = state.patientDetailAdmissionId;
+  if (!files.length || !admissionId) {
+    if (input) input.value = "";
+    return;
+  }
+
+  readFilesAsDataUrls(files).then((items) => {
+    if (!items.length) {
+      showToast("未读取到有效影像");
+      return;
+    }
+    const merged = getAdmissionImagingItems(admissionId).concat(items);
+    setAdmissionImagingItems(admissionId, merged);
+    state.patientDetailImagingPreviewId = items[0].id || state.patientDetailImagingPreviewId;
+    persistDataState();
+    if (state.activeModule === "patient" && state.patientDetailAdmissionId === admissionId) {
+      renderPatientSection();
+    } else {
+      renderAll();
+    }
+    showToast(`已新增${items.length}张影像`);
+  }).finally(() => {
+    if (input) input.value = "";
+  });
+}
+
+function renderAdmissionImagingSection(admission) {
+  if (!admission || !el.admissionImagingList) return;
+  const items = getAdmissionImagingItems(admission._id);
+  syncAdmissionImagingSourceRow();
+
+  if (!items.length) {
+    state.patientDetailImagingPreviewId = "";
+    el.admissionImagingList.innerHTML = `<div class="empty">暂无影像资料，可使用拍照或相册上传</div>`;
+    return;
+  }
+
+  if (!items.some((item) => item.id === state.patientDetailImagingPreviewId)) {
+    state.patientDetailImagingPreviewId = items[0].id;
+  }
+  const activeId = state.patientDetailImagingPreviewId;
+
+  el.admissionImagingList.innerHTML = `
+    <article class="entity-card admission-imaging-card">
+      <div class="admission-imaging-preview-meta">
+        <span>点击缩略图查看原图</span>
+        <span class="entity-tag">共 ${esc(String(items.length))} 张</span>
+      </div>
+      <div class="admission-imaging-thumb-strip">
+        ${items.map((item, index) => renderAdmissionImagingThumb(item, item.id === activeId, index)).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderAdmissionImagingThumb(item, active, index) {
+  const title = item.name || `影像${index + 1}`;
+  return `
+    <div class="admission-imaging-thumb${active ? " active" : ""}">
+      <button class="admission-imaging-thumb-hit" type="button" data-action="select-admission-image" data-id="${esc(item.id)}" aria-label="预览${esc(title)}">
+        <img src="${esc(item.src)}" alt="${esc(title)}">
+      </button>
+      <button class="admission-imaging-thumb-remove" type="button" data-action="remove-admission-image" data-id="${esc(item.id)}" aria-label="删除${esc(title)}">×</button>
+    </div>
+  `;
+}
+
+function renderAdmissionImagingThumbActiveState(activeId) {
+  if (!el.admissionImagingList) return;
+  el.admissionImagingList.querySelectorAll(".admission-imaging-thumb").forEach((thumb) => {
+    const hitBtn = thumb.querySelector(".admission-imaging-thumb-hit[data-id]");
+    thumb.classList.toggle("active", !!hitBtn && hitBtn.dataset.id === activeId);
+  });
+}
+
+function openAdmissionImagingPreview(imageId) {
+  if (!el.imagingPreviewOverlay || !el.imagingPreviewImage || !state.patientDetailAdmissionId || !imageId) return;
+  const items = getAdmissionImagingItems(state.patientDetailAdmissionId);
+  const target = items.find((item) => item.id === imageId);
+  if (!target) return;
+  el.imagingPreviewImage.src = target.src;
+  el.imagingPreviewImage.alt = target.name || "影像原图";
+  if (el.imagingPreviewCaption) {
+    const fallbackName = `影像 ${items.findIndex((item) => item.id === imageId) + 1}`;
+    el.imagingPreviewCaption.textContent = target.name || fallbackName;
+  }
+  el.imagingPreviewOverlay.classList.remove("hidden");
+}
+
+function closeAdmissionImagingPreview() {
+  if (!el.imagingPreviewOverlay) return;
+  el.imagingPreviewOverlay.classList.add("hidden");
+  if (el.imagingPreviewImage) {
+    el.imagingPreviewImage.removeAttribute("src");
+  }
+  if (el.imagingPreviewCaption) {
+    el.imagingPreviewCaption.textContent = "";
+  }
+}
+
+function renderAdmissionAssessmentModalItem(admissionId, item, selections, config = {}) {
+  const readonly = !!config.readonly;
+  const itemNameSeed = config.nameSeed || admissionId;
   const selectedId = selections?.[item.id] || "";
   const options = item.options || [];
   const optionHtml = options.length
     ? options.map((opt) => {
       const checked = opt.id === selectedId ? "checked" : "";
+      const readonlyAttrs = readonly
+        ? "disabled"
+        : `data-action="admission-assessment-option" data-admission-id="${esc(admissionId)}" data-item-id="${esc(item.id)}"`;
+      const optionClass = `assessment-option${readonly ? " readonly" : ""}`;
       return `
-        <label class="assessment-option">
-          <input type="radio" name="assess_${esc(admissionId)}_${esc(item.id)}" value="${esc(opt.id)}"
-            data-action="admission-assessment-option" data-admission-id="${esc(admissionId)}" data-item-id="${esc(item.id)}" ${checked}>
+        <label class="${optionClass}">
+          <input type="radio" name="assess_${esc(itemNameSeed)}_${esc(item.id)}" value="${esc(opt.id)}"
+            ${readonlyAttrs} ${checked}>
           <span class="label">${esc(opt.label)}</span>
           <span class="score">${esc(String(opt.score))}分</span>
         </label>
@@ -1652,79 +1968,255 @@ function getAssessmentRecordMeta(record) {
 
 function renderAssessmentRecordCard(record) {
   const meta = getAssessmentRecordMeta(record);
-  const scoreText = meta.result ? meta.result.score.toFixed(1) : "-";
-  const levelText = meta.result?.level || (meta.version ? "待评估" : "不可用");
   const dateText = formatDateTime(record.createdAt);
+  const scaleCore = (meta.version && meta.result)
+    ? renderAssessmentScoreScale(meta.version, meta.result, { compact: true, hideLabels: false, labelMode: "full" })
+    : "";
+  const scaleHtml = scaleCore || `<div class="assessment-scale-empty">当前模板未配置区间，无法展示进度条</div>`;
   return `
-    <article class="entity-card assessment-record-card" data-id="${esc(record.id)}">
+    <article class="entity-card assessment-record-card overview-click-card" data-id="${esc(record.id)}">
       <div class="entity-head">
         <div class="entity-title">${esc(meta.diseaseName)}</div>
-        <div class="field-head-actions assessment-record-actions">
-          <button class="mini-btn edit" data-action="edit-assessment-record" data-id="${esc(record.id)}">修改</button>
-          <button class="mini-btn delete" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
-          <span class="entity-tag">${esc(scoreText)}分</span>
-          <span class="entity-tag ${meta.result?.level ? "active" : ""}">${esc(levelText)}</span>
+        <div class="field-head-actions assessment-record-actions overview-card-actions">
+          <button class="mini-btn edit overview-action-btn" data-action="edit-assessment-record" data-id="${esc(record.id)}">编辑</button>
+          <button class="mini-btn delete overview-action-btn" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
         </div>
       </div>
-      <div class="field-grid">
+      <div class="field-grid assessment-meta-grid overview-field-grid">
         ${fieldItem("模板版本", meta.versionName)}
         ${fieldItem("测评时间", dateText)}
+      </div>
+      <div class="assessment-record-scale">
+        ${scaleHtml}
       </div>
       <span class="patient-chevron" aria-hidden="true">›</span>
     </article>
   `;
 }
 
-function renderAssessmentDetailItem(item, selectedOption) {
-  return `
-    <article class="entity-card assessment-detail-item">
-      <div class="entity-head">
-        <div class="entity-title">${esc(item.name || "未命名测评项")}</div>
-        <span class="entity-tag ${selectedOption ? "active" : ""}">${selectedOption ? "已选择" : "未选择"}</span>
-      </div>
-      <div class="field-grid">
-        ${fieldItem("评分选项", selectedOption?.label || "-")}
-        ${fieldItem("得分", selectedOption ? `${selectedOption.score}分` : "-")}
-      </div>
-    </article>
-  `;
-}
-
-function renderAssessmentDetailView(record) {
+function renderAssessmentDetailView(record, admission) {
   const meta = getAssessmentRecordMeta(record);
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  const selectedDisease = diseases.find((item) => item.id === record.diseaseId) || null;
+  const versions = selectedDisease?.versions || [];
+  const selectedVersion = versions.find((item) => item.id === record.versionId) || null;
+  const result = meta.result;
+  const diseaseOptions = selectedDisease
+    ? diseases.map((row) => {
+      const selected = row.id === record.diseaseId ? "selected" : "";
+      return `<option value="${esc(row.id)}" ${selected}>${esc(row.diseaseName || "未命名病种")}</option>`;
+    }).join("")
+    : `<option value="">模板已删除</option>`;
+  const versionOptions = selectedVersion
+    ? versions.map((row) => {
+      const selected = row.id === record.versionId ? "selected" : "";
+      return `<option value="${esc(row.id)}" ${selected}>${esc(row.versionName || "未命名版本")}</option>`;
+    }).join("")
+    : `<option value="">版本不可用</option>`;
+
   const items = meta.version?.items || [];
   const resultHtml = meta.version
     ? renderAdmissionAssessmentResult(meta.version, record.selections)
     : renderEmptyAssessmentResult("该测评模板已被删除");
+  const scoreScaleHtml = (meta.version && result)
+    ? renderAssessmentScoreScale(meta.version, result)
+    : "";
   const itemHtml = items.length
-    ? items.map((item) => {
-      const selectedId = record.selections?.[item.id];
-      const selectedOption = (item.options || []).find((opt) => opt.id === selectedId) || null;
-      return renderAssessmentDetailItem(item, selectedOption);
-    }).join("")
+    ? items.map((item) =>
+      renderAdmissionAssessmentModalItem(admission?._id || "detail", item, record.selections, {
+        readonly: true,
+        nameSeed: `detail_${record.id}`
+      })).join("")
     : `<div class="empty">暂无测评项</div>`;
 
   return `
-    <article class="entity-card assessment-detail-summary">
-      <div class="entity-head">
-        <div class="entity-title">${esc(meta.diseaseName)}</div>
-        <div class="field-head-actions">
-          <span class="entity-tag ${meta.result?.level ? "active" : ""}">${esc(meta.versionName)}</span>
-          <button class="mini-btn edit" data-action="edit-assessment-record" data-id="${esc(record.id)}">修改</button>
-          <button class="mini-btn delete" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
+    <div class="assessment-modal-body assessment-detail-readonly">
+      <div class="assessment-summary">
+        <div class="summary-main">
+          <div class="summary-title">住院测评明细</div>
+          <div class="summary-sub">${esc(admission?.admitDate || "未填写入院日期")} · ${esc(admission?.diagnosis || "未填写诊断")}</div>
+        </div>
+        <div class="summary-score">
+          <div class="label">当前得分</div>
+          <div class="value">${meta.version ? result.score.toFixed(1) : "-"}</div>
+          <div class="tag ${result?.level ? "active" : ""}">${esc(result?.level || "待评估")}</div>
         </div>
       </div>
-      <div class="field-grid">
-        ${fieldItem("测评时间", formatDateTime(record.createdAt))}
-        ${fieldItem("完成项", meta.result ? `${meta.result.filledCount}/${meta.result.totalCount}` : "-")}
-      </div>
-    </article>
-    <article class="entity-card assessment-result-card">
-      ${resultHtml}
-    </article>
-    <div class="section-title">测评项明细</div>
-    <div class="assessment-item-list">${itemHtml}</div>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">01</span>
+          <div>
+            <div class="step-title">模板与版本</div>
+            <div class="step-sub">当前测评使用的规则（只读）</div>
+          </div>
+        </div>
+        <div class="control-row">
+          <select disabled>
+            ${diseaseOptions}
+          </select>
+          <select disabled>
+            ${versionOptions}
+          </select>
+        </div>
+        <div class="field-grid">
+          ${fieldItem("测评时间", formatDateTime(record.createdAt))}
+          ${fieldItem("完成项", meta.result ? `${meta.result.filledCount}/${meta.result.totalCount}` : "-")}
+          ${fieldItem("患病等级", meta.result?.level || "待评估")}
+        </div>
+      </section>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">02</span>
+          <div>
+            <div class="step-title">评分选项</div>
+            <div class="step-sub">仅展示已保存选项，不可修改</div>
+          </div>
+        </div>
+        <div class="assessment-item-list">${itemHtml}</div>
+      </section>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">03</span>
+          <div>
+            <div class="step-title">评分结果</div>
+            <div class="step-sub">自动汇总得分与区间</div>
+          </div>
+          <div class="field-head-actions overview-card-actions">
+            <button class="mini-btn edit overview-action-btn" data-action="edit-assessment-record" data-id="${esc(record.id)}">编辑</button>
+            <button class="mini-btn delete overview-action-btn" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
+          </div>
+        </div>
+        <div class="entity-card assessment-result-card">
+          ${scoreScaleHtml}
+          ${resultHtml}
+        </div>
+      </section>
+    </div>
   `;
+}
+
+function renderAssessmentScoreScale(version, result, options = {}) {
+  const hideLabels = !!options.hideLabels;
+  const compact = !!options.compact;
+  const labelMode = options.labelMode === "range" ? "range" : "full";
+  const rawRules = Array.isArray(version?.gradeRules) ? version.gradeRules : [];
+  const rules = rawRules
+    .map((rule) => ({
+      min: Number(rule?.min),
+      max: Number(rule?.max),
+      level: String(rule?.level || "").trim()
+    }))
+    .filter((rule) => Number.isFinite(rule.min) && Number.isFinite(rule.max) && rule.max >= rule.min)
+    .sort((a, b) => a.min - b.min);
+
+  if (!rules.length) {
+    return "";
+  }
+
+  const palette = ["#8fbaf2", "#84d6c0", "#f5c97c", "#f2a0a0", "#b8abf7", "#97d2e5"];
+  const domainMin = Math.min(...rules.map((rule) => rule.min));
+  let domainMax = Math.max(...rules.map((rule) => rule.max));
+  if (!Number.isFinite(domainMax) || domainMax <= domainMin) {
+    domainMax = domainMin + 1;
+  }
+  const totalSpan = (domainMax - domainMin) + 1;
+  const score = Number.isFinite(Number(result?.score)) ? Number(result.score) : 0;
+  const normalized = Math.max(0, Math.min(1, (score - domainMin) / (domainMax - domainMin)));
+  const markerPct = normalized * 100;
+  const markerClass = markerPct <= 8 ? "left" : markerPct >= 92 ? "right" : "";
+
+  const segmentsHtml = rules.map((rule, index) => {
+    const span = Math.max((rule.max - rule.min) + 1, 1);
+    const width = (span / totalSpan) * 100;
+    const color = palette[index % palette.length];
+    const active = score >= rule.min && score <= rule.max;
+    return `<span class="assessment-scale-segment ${active ? "active" : ""}" style="--segment-width:${width.toFixed(4)}%;--segment-color:${color};"></span>`;
+  }).join("");
+
+  const labelsHtml = rules.map((rule, index) => {
+    const span = Math.max((rule.max - rule.min) + 1, 1);
+    const width = (span / totalSpan) * 100;
+    const color = palette[index % palette.length];
+    const active = score >= rule.min && score <= rule.max;
+    const level = rule.level || `区间${index + 1}`;
+    const labelText = labelMode === "range" ? `${rule.min}-${rule.max}` : `${level} ${rule.min}-${rule.max}`;
+    return `
+      <span class="assessment-scale-label-cell ${active ? "active" : ""}" style="--segment-width:${width.toFixed(4)}%;">
+        <span class="assessment-scale-label-chip">
+          <span class="dot" style="--dot-color:${color};"></span>
+          <span class="text">${esc(labelText)}</span>
+        </span>
+      </span>
+    `;
+  }).join("");
+
+  const labelsRowHtml = hideLabels
+    ? ""
+    : `<div class="assessment-scale-label-row">${labelsHtml}</div>`;
+
+  return `
+    <div class="assessment-scale ${compact ? "compact" : ""}">
+      <div class="assessment-scale-track-wrap">
+        <div class="assessment-scale-track">
+          ${segmentsHtml}
+        </div>
+        <span class="assessment-scale-marker ${markerClass}" style="left:${markerPct.toFixed(2)}%;">
+          <span class="marker-dot"></span>
+          <span class="marker-label">${esc(score.toFixed(1))}</span>
+        </span>
+      </div>
+      ${labelsRowHtml}
+    </div>
+  `;
+}
+
+function validateAssessmentDraftSelections(draft) {
+  if (!draft || !draft.diseaseId || !draft.versionId) {
+    return { ok: false, message: "请选择测评模板与版本后再保存。" };
+  }
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  const disease = diseases.find((item) => item.id === draft.diseaseId);
+  const version = (disease?.versions || []).find((item) => item.id === draft.versionId);
+  if (!version) {
+    return { ok: false, message: "当前模板版本不可用，请重新选择后再保存。" };
+  }
+
+  const items = Array.isArray(version.items) ? version.items : [];
+  if (!items.length) {
+    return { ok: false, message: "当前版本暂无测评项，无法保存。" };
+  }
+
+  const missingConfig = [];
+  const missingSelection = [];
+  for (const item of items) {
+    const options = Array.isArray(item.options) ? item.options : [];
+    const itemName = item.name || "未命名测评项";
+    if (!options.length) {
+      missingConfig.push(itemName);
+      continue;
+    }
+    const selectedId = draft.selections?.[item.id];
+    if (!selectedId || !options.some((opt) => opt.id === selectedId)) {
+      missingSelection.push(itemName);
+    }
+  }
+
+  if (missingConfig.length) {
+    return {
+      ok: false,
+      message: `以下测评项未配置评分选项：${missingConfig.slice(0, 3).join("、")}${missingConfig.length > 3 ? "等" : ""}。`
+    };
+  }
+  if (missingSelection.length) {
+    return {
+      ok: false,
+      message: `评分选项为必填，请补全：${missingSelection.slice(0, 3).join("、")}${missingSelection.length > 3 ? "等" : ""}。`
+    };
+  }
+  return { ok: true };
 }
 
 function calculateAssessmentResult(version, selections) {
@@ -1836,6 +2328,11 @@ function openAssessmentModalShell(admission, editingRecord = null) {
       createdAt: assessmentDraft.createdAt || new Date().toISOString()
     });
     if (!normalized) return false;
+    const selectionCheck = validateAssessmentDraftSelections(normalized);
+    if (!selectionCheck.ok) {
+      alert(selectionCheck.message);
+      return false;
+    }
 
     if (assessmentDraftMode === "edit") {
       const index = store.records.findIndex((item) => item.id === assessmentDraftSourceId);
@@ -1897,15 +2394,14 @@ function renderAdmissionAssessmentModal(admission) {
   const itemsHtml = version?.items?.length
     ? version.items.map((item) => renderAdmissionAssessmentModalItem(admission._id, item, assessment.selections)).join("")
     : `<div class="empty">当前版本暂无测评项</div>`;
-
-  const resultHtml = version
-    ? renderAdmissionAssessmentResult(version, assessment.selections)
-    : renderEmptyAssessmentResult("请选择模板版本后开始评分");
+  const summaryScaleHtml = version
+    ? renderAssessmentScoreScale(version, result, { compact: true, hideLabels: false, labelMode: "full" })
+    : `<div class="assessment-scale-empty">请选择模板版本后展示区间进度</div>`;
   const editing = assessmentDraftMode === "edit";
 
   return `
     <div class="assessment-modal-body" data-admission-id="${esc(admission._id)}">
-      <div class="assessment-summary">
+      <div class="assessment-summary assessment-summary-with-scale">
         <div class="summary-main">
           <div class="summary-title">${editing ? "住院测评修改" : "住院测评录入"}</div>
           <div class="summary-sub">${esc(admission.admitDate || "未填写入院日期")} · ${esc(admission.diagnosis || "未填写诊断")}</div>
@@ -1914,6 +2410,9 @@ function renderAdmissionAssessmentModal(admission) {
           <div class="label">当前得分</div>
           <div class="value">${version ? result.score.toFixed(1) : "-"}</div>
           <div class="tag ${result?.level ? "active" : ""}">${esc(result?.level || "待评估")}</div>
+        </div>
+        <div class="summary-scale">
+          ${summaryScaleHtml}
         </div>
       </div>
 
@@ -1940,23 +2439,10 @@ function renderAdmissionAssessmentModal(admission) {
           <span class="step-index">02</span>
           <div>
             <div class="step-title">评分选项</div>
-            <div class="step-sub">点击选择每项的评分结果</div>
+            <div class="step-sub">每项必填，请逐项选择评分结果</div>
           </div>
         </div>
         <div class="assessment-item-list">${itemsHtml}</div>
-      </section>
-
-      <section class="assessment-step">
-        <div class="assessment-step-head">
-          <span class="step-index">03</span>
-          <div>
-            <div class="step-title">评分结果</div>
-            <div class="step-sub">自动汇总得分与区间</div>
-          </div>
-        </div>
-        <div class="entity-card assessment-result-card">
-          ${resultHtml}
-        </div>
       </section>
     </div>
   `;
@@ -2584,7 +3070,6 @@ function renderMineSection() {
 
   el.mineSecurityMenuTag.textContent = menuLabel;
   el.mineSecurityMenuTag.classList.toggle("active", enabled);
-  el.mineSecurityHero.textContent = enabled ? "已开启" : "未开启";
   el.mineSecurityStatus.textContent = enabled ? "已开启" : "未开启";
   el.mineSecurityStatus.classList.toggle("active", enabled);
   el.mineSecurityHint.textContent = enabled
@@ -3257,6 +3742,9 @@ function openAddAdmissionFromPatientDetail() {
   state.patientDetailAdmissionId = "";
   state.patientDetailDailyId = "";
   state.patientDetailAssessmentId = "";
+  state.patientDetailImagingPreviewId = "";
+  state.admissionImagingPickerOpen = false;
+  syncAdmissionImagingSourceRow();
   openAddAdmissionModal();
 }
 
@@ -3559,7 +4047,8 @@ function serializeDataState() {
     admissions: JSON.parse(JSON.stringify(state.admissions)),
     dailyRecords: JSON.parse(JSON.stringify(state.dailyRecords)),
     templates: JSON.parse(JSON.stringify(state.templates || [])),
-    admissionAssessments: JSON.parse(JSON.stringify(state.admissionAssessments || {}))
+    admissionAssessments: JSON.parse(JSON.stringify(state.admissionAssessments || {})),
+    admissionImaging: JSON.parse(JSON.stringify(state.admissionImaging || {}))
   };
 }
 
@@ -3628,6 +4117,14 @@ function normalizeImportedData(raw) {
   const admissionAssessments = raw.admissionAssessments && typeof raw.admissionAssessments === "object"
     ? raw.admissionAssessments
     : {};
+  const admissionImagingRaw = raw.admissionImaging && typeof raw.admissionImaging === "object"
+    ? raw.admissionImaging
+    : {};
+  const admissionImaging = {};
+  Object.keys(admissionImagingRaw).forEach((admissionId) => {
+    if (!admissionIdSet.has(admissionId)) return;
+    admissionImaging[admissionId] = normalizeImageItems(admissionImagingRaw[admissionId]);
+  });
 
   return {
     schemas: JSON.parse(JSON.stringify(raw.schemas)),
@@ -3635,7 +4132,8 @@ function normalizeImportedData(raw) {
     admissions,
     dailyRecords,
     templates,
-    admissionAssessments
+    admissionAssessments,
+    admissionImaging
   };
 }
 
@@ -3648,6 +4146,11 @@ function applyImportedData(nextData) {
   state.admissionAssessments = nextData.admissionAssessments && typeof nextData.admissionAssessments === "object"
     ? nextData.admissionAssessments
     : {};
+  state.admissionImaging = nextData.admissionImaging && typeof nextData.admissionImaging === "object"
+    ? nextData.admissionImaging
+    : {};
+  state.patientDetailImagingPreviewId = "";
+  state.admissionImagingPickerOpen = false;
   state.templateView = "disease";
   state.templateSelectedDiseaseId = "";
   state.templateSelectedVersionId = "";
@@ -4242,6 +4745,22 @@ function repairLegacyDataArtifacts() {
       return;
     }
     row.records = [];
+  });
+
+  if (!state.admissionImaging || typeof state.admissionImaging !== "object") {
+    state.admissionImaging = {};
+  }
+  Object.keys(state.admissionImaging).forEach((key) => {
+    if (!admissionIdSet.has(key)) {
+      delete state.admissionImaging[key];
+      return;
+    }
+    const items = normalizeImageItems(state.admissionImaging[key]);
+    if (!items.length) {
+      delete state.admissionImaging[key];
+      return;
+    }
+    state.admissionImaging[key] = items;
   });
 }
 

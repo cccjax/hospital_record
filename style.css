@@ -76,60 +76,68 @@ body {
 .app-header-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
+  justify-content: flex-start;
   gap: 10px;
+  min-height: 36px;
+  margin-bottom: 0;
 }
 
 .header-back {
-  width: 34px;
-  height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 10px;
-  color: #e8fffb;
-  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  color: #effffb;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.12));
   cursor: pointer;
-  font-size: 22px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 0;
+  box-shadow: 0 8px 18px rgba(5, 60, 57, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   transition: transform 0.16s ease, background 0.16s ease;
 }
 
+.header-back::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-left: 2.2px solid currentColor;
+  border-bottom: 2.2px solid currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
 .header-back:hover {
-  background: rgba(255, 255, 255, 0.22);
-  transform: translateY(-1px);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.16));
+  transform: translateY(-1px) scale(1.02);
 }
 
-.logo-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 999px;
-  background: #89ffe9;
-  box-shadow: 0 0 0 6px rgba(137, 255, 233, 0.2);
-}
-
-.header-badge {
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.16);
+.header-back:active {
+  transform: translateY(0) scale(0.97);
+  box-shadow: 0 4px 10px rgba(5, 60, 57, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 .app-header h1 {
   margin: 0;
   font-size: 24px;
   letter-spacing: 0.4px;
+  line-height: 1.1;
 }
 
 .app-header p {
   margin: 6px 0 0;
   color: #d6f8f2;
   font-size: 13px;
+}
+
+#page-subtitle {
+  display: none !important;
 }
 
 .page-host {
@@ -168,11 +176,27 @@ body {
   line-height: 1.45;
 }
 
+.hero > div > p {
+  display: none;
+}
+
 .hero-stats {
-  margin-top: 12px;
+  margin-top: 10px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
+}
+
+.hero-stats.stats-triple {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.hero-stats.stats-triple .stat-card .k {
+  font-size: 11px;
+}
+
+.hero-stats.stats-triple .stat-card .v {
+  font-size: 16px;
 }
 
 .stat-card {
@@ -440,6 +464,12 @@ textarea {
   background: linear-gradient(135deg, #f4f8ff 0%, #ffffff 70%);
 }
 
+.assessment-summary.assessment-summary-with-scale {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
 .assessment-summary .summary-main {
   flex: 1;
   min-width: 0;
@@ -493,6 +523,23 @@ textarea {
   color: #1b6b41;
 }
 
+.assessment-summary-with-scale .summary-scale {
+  grid-column: 1 / -1;
+}
+
+.assessment-summary-with-scale .summary-scale .assessment-scale {
+  margin: 0;
+}
+
+.assessment-scale-empty {
+  padding: 8px 10px;
+  border: 1px dashed #cddced;
+  border-radius: 10px;
+  color: #6e839d;
+  font-size: 12px;
+  background: #f8fbff;
+}
+
 .assessment-step {
   padding: 12px;
   border-radius: 16px;
@@ -540,6 +587,7 @@ textarea {
 
 .assessment-record-card {
   position: relative;
+  padding-right: 42px;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
@@ -558,13 +606,145 @@ textarea {
   padding: 5px 8px;
 }
 
+.assessment-record-card .assessment-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.assessment-record-card .assessment-record-scale {
+  margin-top: 8px;
+  margin-right: 0;
+}
+
+.assessment-record-card .assessment-record-scale .assessment-scale {
+  margin: 0;
+}
+
 .assessment-record-card .field-head-actions .entity-tag {
   font-size: 11px;
   padding: 2px 8px;
 }
 
 .assessment-record-card .patient-chevron {
-  right: 16px;
+  right: 12px;
+}
+
+.overview-click-card,
+.chevron-rail-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  column-gap: 0;
+  align-items: start;
+  padding-right: 14px;
+}
+
+.overview-static-card .entity-head,
+.overview-click-card .entity-head {
+  align-items: flex-start;
+}
+
+.overview-click-card > :not(.patient-chevron),
+.chevron-rail-card > :not(.patient-chevron) {
+  grid-column: 1;
+  min-width: 0;
+}
+
+.overview-click-card .entity-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  column-gap: 6px;
+  align-items: start;
+}
+
+.overview-card-actions {
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.overview-card-actions .overview-action-btn {
+  min-width: 46px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.overview-click-card .patient-chevron,
+.chevron-rail-card .patient-chevron {
+  pointer-events: none;
+}
+
+.overview-field-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.overview-field-grid .field-item {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.overview-click-card .overview-card-actions {
+  width: 104px;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.overview-click-card .patient-inline-actions.overview-card-actions {
+  padding-right: 0;
+}
+
+.overview-field-grid .field-item:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.daily-overview-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.daily-overview-grid .field-item:last-child:nth-child(odd):not(.full) {
+  grid-column: auto;
+}
+
+.admission-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admission-detail-grid .field-item:last-child:nth-child(odd):not(.full) {
+  grid-column: auto;
+}
+
+.admission-overview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admission-overview-grid .field-item {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.admission-overview-grid .field-item:last-child:nth-child(odd):not(.full) {
+  grid-column: 1 / -1;
+}
+
+.assessment-record-card .assessment-scale-label-row {
+  min-height: 16px;
+}
+
+.assessment-record-card .assessment-scale.compact .assessment-scale-label-chip {
+  white-space: nowrap;
+  line-height: 1.1;
 }
 
 .assessment-detail-item .entity-title {
@@ -579,6 +759,170 @@ textarea {
 .assessment-result-card {
   border-color: #dbe7f5;
   background: #fdfefe;
+}
+
+.assessment-scale {
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid #dce8f7;
+  border-radius: 12px;
+  background: #f7fbff;
+}
+
+.assessment-scale.compact {
+  padding: 8px 10px;
+}
+
+.assessment-scale-track-wrap {
+  position: relative;
+  --scale-track-top: 22px;
+  --scale-track-height: 12px;
+  padding-top: var(--scale-track-top);
+}
+
+.assessment-scale.compact .assessment-scale-track-wrap {
+  --scale-track-top: 18px;
+  --scale-track-height: 10px;
+}
+
+.assessment-scale-track {
+  display: flex;
+  align-items: stretch;
+  height: var(--scale-track-height);
+  border-radius: 999px;
+  overflow: hidden;
+  background: #eaf1fb;
+}
+
+.assessment-scale-segment {
+  width: var(--segment-width);
+  background: var(--segment-color);
+  opacity: 0.38;
+  transition: opacity 0.18s ease;
+}
+
+.assessment-scale-segment.active {
+  opacity: 0.82;
+}
+
+.assessment-scale-marker {
+  position: absolute;
+  top: calc(var(--scale-track-top) + (var(--scale-track-height) / 2));
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.assessment-scale-marker.left {
+  transform: translate(0, -50%);
+}
+
+.assessment-scale-marker.right {
+  transform: translate(-100%, -50%);
+}
+
+.assessment-scale-marker .marker-dot {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid #ffffff;
+  background: #2f80ed;
+  box-shadow: 0 2px 8px rgba(31, 61, 102, 0.28);
+}
+
+.assessment-scale-marker .marker-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2f4f76;
+  background: #ffffff;
+  border: 1px solid #d5e4f5;
+}
+
+.assessment-scale.compact .assessment-scale-marker .marker-label {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.assessment-scale-marker.left .marker-label {
+  left: 0;
+  transform: none;
+}
+
+.assessment-scale-marker.right .marker-label {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.assessment-scale-label-row {
+  margin-top: 8px;
+  display: flex;
+  align-items: flex-start;
+}
+
+.assessment-scale.compact .assessment-scale-label-row {
+  margin-top: 6px;
+}
+
+.assessment-scale-label-cell {
+  width: var(--segment-width);
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.assessment-scale-label-chip {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #637996;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.assessment-scale.compact .assessment-scale-label-chip {
+  gap: 4px;
+  font-size: 10px;
+  white-space: normal;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.assessment-scale-label-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--dot-color);
+  opacity: 0.65;
+}
+
+.assessment-scale.compact .assessment-scale-label-chip .dot {
+  width: 6px;
+  height: 6px;
+}
+
+.assessment-scale-label-chip .text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.assessment-scale-label-cell.active .assessment-scale-label-chip {
+  color: #2c527e;
+  font-weight: 600;
+}
+
+.assessment-scale-label-cell.active .dot {
+  opacity: 1;
 }
 
 .modal.assessment-modal {
@@ -633,6 +977,14 @@ textarea {
   margin: 0;
 }
 
+.assessment-option.readonly {
+  cursor: default;
+}
+
+.assessment-option.readonly input {
+  pointer-events: none;
+}
+
 .assessment-option .label {
   flex: 1;
 }
@@ -640,6 +992,24 @@ textarea {
 .assessment-option .score {
   color: #1f3149;
   font-weight: 600;
+}
+
+.assessment-detail-readonly .assessment-options {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.assessment-detail-readonly .assessment-option {
+  background: #f4f8ff;
+  border-color: #d3e3f8;
+}
+
+.assessment-detail-readonly .assessment-option input {
+  width: 14px;
+  height: 14px;
+}
+
+.assessment-detail-readonly .assessment-option input:disabled {
+  opacity: 1;
 }
 
 .option-chip {
@@ -707,7 +1077,7 @@ textarea {
 
 .entity-card.patient-card {
   position: relative;
-  padding-right: 42px;
+  padding-right: 24px;
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
@@ -727,6 +1097,13 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.patient-detail-admission-tag {
+  margin-left: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
+  vertical-align: middle;
 }
 
 .patient-head-right {
@@ -802,6 +1179,10 @@ textarea {
   transition: transform 0.18s ease, color 0.18s ease;
 }
 
+.entity-card.patient-card .patient-chevron {
+  right: 1px;
+}
+
 .template-chevron-inline {
   display: inline-flex;
   align-items: center;
@@ -829,6 +1210,45 @@ textarea {
 }
 
 .entity-card.patient-daily-card:hover .daily-chevron {
+  color: #43648c;
+  transform: translateY(-50%) translateX(2px);
+}
+
+.entity-card.patient-daily-card.overview-click-card,
+.entity-card.assessment-record-card.overview-click-card {
+  padding-right: 14px;
+}
+
+.entity-card.daily-ref-card {
+  padding-right: 14px;
+}
+
+.entity-card.daily-ref-card .patient-chevron {
+  right: 1px;
+  width: 12px;
+  font-size: 24px;
+  transform: translateY(-50%);
+}
+
+.entity-card.daily-ref-card:hover .patient-chevron {
+  color: #43648c;
+  transform: translateY(-50%) translateX(2px);
+}
+
+.entity-card.overview-click-card .patient-chevron,
+.entity-card.chevron-rail-card .patient-chevron {
+  position: absolute;
+  top: 50%;
+  right: 1px;
+  width: 12px;
+  font-size: 24px;
+  line-height: 1;
+  transform: translateY(-50%);
+  text-align: center;
+}
+
+.entity-card.overview-click-card:hover .patient-chevron,
+.entity-card.chevron-rail-card:hover .patient-chevron {
   color: #43648c;
   transform: translateY(-50%) translateX(2px);
 }
@@ -1083,6 +1503,156 @@ textarea {
   margin-top: 8px;
   display: flex;
   gap: 8px;
+}
+
+.admission-imaging-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admission-imaging-card {
+  display: grid;
+  gap: 8px;
+}
+
+.admission-imaging-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admission-imaging-preview-meta > span:first-child {
+  min-width: 0;
+  font-size: 13px;
+  color: #2b3f5e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admission-imaging-thumb-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 96px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.admission-imaging-thumb {
+  position: relative;
+  border: 1px solid #d8e4f3;
+  border-radius: 10px;
+  background: #f8fbff;
+  padding: 2px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admission-imaging-thumb.active {
+  border-color: #7fb0e7;
+  box-shadow: 0 0 0 2px rgba(111, 164, 226, 0.22);
+}
+
+.admission-imaging-thumb-hit {
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  overflow: hidden;
+}
+
+.admission-imaging-thumb-hit img {
+  display: block;
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #e9f1fb;
+}
+
+.admission-imaging-thumb-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+  color: #fff;
+  background: rgba(26, 43, 67, 0.7);
+}
+
+.admission-imaging-thumb-remove:hover {
+  background: rgba(162, 54, 54, 0.86);
+}
+
+.imaging-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  background: rgba(12, 20, 32, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  backdrop-filter: blur(2px);
+}
+
+.imaging-preview-overlay.hidden {
+  display: none;
+}
+
+.imaging-preview-shell {
+  width: min(760px, calc(100vw - 24px));
+  max-height: calc(100vh - 48px);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(225, 236, 250, 0.35);
+  background: #0e1b2c;
+  box-shadow: 0 20px 48px rgba(6, 16, 30, 0.52);
+}
+
+.imaging-preview-shell img {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 112px);
+  object-fit: contain;
+  background: #0b1624;
+}
+
+.imaging-preview-caption {
+  padding: 10px 12px 12px;
+  color: #d8e7fb;
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.imaging-preview-close {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  right: 14px;
+  border-color: rgba(240, 247, 255, 0.32);
+  background: rgba(18, 35, 56, 0.62);
+  color: #e4f0ff;
+  z-index: 39;
+}
+
+.imaging-preview-close:hover {
+  border-color: rgba(240, 247, 255, 0.5);
+  background: rgba(24, 44, 69, 0.8);
+  color: #ffffff;
 }
 
 .empty {

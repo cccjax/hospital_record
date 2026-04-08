@@ -12,13 +12,9 @@
   <div class="phone-shell">
     <header class="app-header">
       <div class="app-header-top">
-        <div class="header-left">
-          <button id="header-back-btn" class="header-back hidden" aria-label="返回上一页">‹</button>
-          <div id="header-dot" class="logo-dot"></div>
-        </div>
-        <span class="header-badge">原型模式</span>
+        <button id="header-back-btn" class="header-back hidden" aria-label="返回上一页">‹</button>
+        <h1 id="page-title">首页</h1>
       </div>
-      <h1 id="page-title">首页</h1>
       <p id="page-subtitle">病人信息总览与住院过程管理</p>
     </header>
 
@@ -44,7 +40,7 @@
         <div id="patient-detail-view" class="hidden">
           <div class="hero">
             <div>
-              <h2 id="patient-detail-name">病人明细</h2>
+              <h2 id="patient-detail-name">病人概况</h2>
               <p id="patient-detail-subtitle">完整档案与住院过程记录</p>
             </div>
             <div class="hero-stats" id="patient-detail-stats"></div>
@@ -70,10 +66,15 @@
 
               <div class="detail-group">
                 <div class="section-title section-title-with-action">
-                  <span>日常记录</span>
-                  <button id="patient-add-daily-btn" class="btn btn-light btn-small">新增日常</button>
+                  <span>影像资料</span>
+                  <div id="admission-imaging-source-row" class="admission-imaging-actions">
+                    <button class="mini-btn" type="button" data-action="admission-imaging-camera">拍照</button>
+                    <button class="mini-btn ghost" type="button" data-action="admission-imaging-album">相册</button>
+                  </div>
                 </div>
-                <div id="patient-admission-daily" class="list-stack"></div>
+                <input id="admission-imaging-camera-input" class="hidden-file-input" type="file" accept="image/*" capture="environment">
+                <input id="admission-imaging-album-input" class="hidden-file-input" type="file" accept="image/*" multiple>
+                <div id="admission-imaging-list" class="list-stack"></div>
               </div>
 
               <div class="detail-group">
@@ -81,8 +82,15 @@
                   <span>住院测评</span>
                   <button id="admission-assessment-btn" class="btn btn-light btn-small" type="button">新增测评</button>
                 </div>
-                <p class="mine-copy">点击新增测评，选择模板与版本并勾选评分选项，系统自动计算得分与区间。</p>
                 <div id="admission-template-summary" class="list-stack"></div>
+              </div>
+
+              <div class="detail-group">
+                <div class="section-title section-title-with-action">
+                  <span>日常记录</span>
+                  <button id="patient-add-daily-btn" class="btn btn-light btn-small">新增日常</button>
+                </div>
+                <div id="patient-admission-daily" class="list-stack"></div>
               </div>
             </div>
 
@@ -129,10 +137,6 @@
 
       <section id="template-page" class="page">
         <div class="hero">
-          <div>
-            <h2>测评模板</h2>
-            <p>配置病种、版本、测评项与评分分级规则</p>
-          </div>
           <div class="hero-stats" id="template-stats"></div>
         </div>
 
@@ -141,6 +145,9 @@
             <div class="section-title section-title-with-action">
               <span>病种模板</span>
               <button id="add-template-disease-btn" class="btn btn-primary btn-small" type="button">新增病种</button>
+            </div>
+            <div class="control-row">
+              <input id="template-disease-search" type="text" placeholder="搜索病种名称或编码">
             </div>
             <div id="template-disease-list" class="list-stack"></div>
           </div>
@@ -176,23 +183,6 @@
       </section>
 
       <section id="mine-page" class="page">
-        <div class="hero">
-          <div>
-            <h2>我的</h2>
-            <p>安全设置、数据迁移与字段配置集中管理</p>
-          </div>
-          <div class="hero-stats">
-            <div class="stat-card">
-              <div class="k">数据模式</div>
-              <div class="v">离线本机</div>
-            </div>
-            <div class="stat-card">
-              <div class="k">安全状态</div>
-              <div id="mine-security-hero" class="v">未开启</div>
-            </div>
-          </div>
-        </div>
-
         <div id="mine-home-pane" class="list-stack">
           <article class="entity-card mine-menu-card" data-action="open-mine-submenu" data-menu="migration">
             <div class="entity-head">
@@ -298,6 +288,14 @@
         <button id="modal-cancel" class="btn btn-light" type="button">取消</button>
         <button id="modal-submit" class="btn btn-primary" type="button">保存</button>
       </div>
+    </div>
+  </div>
+
+  <div id="imaging-preview-overlay" class="imaging-preview-overlay hidden">
+    <button id="imaging-preview-close" class="icon-btn imaging-preview-close" aria-label="关闭原图预览">×</button>
+    <div class="imaging-preview-shell">
+      <img id="imaging-preview-image" alt="影像原图预览">
+      <div id="imaging-preview-caption" class="imaging-preview-caption"></div>
     </div>
   </div>
 
