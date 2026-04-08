@@ -5,6 +5,7 @@
   patientDetailNo: "",
   patientDetailAdmissionId: "",
   patientDetailDailyId: "",
+  patientDetailAssessmentId: "",
   patientInHospitalOnly: false,
   mineSubPage: "",
   templateView: "disease",
@@ -12,6 +13,7 @@
   templateSelectedVersionId: "",
   templateExpandedDiseaseId: "",
   templateSimSelections: {},
+  admissionAssessments: {},
   fieldsSortMode: false,
   schemas: {
     patient: [
@@ -170,6 +172,9 @@ enforceCoreFieldRules();
 normalizeSelectionState();
 
 const modalState = { onSubmit: null };
+let assessmentDraft = null;
+let assessmentDraftMode = "create";
+let assessmentDraftSourceId = "";
 let toastTimer = null;
 let sessionUnlocked = !isPasswordEnabled();
 const swipeState = { active: false, startX: 0, startY: 0 };
@@ -245,9 +250,13 @@ const el = {
   patientAddDailyBtn: document.getElementById("patient-add-daily-btn"),
   patientAdmissionOverviewPane: document.getElementById("patient-admission-overview-pane"),
   patientDailyDetailPane: document.getElementById("patient-daily-detail-pane"),
+  patientAssessmentDetailPane: document.getElementById("patient-assessment-detail-pane"),
   patientAdmissionDetailCard: document.getElementById("patient-admission-detail-card"),
   patientAdmissionDaily: document.getElementById("patient-admission-daily"),
   patientDailyDetailCard: document.getElementById("patient-daily-detail-card"),
+  patientAssessmentDetailCard: document.getElementById("patient-assessment-detail-card"),
+  admissionAssessmentBtn: document.getElementById("admission-assessment-btn"),
+  admissionTemplateSummary: document.getElementById("admission-template-summary"),
 
   patientStats: document.getElementById("patient-stats"),
   patientSearch: document.getElementById("patient-search"),
@@ -275,8 +284,7 @@ const el = {
   templateItemTitle: document.getElementById("template-item-title"),
   templateItemList: document.getElementById("template-item-list"),
   templateGradeList: document.getElementById("template-grade-list"),
-  templateSimulatorList: document.getElementById("template-simulator-list"),
-  templateSimulatorResult: document.getElementById("template-simulator-result"),
+  // template simulator removed
 
   fieldStats: document.getElementById("field-stats"),
   schemaModuleSelect: document.getElementById("schema-module-select"),
@@ -305,6 +313,7 @@ const el = {
   appLockError: document.getElementById("app-lock-error"),
 
   modalOverlay: document.getElementById("modal-overlay"),
+  modalShell: document.getElementById("modal-shell"),
   modalTitle: document.getElementById("modal-title"),
   modalSubtitle: document.getElementById("modal-subtitle"),
   modalForm: document.getElementById("modal-form"),
@@ -387,13 +396,21 @@ function bindEvents() {
   el.patientAdmissionDetailCard.addEventListener("click", handlePatientActions);
   el.patientAdmissionDaily.addEventListener("click", handlePatientActions);
   el.patientDailyDetailCard.addEventListener("click", handlePatientActions);
+  if (el.patientAssessmentDetailCard) {
+    el.patientAssessmentDetailCard.addEventListener("click", handlePatientActions);
+  }
+  if (el.admissionTemplateSummary) {
+    el.admissionTemplateSummary.addEventListener("click", handlePatientActions);
+  }
   el.admissionList.addEventListener("click", handleAdmissionActions);
   el.dailyList.addEventListener("click", handleDailyActions);
   el.templateDiseaseList.addEventListener("click", handleTemplateActions);
   el.templateVersionList.addEventListener("click", handleTemplateActions);
   el.templateItemList.addEventListener("click", handleTemplateActions);
   el.templateGradeList.addEventListener("click", handleTemplateActions);
-  el.templateSimulatorList.addEventListener("change", handleTemplateSimulatorChange);
+  if (el.admissionAssessmentBtn) {
+    el.admissionAssessmentBtn.addEventListener("click", openAdmissionAssessmentModal);
+  }
   el.fieldList.addEventListener("click", handleFieldActions);
   el.fieldList.addEventListener("pointerdown", handleFieldSortPointerDown);
   window.addEventListener("pointermove", handleFieldSortPointerMove);
@@ -405,6 +422,7 @@ function bindEvents() {
   el.modalSubmit.addEventListener("click", submitModal);
   el.modalForm.addEventListener("click", handleModalFormActions);
   el.modalForm.addEventListener("input", handleModalFormInput);
+  el.modalForm.addEventListener("change", handleModalFormChange);
   el.modalOverlay.addEventListener("click", (event) => {
     if (event.target === el.modalOverlay) closeModal();
   });
@@ -544,6 +562,12 @@ function handleHeaderBack() {
 }
 
 function closePatientDetail(silent = false) {
+  if (state.patientDetailAssessmentId) {
+    state.patientDetailAssessmentId = "";
+    renderPatientSection();
+    // no toast on back navigation
+    return;
+  }
   if (state.patientDetailDailyId) {
     state.patientDetailDailyId = "";
     renderPatientSection();
@@ -553,6 +577,7 @@ function closePatientDetail(silent = false) {
   if (state.patientDetailAdmissionId) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     renderPatientSection();
     // no toast on back navigation
     return;
@@ -561,6 +586,7 @@ function closePatientDetail(silent = false) {
   state.patientDetailNo = "";
   state.patientDetailAdmissionId = "";
   state.patientDetailDailyId = "";
+  state.patientDetailAssessmentId = "";
   renderPatientSection();
   // no toast on back navigation
 }
@@ -699,7 +725,7 @@ function renderPatientCard(patient) {
     .filter((field) => field.key !== "admissionNo" && isFieldVisibleInList("patient", field));
 
   const fields = visibleFields.length
-    ? visibleFields.map((field) => fieldItem(field.label, patient[field.key], field.type === "textarea")).join("")
+    ? visibleFields.map((field) => fieldItem(field.label, formatFieldValue(field, patient[field.key]), field.type === "textarea")).join("")
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
 
   return `
@@ -726,6 +752,7 @@ function renderPatientDetailView() {
     state.patientDetailNo = "";
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     el.patientListView.classList.remove("hidden");
     el.patientDetailView.classList.add("hidden");
     refreshPageHeader();
@@ -740,6 +767,7 @@ function renderPatientDetailView() {
   if (state.patientDetailAdmissionId && !admissionIdSet.has(state.patientDetailAdmissionId)) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
   }
 
   const totalDailyCount = state.dailyRecords.filter((item) => admissionIdSet.has(item.admissionId)).length;
@@ -749,11 +777,12 @@ function renderPatientDetailView() {
   el.patientAdmissionDetailPane.classList.toggle("hidden", !inAdmissionDetail);
 
   const patientFields = state.schemas.patient
-    .map((field) => fieldItem(field.label, patient[field.key], field.type === "textarea"))
+    .map((field) => fieldItem(field.label, formatFieldValue(field, patient[field.key]), field.type === "textarea"))
     .join("");
 
   if (!inAdmissionDetail) {
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     el.patientDetailName.textContent = "病人明细";
     el.patientDetailSubtitle.textContent = "基础信息与住院过程记录";
     el.patientDetailStats.innerHTML = [
@@ -782,6 +811,7 @@ function renderPatientDetailView() {
   const admission = admissions.find((item) => item._id === state.patientDetailAdmissionId);
   if (!admission) {
     state.patientDetailAdmissionId = "";
+    state.patientDetailAssessmentId = "";
     renderPatientDetailView();
     return;
   }
@@ -792,12 +822,19 @@ function renderPatientDetailView() {
   if (state.patientDetailDailyId && !dailyRows.some((item) => item._id === state.patientDetailDailyId)) {
     state.patientDetailDailyId = "";
   }
+  const assessmentStore = normalizeAdmissionAssessmentStore(admission._id);
+  const assessmentRecords = assessmentStore.records || [];
+  if (state.patientDetailAssessmentId && !assessmentRecords.some((item) => item.id === state.patientDetailAssessmentId)) {
+    state.patientDetailAssessmentId = "";
+  }
   const inDailyDetail = !!state.patientDetailDailyId;
+  const inAssessmentDetail = !!state.patientDetailAssessmentId;
 
-  el.patientAdmissionOverviewPane.classList.toggle("hidden", inDailyDetail);
+  el.patientAdmissionOverviewPane.classList.toggle("hidden", inDailyDetail || inAssessmentDetail);
   el.patientDailyDetailPane.classList.toggle("hidden", !inDailyDetail);
+  el.patientAssessmentDetailPane.classList.toggle("hidden", !inAssessmentDetail);
 
-  if (!inDailyDetail) {
+  if (!inDailyDetail && !inAssessmentDetail) {
     el.patientDetailName.textContent = `${patient.name} · 入院详情`;
     el.patientDetailSubtitle.textContent = `${admission.admitDate || "未填写日期"} · ${admission.diagnosis || "未填写诊断"}`;
     el.patientDetailStats.innerHTML = [
@@ -809,29 +846,49 @@ function renderPatientDetailView() {
     el.patientAdmissionDaily.innerHTML = dailyRows.length
       ? dailyRows.map(renderDailyDetailCard).join("")
       : `<div class="empty">当前入院记录暂无日常记录</div>`;
+    renderAdmissionAssessmentSection(admission);
     return;
   }
 
-  const daily = dailyRows.find((item) => item._id === state.patientDetailDailyId);
-  if (!daily) {
-    state.patientDetailDailyId = "";
+  if (inDailyDetail) {
+    const daily = dailyRows.find((item) => item._id === state.patientDetailDailyId);
+    if (!daily) {
+      state.patientDetailDailyId = "";
+      renderPatientDetailView();
+      return;
+    }
+
+    el.patientDetailName.textContent = `${patient.name} · 日常详情`;
+    el.patientDetailSubtitle.textContent = `${daily.recordDate || "未填写日期"} · ${admission.admitDate || "未填写入院日期"}`;
+    el.patientDetailStats.innerHTML = [
+      statItem("住院号", patient.admissionNo),
+      statItem("记录日期", daily.recordDate || "-")
+    ].join("");
+    el.patientDailyDetailCard.innerHTML = renderDailyRecordDetailCard(daily);
+    return;
+  }
+
+  const record = assessmentRecords.find((item) => item.id === state.patientDetailAssessmentId);
+  if (!record) {
+    state.patientDetailAssessmentId = "";
     renderPatientDetailView();
     return;
   }
 
-  el.patientDetailName.textContent = `${patient.name} · 日常详情`;
-  el.patientDetailSubtitle.textContent = `${daily.recordDate || "未填写日期"} · ${admission.admitDate || "未填写入院日期"}`;
+  const meta = getAssessmentRecordMeta(record);
+  el.patientDetailName.textContent = `${patient.name} · 测评明细`;
+  el.patientDetailSubtitle.textContent = `${meta.diseaseName} · ${meta.versionName}`;
   el.patientDetailStats.innerHTML = [
     statItem("住院号", patient.admissionNo),
-    statItem("记录日期", daily.recordDate || "-")
+    statItem("测评时间", formatDateTime(record.createdAt))
   ].join("");
-  el.patientDailyDetailCard.innerHTML = renderDailyRecordDetailCard(daily);
+  el.patientAssessmentDetailCard.innerHTML = renderAssessmentDetailView(record);
 }
 
 function renderPatientAdmissionCard(admission) {
   const visibleFields = state.schemas.admission.filter((field) => isFieldVisibleInList("admission", field));
   const fields = visibleFields.length
-    ? visibleFields.map((field) => fieldItem(field.label, admission[field.key], field.type === "textarea")).join("")
+    ? visibleFields.map((field) => fieldItem(field.label, formatFieldValue(field, admission[field.key]), field.type === "textarea")).join("")
     : fieldItem("提示", "当前未配置入院列表显示字段，请在字段配置中开启");
   const dailyCount = state.dailyRecords.filter((item) => item.admissionId === admission._id).length;
 
@@ -853,7 +910,7 @@ function renderPatientAdmissionCard(admission) {
 
 function renderAdmissionDetailCard(admission) {
   const fields = state.schemas.admission
-    .map((field) => fieldItem(field.label, admission[field.key], field.type === "textarea"))
+    .map((field) => fieldItem(field.label, formatFieldValue(field, admission[field.key]), field.type === "textarea"))
     .join("");
 
   return `
@@ -873,7 +930,7 @@ function renderAdmissionDetailCard(admission) {
 function renderDailyDetailCard(row) {
   const visibleFields = state.schemas.daily.filter((field) => isFieldVisibleInList("daily", field));
   const fields = visibleFields.length
-    ? visibleFields.map((field) => fieldItem(field.label, row[field.key], field.type === "textarea")).join("")
+    ? visibleFields.map((field) => fieldItem(field.label, formatFieldValue(field, row[field.key]), field.type === "textarea")).join("")
     : fieldItem("提示", "当前未配置日常列表显示字段，请在字段配置中开启");
 
   return `
@@ -893,7 +950,7 @@ function renderDailyDetailCard(row) {
 
 function renderDailyRecordDetailCard(row) {
   const fields = state.schemas.daily
-    .map((field) => fieldItem(field.label, row[field.key], field.type === "textarea"))
+    .map((field) => fieldItem(field.label, formatFieldValue(field, row[field.key]), field.type === "textarea"))
     .join("");
 
   return `
@@ -921,6 +978,8 @@ function handlePatientActions(event) {
       state.selectedPatientNo = id;
       state.patientDetailNo = "";
       state.patientDetailAdmissionId = "";
+      state.patientDetailDailyId = "";
+      state.patientDetailAssessmentId = "";
       switchModule("admission");
       renderAdmissionSection();
       return;
@@ -953,6 +1012,16 @@ function handlePatientActions(event) {
       return;
     }
 
+    if (action === "edit-assessment-record") {
+      openEditAdmissionAssessmentModal(id);
+      return;
+    }
+
+    if (action === "delete-assessment-record") {
+      deleteAdmissionAssessmentRecord(id);
+      return;
+    }
+
     if (action === "delete-patient") {
       if (!confirm(`确认删除住院号 ${id} 的病人信息吗？`)) return;
 
@@ -963,6 +1032,11 @@ function handlePatientActions(event) {
       state.patients = state.patients.filter((item) => item.admissionNo !== id);
       state.admissions = state.admissions.filter((item) => item.admissionNo !== id);
       state.dailyRecords = state.dailyRecords.filter((item) => !affectedAdmissionIds.includes(item.admissionId));
+      if (state.admissionAssessments) {
+        affectedAdmissionIds.forEach((admissionId) => {
+          delete state.admissionAssessments[admissionId];
+        });
+      }
 
       if (state.selectedPatientNo === id) {
         state.selectedPatientNo = state.patients[0]?.admissionNo || "";
@@ -972,6 +1046,7 @@ function handlePatientActions(event) {
       if (state.patientDetailNo === id) {
         state.patientDetailNo = "";
         state.patientDetailAdmissionId = "";
+        state.patientDetailAssessmentId = "";
       }
 
       persistDataState();
@@ -985,6 +1060,7 @@ function handlePatientActions(event) {
   if (admissionCard) {
     state.patientDetailAdmissionId = admissionCard.dataset.id;
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     renderPatientSection();
     return;
   }
@@ -992,6 +1068,15 @@ function handlePatientActions(event) {
   const dailyCard = event.target.closest(".patient-daily-card[data-id]");
   if (dailyCard) {
     state.patientDetailDailyId = dailyCard.dataset.id;
+    state.patientDetailAssessmentId = "";
+    renderPatientSection();
+    return;
+  }
+
+  const assessmentCard = event.target.closest(".assessment-record-card[data-id]");
+  if (assessmentCard) {
+    state.patientDetailAssessmentId = assessmentCard.dataset.id;
+    state.patientDetailDailyId = "";
     renderPatientSection();
     return;
   }
@@ -1001,6 +1086,7 @@ function handlePatientActions(event) {
     state.patientDetailNo = card.dataset.patientId;
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     renderPatientSection();
   }
 }
@@ -1037,7 +1123,7 @@ function renderAdmissionSection() {
 function renderAdmissionCard(admission) {
   const visibleFields = state.schemas.admission.filter((field) => isFieldVisibleInList("admission", field));
   const fields = visibleFields.length
-    ? visibleFields.map((field) => fieldItem(field.label, admission[field.key], field.type === "textarea")).join("")
+    ? visibleFields.map((field) => fieldItem(field.label, formatFieldValue(field, admission[field.key]), field.type === "textarea")).join("")
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
   return `
     <article class="entity-card">
@@ -1091,7 +1177,7 @@ function renderDailyList() {
 function renderDailyCard(row) {
   const visibleFields = state.schemas.daily.filter((field) => isFieldVisibleInList("daily", field));
   const fields = visibleFields.length
-    ? visibleFields.map((field) => fieldItem(field.label, row[field.key], field.type === "textarea")).join("")
+    ? visibleFields.map((field) => fieldItem(field.label, formatFieldValue(field, row[field.key]), field.type === "textarea")).join("")
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
   return `
     <article class="entity-card">
@@ -1141,12 +1227,16 @@ function deleteAdmissionById(id) {
 
   state.admissions = state.admissions.filter((item) => item._id !== id);
   state.dailyRecords = state.dailyRecords.filter((item) => item.admissionId !== id);
+  if (state.admissionAssessments) {
+    delete state.admissionAssessments[id];
+  }
 
   if (state.selectedAdmissionId === id) {
     state.selectedAdmissionId = "";
   }
   if (state.patientDetailAdmissionId === id) {
     state.patientDetailAdmissionId = "";
+    state.patientDetailAssessmentId = "";
   }
   state.patientDetailDailyId = "";
 
@@ -1220,8 +1310,6 @@ function renderTemplateSection() {
   if (!selectedDisease) {
     el.templateItemList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u6d4b\u8bc4\u9879</div>`;
     el.templateGradeList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u5206\u7ea7\u533a\u95f4</div>`;
-    el.templateSimulatorList.innerHTML = `<div class="empty">\u8bf7\u5148\u914d\u7f6e\u6d4b\u8bc4\u9879\u548c\u8bc4\u5206\u9009\u9879</div>`;
-    el.templateSimulatorResult.innerHTML = renderEmptyTemplateResult("\u8bf7\u9009\u62e9\u75c5\u79cd\u4e0e\u7248\u672c\u540e\u5f00\u59cb\u914d\u7f6e");
     el.addTemplateItemBtn.disabled = true;
     el.addTemplateGradeBtn.disabled = true;
     return;
@@ -1230,8 +1318,6 @@ function renderTemplateSection() {
   if (!selectedVersion) {
     el.templateItemList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u6d4b\u8bc4\u9879</div>`;
     el.templateGradeList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u5206\u7ea7\u533a\u95f4</div>`;
-    el.templateSimulatorList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u8fdb\u884c\u8bc4\u5206\u6a21\u62df</div>`;
-    el.templateSimulatorResult.innerHTML = renderEmptyTemplateResult("\u8bf7\u9009\u62e9\u7248\u672c\u540e\u7ee7\u7eed");
     el.addTemplateItemBtn.disabled = true;
     el.addTemplateGradeBtn.disabled = true;
     return;
@@ -1252,10 +1338,6 @@ function renderTemplateSection() {
     ? gradeRules.map((rule) => renderTemplateGradeCard(rule)).join("")
     : `<div class="empty">\u5f53\u524d\u7248\u672c\u6682\u65e0\u7b49\u7ea7\u533a\u95f4\uff0c\u8bf7\u5148\u65b0\u589e</div>`;
 
-  el.templateSimulatorList.innerHTML = items.length
-    ? items.map((item) => renderTemplateSimulatorItem(selectedVersion.id, item)).join("")
-    : `<div class="empty">\u6682\u65e0\u53ef\u6a21\u62df\u7684\u6d4b\u8bc4\u9879</div>`;
-  el.templateSimulatorResult.innerHTML = renderTemplateSimulatorResult(selectedVersion);
 }
 
 function getTemplateDiseaseFieldValue(disease, field) {
@@ -1284,7 +1366,7 @@ function renderTemplateDiseaseCard(disease, expanded, active) {
   const fieldHtml = visibleFields.length
     ? visibleFields
       .map((field) =>
-        fieldItem(field.label, getTemplateDiseaseFieldValue(disease, field), field.type === "textarea"))
+        fieldItem(field.label, formatFieldValue(field, getTemplateDiseaseFieldValue(disease, field)), field.type === "textarea"))
       .join("")
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
   const versionList = expanded
@@ -1331,7 +1413,7 @@ function renderTemplateVersionCard(version, active, diseaseId = "") {
   const fieldHtml = visibleFields.length
     ? visibleFields
       .map((field) =>
-        fieldItem(field.label, getTemplateVersionFieldValue(version, field), field.type === "textarea"))
+        fieldItem(field.label, formatFieldValue(field, getTemplateVersionFieldValue(version, field)), field.type === "textarea"))
       .join("")
     : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
   return `
@@ -1388,31 +1470,295 @@ function renderTemplateGradeCard(rule) {
   `;
 }
 
-function renderTemplateSimulatorItem(versionId, item) {
-  const map = state.templateSimSelections[versionId] || {};
-  const selectedOptionId = map[item.id] || "";
-  const options = item.options || [];
-  const optionHtml = [`<option value="">请选择评分选项</option>`]
-    .concat(options.map((opt) => {
-      const selected = opt.id === selectedOptionId ? "selected" : "";
-      return `<option value="${esc(opt.id)}" ${selected}>${esc(opt.label)} · ${esc(String(opt.score))}分</option>`;
-    }))
+function getAdmissionAssessmentStore(admissionId) {
+  if (!state.admissionAssessments || typeof state.admissionAssessments !== "object") {
+    state.admissionAssessments = {};
+  }
+  if (!state.admissionAssessments[admissionId]) {
+    state.admissionAssessments[admissionId] = {
+      records: []
+    };
+  }
+  return state.admissionAssessments[admissionId];
+}
+
+function normalizeAdmissionAssessmentStore(admissionId) {
+  const store = getAdmissionAssessmentStore(admissionId);
+  if (!Array.isArray(store.records)) {
+    store.records = [];
+  }
+  store.records = store.records
+    .filter((record) => record && typeof record === "object")
+    .map((record) => ({
+      id: record.id || uid("assr"),
+      diseaseId: typeof record.diseaseId === "string" ? record.diseaseId : "",
+      versionId: typeof record.versionId === "string" ? record.versionId : "",
+      selections: record.selections && typeof record.selections === "object" ? record.selections : {},
+      createdAt: record.createdAt || new Date().toISOString()
+    }));
+  return store;
+}
+
+function normalizeAssessmentDraft(draft) {
+  if (!draft) return null;
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  if (!diseases.length) {
+    draft.diseaseId = "";
+    draft.versionId = "";
+    draft.selections = {};
+    return draft;
+  }
+
+  if (!diseases.some((item) => item.id === draft.diseaseId)) {
+    draft.diseaseId = diseases[0].id;
+    draft.versionId = "";
+    draft.selections = {};
+  }
+
+  const disease = diseases.find((item) => item.id === draft.diseaseId);
+  disease.versions = Array.isArray(disease.versions) ? disease.versions : [];
+  if (!disease.versions.some((item) => item.id === draft.versionId)) {
+    draft.versionId = disease.versions[0]?.id || "";
+    draft.selections = {};
+  }
+
+  const version = disease.versions.find((item) => item.id === draft.versionId);
+  if (version) {
+    const itemIds = new Set((version.items || []).map((item) => item.id));
+    draft.selections = Object.fromEntries(
+      Object.entries(draft.selections || {}).filter(([key]) => itemIds.has(key))
+    );
+  } else {
+    draft.selections = {};
+  }
+
+  return draft;
+}
+
+function createAssessmentDraft(admissionId) {
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  if (!diseases.length) return null;
+  const store = normalizeAdmissionAssessmentStore(admissionId);
+  const sorted = [...store.records].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const latest = sorted[0];
+  const draft = {
+    id: uid("assr"),
+    admissionId,
+    diseaseId: latest?.diseaseId || diseases[0]?.id || "",
+    versionId: latest?.versionId || "",
+    selections: {},
+    createdAt: new Date().toISOString()
+  };
+  return normalizeAssessmentDraft(draft);
+}
+
+function getCurrentAdmissionForAssessment() {
+  const admissionId = state.patientDetailAdmissionId;
+  if (!admissionId) return null;
+  const admission = state.admissions.find((item) => item._id === admissionId);
+  if (!admission) return null;
+  return admission;
+}
+
+function openEditAdmissionAssessmentModal(recordId) {
+  if (!recordId) return;
+  const admission = getCurrentAdmissionForAssessment();
+  if (!admission) return;
+  const store = normalizeAdmissionAssessmentStore(admission._id);
+  const record = (store.records || []).find((item) => item.id === recordId);
+  if (!record) {
+    alert("未找到对应测评记录。");
+    return;
+  }
+  openAssessmentModalShell(admission, record);
+}
+
+function deleteAdmissionAssessmentRecord(recordId) {
+  if (!recordId) return;
+  const admission = getCurrentAdmissionForAssessment();
+  if (!admission) return;
+  if (!confirm("确认删除该测评记录吗？")) return;
+  const store = normalizeAdmissionAssessmentStore(admission._id);
+  const before = store.records.length;
+  store.records = store.records.filter((item) => item.id !== recordId);
+  if (store.records.length === before) return;
+  if (state.patientDetailAssessmentId === recordId) {
+    state.patientDetailAssessmentId = "";
+  }
+  persistDataState();
+  renderPatientSection();
+  showToast("测评记录已删除");
+}
+
+function renderAdmissionAssessmentSection(admission) {
+  if (!admission || !el.admissionTemplateSummary) return;
+  const store = normalizeAdmissionAssessmentStore(admission._id);
+  const records = [...store.records].sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+
+  if (!records.length) {
+    el.admissionTemplateSummary.innerHTML = diseases.length
+      ? `<div class="empty">暂无测评记录，点击右上角新增测评</div>`
+      : `<div class="empty">暂无测评模板</div>`;
+    return;
+  }
+
+  el.admissionTemplateSummary.innerHTML = records
+    .map((record) => renderAssessmentRecordCard(record))
     .join("");
+}
+
+function renderAdmissionAssessmentModalItem(admissionId, item, selections) {
+  const selectedId = selections?.[item.id] || "";
+  const options = item.options || [];
+  const optionHtml = options.length
+    ? options.map((opt) => {
+      const checked = opt.id === selectedId ? "checked" : "";
+      return `
+        <label class="assessment-option">
+          <input type="radio" name="assess_${esc(admissionId)}_${esc(item.id)}" value="${esc(opt.id)}"
+            data-action="admission-assessment-option" data-admission-id="${esc(admissionId)}" data-item-id="${esc(item.id)}" ${checked}>
+          <span class="label">${esc(opt.label)}</span>
+          <span class="score">${esc(String(opt.score))}分</span>
+        </label>
+      `;
+    }).join("")
+    : `<div class="empty compact">暂无评分选项</div>`;
 
   return `
-    <article class="entity-card template-sim-card">
+    <article class="entity-card assessment-item-card">
       <div class="entity-head">
         <div class="entity-title">${esc(item.name || "未命名测评项")}</div>
       </div>
-      <select data-action="template-select-score" data-item-id="${esc(item.id)}">
-        ${optionHtml}
-      </select>
+      <div class="assessment-options">${optionHtml}</div>
     </article>
   `;
 }
 
-function renderTemplateSimulatorResult(version) {
-  const result = calculateTemplateResult(version);
+function getAssessmentRecordMeta(record) {
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  const disease = diseases.find((item) => item.id === record.diseaseId);
+  const versions = disease?.versions || [];
+  const version = versions.find((item) => item.id === record.versionId) || null;
+  const result = version ? calculateAssessmentResult(version, record.selections) : null;
+  return {
+    disease,
+    version,
+    result,
+    diseaseName: disease?.diseaseName || "模板已删除",
+    versionName: version?.versionName || "版本不可用"
+  };
+}
+
+function renderAssessmentRecordCard(record) {
+  const meta = getAssessmentRecordMeta(record);
+  const scoreText = meta.result ? meta.result.score.toFixed(1) : "-";
+  const levelText = meta.result?.level || (meta.version ? "待评估" : "不可用");
+  const dateText = formatDateTime(record.createdAt);
+  return `
+    <article class="entity-card assessment-record-card" data-id="${esc(record.id)}">
+      <div class="entity-head">
+        <div class="entity-title">${esc(meta.diseaseName)}</div>
+        <div class="field-head-actions assessment-record-actions">
+          <button class="mini-btn edit" data-action="edit-assessment-record" data-id="${esc(record.id)}">修改</button>
+          <button class="mini-btn delete" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
+          <span class="entity-tag">${esc(scoreText)}分</span>
+          <span class="entity-tag ${meta.result?.level ? "active" : ""}">${esc(levelText)}</span>
+        </div>
+      </div>
+      <div class="field-grid">
+        ${fieldItem("模板版本", meta.versionName)}
+        ${fieldItem("测评时间", dateText)}
+      </div>
+      <span class="patient-chevron" aria-hidden="true">›</span>
+    </article>
+  `;
+}
+
+function renderAssessmentDetailItem(item, selectedOption) {
+  return `
+    <article class="entity-card assessment-detail-item">
+      <div class="entity-head">
+        <div class="entity-title">${esc(item.name || "未命名测评项")}</div>
+        <span class="entity-tag ${selectedOption ? "active" : ""}">${selectedOption ? "已选择" : "未选择"}</span>
+      </div>
+      <div class="field-grid">
+        ${fieldItem("评分选项", selectedOption?.label || "-")}
+        ${fieldItem("得分", selectedOption ? `${selectedOption.score}分` : "-")}
+      </div>
+    </article>
+  `;
+}
+
+function renderAssessmentDetailView(record) {
+  const meta = getAssessmentRecordMeta(record);
+  const items = meta.version?.items || [];
+  const resultHtml = meta.version
+    ? renderAdmissionAssessmentResult(meta.version, record.selections)
+    : renderEmptyAssessmentResult("该测评模板已被删除");
+  const itemHtml = items.length
+    ? items.map((item) => {
+      const selectedId = record.selections?.[item.id];
+      const selectedOption = (item.options || []).find((opt) => opt.id === selectedId) || null;
+      return renderAssessmentDetailItem(item, selectedOption);
+    }).join("")
+    : `<div class="empty">暂无测评项</div>`;
+
+  return `
+    <article class="entity-card assessment-detail-summary">
+      <div class="entity-head">
+        <div class="entity-title">${esc(meta.diseaseName)}</div>
+        <div class="field-head-actions">
+          <span class="entity-tag ${meta.result?.level ? "active" : ""}">${esc(meta.versionName)}</span>
+          <button class="mini-btn edit" data-action="edit-assessment-record" data-id="${esc(record.id)}">修改</button>
+          <button class="mini-btn delete" data-action="delete-assessment-record" data-id="${esc(record.id)}">删除</button>
+        </div>
+      </div>
+      <div class="field-grid">
+        ${fieldItem("测评时间", formatDateTime(record.createdAt))}
+        ${fieldItem("完成项", meta.result ? `${meta.result.filledCount}/${meta.result.totalCount}` : "-")}
+      </div>
+    </article>
+    <article class="entity-card assessment-result-card">
+      ${resultHtml}
+    </article>
+    <div class="section-title">测评项明细</div>
+    <div class="assessment-item-list">${itemHtml}</div>
+  `;
+}
+
+function calculateAssessmentResult(version, selections) {
+  const items = version?.items || [];
+  const totalCount = items.length;
+  let filledCount = 0;
+  let totalScore = 0;
+
+  for (const item of items) {
+    const options = item.options || [];
+    if (!options.length) continue;
+    const selectedId = selections?.[item.id];
+    const selectedOption = options.find((opt) => opt.id === selectedId);
+    if (!selectedOption) continue;
+    filledCount += 1;
+    totalScore += Number(selectedOption.score || 0);
+  }
+
+  const rules = [...(version?.gradeRules || [])].sort((a, b) => Number(a.min || 0) - Number(b.min || 0));
+  const hit = rules.find((rule) => totalScore >= Number(rule.min || 0) && totalScore <= Number(rule.max || 0));
+  const rangeText = hit ? `${hit.min} - ${hit.max}` : "";
+
+  return {
+    score: Number.isFinite(totalScore) ? totalScore : 0,
+    filledCount,
+    totalCount,
+    level: hit?.level || "",
+    note: hit?.note || "",
+    range: rangeText
+  };
+}
+
+function renderAdmissionAssessmentResult(version, selections) {
+  const result = calculateAssessmentResult(version, selections);
   return `
     <div class="entity-head">
       <div class="entity-title">评分结果</div>
@@ -1421,13 +1767,14 @@ function renderTemplateSimulatorResult(version) {
     <div class="field-grid">
       ${fieldItem("综合得分", `${result.score.toFixed(1)}`)}
       ${fieldItem("完成项", `${result.filledCount}/${result.totalCount}`)}
-      ${fieldItem("患病等级", result.level || "未命中等级区间")}
+      ${fieldItem("所在区间", result.range || "未命中等级区间")}
+      ${fieldItem("患病等级", result.level || "-")}
       ${fieldItem("判定说明", result.note || "请选择每个测评项的评分选项后自动计算", true)}
     </div>
   `;
 }
 
-function renderEmptyTemplateResult(message) {
+function renderEmptyAssessmentResult(message) {
   return `
     <div class="entity-head">
       <div class="entity-title">评分结果</div>
@@ -1435,55 +1782,225 @@ function renderEmptyTemplateResult(message) {
     </div>
     <div class="field-grid">
       ${fieldItem("综合得分", "-")}
+      ${fieldItem("所在区间", "-")}
       ${fieldItem("患病等级", "-")}
-      ${fieldItem("判定说明", message || "请完成模板配置后计算")}
+      ${fieldItem("判定说明", message || "请先选择模板版本")}
     </div>
   `;
 }
 
-function calculateTemplateResult(version) {
-  const items = version?.items || [];
-  const totalCount = items.length;
-  const map = state.templateSimSelections[version?.id] || {};
-
-  let filledCount = 0;
-  let totalScore = 0;
-
-  for (const item of items) {
-    const options = item.options || [];
-    if (!options.length) continue;
-
-    const selectedId = map[item.id];
-    const selectedOption = options.find((opt) => opt.id === selectedId);
-    if (!selectedOption) continue;
-    filledCount += 1;
-    totalScore += Number(selectedOption.score || 0);
-  }
-
-  const score = totalScore;
-  const rules = [...(version?.gradeRules || [])].sort((a, b) => Number(a.min || 0) - Number(b.min || 0));
-  const hit = rules.find((rule) => score >= Number(rule.min || 0) && score <= Number(rule.max || 0));
-
-  return {
-    score: Number.isFinite(score) ? score : 0,
-    filledCount,
-    totalCount,
-    level: hit?.level || "",
-    note: hit?.note || ""
-  };
+function openAdmissionAssessmentModal() {
+  const admission = getCurrentAdmissionForAssessment();
+  if (!admission) return;
+  openAssessmentModalShell(admission);
 }
 
-function handleTemplateSimulatorChange(event) {
-  const target = event.target.closest("select[data-action='template-select-score']");
-  if (!target) return;
-  const version = getSelectedTemplateVersion();
-  if (!version) return;
-
-  if (!state.templateSimSelections[version.id]) {
-    state.templateSimSelections[version.id] = {};
+function openAssessmentModalShell(admission, editingRecord = null) {
+  const admissionId = admission._id;
+  if (editingRecord) {
+    assessmentDraftMode = "edit";
+    assessmentDraftSourceId = editingRecord.id;
+    assessmentDraft = normalizeAssessmentDraft({
+      id: editingRecord.id,
+      admissionId,
+      diseaseId: editingRecord.diseaseId || "",
+      versionId: editingRecord.versionId || "",
+      selections: { ...(editingRecord.selections || {}) },
+      createdAt: editingRecord.createdAt || new Date().toISOString()
+    });
+  } else {
+    assessmentDraftMode = "create";
+    assessmentDraftSourceId = "";
+    assessmentDraft = createAssessmentDraft(admissionId);
   }
-  state.templateSimSelections[version.id][target.dataset.itemId] = target.value || "";
-  renderTemplateSection();
+
+  if (!assessmentDraft) {
+    alert("请先在测评模板中配置病种与版本。");
+    return;
+  }
+
+  if (el.modalShell) {
+    el.modalShell.classList.add("assessment-modal");
+  }
+  modalState.onSubmit = () => {
+    if (!assessmentDraft || !assessmentDraft.diseaseId || !assessmentDraft.versionId) {
+      alert("请选择测评模板与版本后再保存。");
+      return false;
+    }
+    const store = normalizeAdmissionAssessmentStore(admissionId);
+    const normalized = normalizeAssessmentDraft({
+      id: assessmentDraft.id || assessmentDraftSourceId || uid("assr"),
+      diseaseId: assessmentDraft.diseaseId,
+      versionId: assessmentDraft.versionId,
+      selections: { ...assessmentDraft.selections },
+      createdAt: assessmentDraft.createdAt || new Date().toISOString()
+    });
+    if (!normalized) return false;
+
+    if (assessmentDraftMode === "edit") {
+      const index = store.records.findIndex((item) => item.id === assessmentDraftSourceId);
+      if (index >= 0) {
+        store.records[index] = normalized;
+      } else {
+        store.records.unshift(normalized);
+      }
+      if (state.patientDetailAssessmentId === assessmentDraftSourceId) {
+        state.patientDetailAssessmentId = normalized.id;
+      }
+      showToast("测评记录已更新");
+    } else {
+      store.records.unshift(normalized);
+      showToast("测评记录已新增");
+    }
+
+    persistDataState();
+    if (state.patientDetailNo) {
+      renderPatientSection();
+    } else {
+      renderAdmissionAssessmentSection(admission);
+    }
+    return true;
+  };
+  const editing = assessmentDraftMode === "edit";
+  el.modalTitle.textContent = editing ? "修改住院测评" : "新增住院测评";
+  if (el.modalSubtitle) {
+    el.modalSubtitle.textContent = editing
+      ? "调整模板与评分选项后保存，结果会即时刷新。"
+      : "选择模板与版本，勾选评分选项后保存。";
+  }
+  el.modalForm.innerHTML = renderAdmissionAssessmentModal(admission);
+  el.modalOverlay.classList.remove("hidden");
+}
+
+function renderAdmissionAssessmentModal(admission) {
+  const diseases = Array.isArray(state.templates) ? state.templates : [];
+  const assessment = normalizeAssessmentDraft(assessmentDraft);
+  if (!assessment) return `<div class="empty">暂无测评模板</div>`;
+  const disease = diseases.find((item) => item.id === assessment.diseaseId) || diseases[0];
+  const versions = disease?.versions || [];
+  const version = versions.find((item) => item.id === assessment.versionId) || null;
+  const result = version ? calculateAssessmentResult(version, assessment.selections) : null;
+
+  const diseaseOptions = diseases.length
+    ? diseases.map((row) => {
+      const selected = row.id === assessment.diseaseId ? "selected" : "";
+      return `<option value="${esc(row.id)}" ${selected}>${esc(row.diseaseName || "未命名病种")}</option>`;
+    }).join("")
+    : `<option value="">暂无测评模板</option>`;
+  const versionOptions = versions.length
+    ? versions.map((row) => {
+      const selected = row.id === assessment.versionId ? "selected" : "";
+      return `<option value="${esc(row.id)}" ${selected}>${esc(row.versionName || "未命名版本")}</option>`;
+    }).join("")
+    : `<option value="">暂无版本</option>`;
+
+  const itemsHtml = version?.items?.length
+    ? version.items.map((item) => renderAdmissionAssessmentModalItem(admission._id, item, assessment.selections)).join("")
+    : `<div class="empty">当前版本暂无测评项</div>`;
+
+  const resultHtml = version
+    ? renderAdmissionAssessmentResult(version, assessment.selections)
+    : renderEmptyAssessmentResult("请选择模板版本后开始评分");
+  const editing = assessmentDraftMode === "edit";
+
+  return `
+    <div class="assessment-modal-body" data-admission-id="${esc(admission._id)}">
+      <div class="assessment-summary">
+        <div class="summary-main">
+          <div class="summary-title">${editing ? "住院测评修改" : "住院测评录入"}</div>
+          <div class="summary-sub">${esc(admission.admitDate || "未填写入院日期")} · ${esc(admission.diagnosis || "未填写诊断")}</div>
+        </div>
+        <div class="summary-score">
+          <div class="label">当前得分</div>
+          <div class="value">${version ? result.score.toFixed(1) : "-"}</div>
+          <div class="tag ${result?.level ? "active" : ""}">${esc(result?.level || "待评估")}</div>
+        </div>
+      </div>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">01</span>
+          <div>
+            <div class="step-title">选择模板与版本</div>
+            <div class="step-sub">决定评分规则与等级区间</div>
+          </div>
+        </div>
+        <div class="control-row">
+          <select data-action="admission-assessment-select" data-field="disease" data-admission-id="${esc(admission._id)}">
+            ${diseaseOptions}
+          </select>
+          <select data-action="admission-assessment-select" data-field="version" data-admission-id="${esc(admission._id)}" ${versions.length ? "" : "disabled"}>
+            ${versionOptions}
+          </select>
+        </div>
+      </section>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">02</span>
+          <div>
+            <div class="step-title">评分选项</div>
+            <div class="step-sub">点击选择每项的评分结果</div>
+          </div>
+        </div>
+        <div class="assessment-item-list">${itemsHtml}</div>
+      </section>
+
+      <section class="assessment-step">
+        <div class="assessment-step-head">
+          <span class="step-index">03</span>
+          <div>
+            <div class="step-title">评分结果</div>
+            <div class="step-sub">自动汇总得分与区间</div>
+          </div>
+        </div>
+        <div class="entity-card assessment-result-card">
+          ${resultHtml}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function updateAdmissionAssessmentModal(admissionId) {
+  const admission = state.admissions.find((item) => item._id === admissionId);
+  if (!admission) return;
+  el.modalForm.innerHTML = renderAdmissionAssessmentModal(admission);
+}
+
+function handleAdmissionAssessmentModalSelect(target) {
+  const admissionId = target.dataset.admissionId || state.patientDetailAdmissionId;
+  if (!admissionId || !assessmentDraft) return;
+  const assessment = assessmentDraft;
+  const field = target.dataset.field;
+  const nextValue = target.value || "";
+
+  if (field === "disease") {
+    if (assessment.diseaseId !== nextValue) {
+      assessment.diseaseId = nextValue;
+      assessment.versionId = "";
+      assessment.selections = {};
+    }
+  }
+
+  if (field === "version") {
+    if (assessment.versionId !== nextValue) {
+      assessment.versionId = nextValue;
+      assessment.selections = {};
+    }
+  }
+
+  normalizeAssessmentDraft(assessment);
+  updateAdmissionAssessmentModal(admissionId);
+}
+
+function handleAdmissionAssessmentModalOption(input) {
+  const admissionId = input.dataset.admissionId;
+  const itemId = input.dataset.itemId;
+  if (!admissionId || !itemId || !assessmentDraft) return;
+  const assessment = assessmentDraft;
+  assessment.selections[itemId] = input.value || "";
+  updateAdmissionAssessmentModal(admissionId);
 }
 
 function handleTemplateActions(event) {
@@ -2267,9 +2784,11 @@ async function handleImportDataFile(event) {
     }
 
     applyImportedData(normalized);
+    repairLegacyDataArtifacts();
     state.patientDetailNo = "";
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
+    state.patientDetailAssessmentId = "";
     state.patientInHospitalOnly = false;
     state.fieldsSortMode = false;
     resetFieldSortState();
@@ -2687,6 +3206,7 @@ function openPatientModal(title, currentData, isEdit) {
   }));
 
   openModal(title, fields, currentData, (values) => {
+    const payload = applySchemaCoercion(values, state.schemas.patient);
     const admissionNo = (values.admissionNo || "").trim();
     if (!admissionNo) {
       alert("住院号不能为空");
@@ -2701,10 +3221,10 @@ function openPatientModal(title, currentData, isEdit) {
 
     if (isEdit) {
       state.patients = state.patients.map((item) =>
-        item.admissionNo === currentData.admissionNo ? { ...item, ...values } : item
+        item.admissionNo === currentData.admissionNo ? { ...item, ...payload } : item
       );
     } else {
-      state.patients.unshift(values);
+      state.patients.unshift(payload);
       state.selectedPatientNo = admissionNo;
     }
 
@@ -2736,6 +3256,7 @@ function openAddAdmissionFromPatientDetail() {
   state.selectedPatientNo = state.patientDetailNo;
   state.patientDetailAdmissionId = "";
   state.patientDetailDailyId = "";
+  state.patientDetailAssessmentId = "";
   openAddAdmissionModal();
 }
 
@@ -2752,7 +3273,8 @@ function openAdmissionModal(title, currentData, isEdit) {
   ];
 
   openModal(title, fields, { ...currentData, admissionNo: state.selectedPatientNo }, (values) => {
-    const payload = { ...values, admissionNo: state.selectedPatientNo };
+    const payload = applySchemaCoercion(values, state.schemas.admission);
+    payload.admissionNo = state.selectedPatientNo;
 
     if (isEdit) {
       state.admissions = state.admissions.map((item) =>
@@ -2782,15 +3304,16 @@ function openAddDailyModal() {
 
 function openDailyModal(title, currentData, isEdit) {
   openModal(title, state.schemas.daily, currentData, (values) => {
+    const payload = applySchemaCoercion(values, state.schemas.daily);
     if (isEdit) {
       state.dailyRecords = state.dailyRecords.map((item) =>
-        item._id === currentData._id ? { ...item, ...values } : item
+        item._id === currentData._id ? { ...item, ...payload } : item
       );
     } else {
       state.dailyRecords.unshift({
         _id: uid("daily"),
         admissionId: state.selectedAdmissionId,
-        ...values
+        ...payload
       });
     }
 
@@ -2807,7 +3330,7 @@ function openAddFieldModal() {
   const fields = [
     { key: "key", label: "字段键名", type: "text", required: true },
     { key: "label", label: "字段名称", type: "text", required: true },
-    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select"], required: true },
+    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select", "images"], required: true },
     { key: "required", label: "是否必填", type: "select", options: ["true", "false"], required: true },
     { key: "showInList", label: "是否在列表显示", type: "select", options: ["true", "false"], required: true },
     { key: "options", label: "下拉选项(逗号分隔，仅select类型)", type: "text", required: false }
@@ -2857,7 +3380,7 @@ function openEditFieldModal(moduleKey, field) {
   const fields = [
     { key: "key", label: "字段键名", type: "text", required: true, readonly: true },
     { key: "label", label: "字段名称", type: "text", required: true },
-    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select"], required: true, readonly: true },
+    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select", "images"], required: true, readonly: true },
     { key: "required", label: "是否必填", type: "select", options: ["true", "false"], required: true, readonly: mandatoryRequired },
     { key: "showInList", label: "是否在列表显示", type: "select", options: ["true", "false"], required: true, readonly: moduleKey === "patient" && field.key === "admissionNo" },
     { key: "options", label: "下拉选项(逗号分隔，仅select类型)", type: "text", required: false }
@@ -3035,7 +3558,8 @@ function serializeDataState() {
     patients: JSON.parse(JSON.stringify(state.patients)),
     admissions: JSON.parse(JSON.stringify(state.admissions)),
     dailyRecords: JSON.parse(JSON.stringify(state.dailyRecords)),
-    templates: JSON.parse(JSON.stringify(state.templates || []))
+    templates: JSON.parse(JSON.stringify(state.templates || [])),
+    admissionAssessments: JSON.parse(JSON.stringify(state.admissionAssessments || {}))
   };
 }
 
@@ -3101,12 +3625,17 @@ function normalizeImportedData(raw) {
       : []
   }));
 
+  const admissionAssessments = raw.admissionAssessments && typeof raw.admissionAssessments === "object"
+    ? raw.admissionAssessments
+    : {};
+
   return {
     schemas: JSON.parse(JSON.stringify(raw.schemas)),
     patients: raw.patients.map((item) => ({ ...(item || {}) })),
     admissions,
     dailyRecords,
-    templates
+    templates,
+    admissionAssessments
   };
 }
 
@@ -3116,6 +3645,9 @@ function applyImportedData(nextData) {
   state.admissions = nextData.admissions;
   state.dailyRecords = nextData.dailyRecords;
   state.templates = Array.isArray(nextData.templates) ? nextData.templates : [];
+  state.admissionAssessments = nextData.admissionAssessments && typeof nextData.admissionAssessments === "object"
+    ? nextData.admissionAssessments
+    : {};
   state.templateView = "disease";
   state.templateSelectedDiseaseId = "";
   state.templateSelectedVersionId = "";
@@ -3163,6 +3695,12 @@ function openModal(title, fields, values, onSubmit) {
 function closeModal() {
   el.modalOverlay.classList.add("hidden");
   el.modalForm.innerHTML = "";
+  if (el.modalShell) {
+    el.modalShell.classList.remove("assessment-modal");
+  }
+  assessmentDraft = null;
+  assessmentDraftMode = "create";
+  assessmentDraftSourceId = "";
   modalState.onSubmit = null;
 }
 
@@ -3189,6 +3727,14 @@ function submitModal() {
     const required = node.dataset.required === "true";
     if (!required) continue;
     const key = node.dataset.key;
+    if (node.dataset.type === "images") {
+      const images = normalizeImageItems(payload[key] || "");
+      if (!images.length) {
+        alert(`请上传「${node.dataset.label}」`);
+        return;
+      }
+      continue;
+    }
     if (!payload[key]) {
       alert(`请填写「${node.dataset.label}」`);
       return;
@@ -3233,6 +3779,25 @@ function renderFormItem(field, value) {
         <div class="option-row-actions">
           <button class="mini-btn" type="button" data-action="add-option-row" data-field="${esc(field.key)}">新增选项</button>
         </div>
+        <input type="hidden" value="${jsonValue}" ${common}>
+      </div>
+    `;
+  }
+
+  if (field.type === "images") {
+    const items = normalizeImageItems(value);
+    const gridHtml = items.length ? items.map((item) => renderImageThumb(item)).join("") : "";
+    const jsonValue = esc(JSON.stringify(items));
+    return `
+      <div class="form-item image-field" data-type="images" data-required="${field.required ? "true" : "false"}" data-key="${esc(field.key)}" data-label="${esc(field.label)}">
+        <label>${label}</label>
+        <div class="image-grid" data-field="${esc(field.key)}">${gridHtml}</div>
+        <div class="image-actions">
+          <button class="mini-btn" type="button" data-action="add-image-camera" data-field="${esc(field.key)}">拍照</button>
+          <button class="mini-btn ghost" type="button" data-action="add-image-album" data-field="${esc(field.key)}">相册</button>
+        </div>
+        <input class="hidden-file-input" type="file" accept="image/*" capture="environment" data-action="image-camera-input" data-field="${esc(field.key)}">
+        <input class="hidden-file-input" type="file" accept="image/*" multiple data-action="image-album-input" data-field="${esc(field.key)}">
         <input type="hidden" value="${jsonValue}" ${common}>
       </div>
     `;
@@ -3297,6 +3862,22 @@ function handleModalFormActions(event) {
       container.insertAdjacentHTML("beforeend", renderOptionRow({}));
     }
     syncOptionRowsValue(container);
+    return;
+  }
+  if (action === "add-image-camera" || action === "add-image-album") {
+    const fieldKey = btn.dataset.field;
+    if (!fieldKey) return;
+    const selector = action === "add-image-camera" ? "[data-action='image-camera-input']" : "[data-action='image-album-input']";
+    const input = el.modalForm.querySelector(`input[type="file"][data-field="${fieldKey}"]${selector}`);
+    if (input) input.click();
+    return;
+  }
+  if (action === "remove-image") {
+    const thumb = btn.closest(".image-thumb");
+    const grid = btn.closest(".image-grid");
+    if (!thumb || !grid) return;
+    thumb.remove();
+    syncImageFieldValue(grid);
   }
 }
 
@@ -3321,6 +3902,70 @@ function syncOptionRowsValue(container) {
   }
 }
 
+function handleModalFormChange(event) {
+  const assessmentSelect = event.target.closest("[data-action='admission-assessment-select']");
+  if (assessmentSelect) {
+    handleAdmissionAssessmentModalSelect(assessmentSelect);
+    return;
+  }
+  const assessmentOption = event.target.closest("input[data-action='admission-assessment-option']");
+  if (assessmentOption) {
+    handleAdmissionAssessmentModalOption(assessmentOption);
+    return;
+  }
+  const input = event.target.closest("input[type='file'][data-action]");
+  if (!input) return;
+  const fieldKey = input.dataset.field;
+  const grid = el.modalForm.querySelector(`.image-grid[data-field="${fieldKey}"]`);
+  if (!fieldKey || !grid) return;
+
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+
+  const existing = readImageFieldValue(fieldKey);
+  readFilesAsDataUrls(files).then((items) => {
+    const merged = existing.concat(items);
+    renderImageGrid(fieldKey, merged);
+  });
+
+  input.value = "";
+}
+
+function readFilesAsDataUrls(files) {
+  return Promise.all(files.map((file) => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ id: uid("img"), src: String(reader.result || ""), name: file.name || "" });
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  }))).then((items) => items.filter((item) => item && item.src));
+}
+
+function readImageFieldValue(fieldKey) {
+  const hidden = el.modalForm.querySelector(`input[type="hidden"][data-field="${fieldKey}"]`);
+  if (!hidden) return [];
+  return normalizeImageItems(hidden.value || "");
+}
+
+function renderImageGrid(fieldKey, items) {
+  const grid = el.modalForm.querySelector(`.image-grid[data-field="${fieldKey}"]`);
+  const hidden = el.modalForm.querySelector(`input[type="hidden"][data-field="${fieldKey}"]`);
+  if (!grid || !hidden) return;
+  const normalized = normalizeImageItems(items);
+  grid.innerHTML = normalized.map((item) => renderImageThumb(item)).join("");
+  hidden.value = JSON.stringify(normalized);
+}
+
+function syncImageFieldValue(grid) {
+  const fieldKey = grid.dataset.field;
+  if (!fieldKey) return;
+  const items = Array.from(grid.querySelectorAll(".image-thumb")).map((thumb) => {
+    const id = thumb.dataset.imageId || uid("img");
+    const img = thumb.querySelector("img");
+    return { id, src: img?.getAttribute("src") || "", name: img?.getAttribute("alt") || "" };
+  }).filter((item) => item.src);
+  renderImageGrid(fieldKey, items);
+}
+
 function renderOptionRow(row = {}) {
   const id = row.id || uid("tplo");
   const label = esc(readValue(row.label || ""));
@@ -3330,6 +3975,37 @@ function renderOptionRow(row = {}) {
       <input class="option-label" type="text" placeholder="选项名称" value="${label}">
       <input class="option-score" type="number" placeholder="分数" value="${score}">
       <button class="mini-btn ghost" type="button" data-action="remove-option-row">移除</button>
+    </div>
+  `;
+}
+
+function normalizeImageItems(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => ({
+        id: item?.id || uid("img"),
+        src: String(item?.src || ""),
+        name: String(item?.name || "").trim()
+      }))
+      .filter((item) => !!item.src);
+  }
+  if (typeof value === "string" && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return normalizeImageItems(parsed);
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function renderImageThumb(item) {
+  const name = esc(item.name || "图片");
+  return `
+    <div class="image-thumb" data-image-id="${esc(item.id)}">
+      <img src="${esc(item.src)}" alt="${name}">
+      <button class="mini-btn ghost" type="button" data-action="remove-image">移除</button>
     </div>
   `;
 }
@@ -3406,6 +4082,7 @@ function repairLegacyDataArtifacts() {
   const defaultFieldValue = (field) => {
     if (!field || typeof field !== "object") return "";
     if (field.type === "select") return Array.isArray(field.options) ? (field.options[0] || "") : "";
+    if (field.type === "images") return [];
     return "";
   };
 
@@ -3525,12 +4202,79 @@ function repairLegacyDataArtifacts() {
 
     return next;
   });
+
+  if (!state.admissionAssessments || typeof state.admissionAssessments !== "object") {
+    state.admissionAssessments = {};
+  }
+  Object.keys(state.admissionAssessments).forEach((key) => {
+    if (!admissionIdSet.has(key)) {
+      delete state.admissionAssessments[key];
+      return;
+    }
+    const row = state.admissionAssessments[key];
+    if (!row || typeof row !== "object") {
+      state.admissionAssessments[key] = { records: [] };
+      return;
+    }
+    if (Array.isArray(row.records)) {
+      row.records = row.records
+        .filter((record) => record && typeof record === "object")
+        .map((record) => ({
+          id: record.id || uid("assr"),
+          diseaseId: typeof record.diseaseId === "string" ? record.diseaseId : "",
+          versionId: typeof record.versionId === "string" ? record.versionId : "",
+          selections: record.selections && typeof record.selections === "object" ? record.selections : {},
+          createdAt: record.createdAt || new Date().toISOString()
+        }));
+      return;
+    }
+    if ("diseaseId" in row || "versionId" in row || "selections" in row) {
+      row.records = [{
+        id: uid("assr"),
+        diseaseId: typeof row.diseaseId === "string" ? row.diseaseId : "",
+        versionId: typeof row.versionId === "string" ? row.versionId : "",
+        selections: row.selections && typeof row.selections === "object" ? row.selections : {},
+        createdAt: row.createdAt || new Date().toISOString()
+      }];
+      delete row.diseaseId;
+      delete row.versionId;
+      delete row.selections;
+      return;
+    }
+    row.records = [];
+  });
 }
 
 function isFieldVisibleInList(moduleKey, field) {
   if (moduleKey === "patient" && field.key === "admissionNo") return false;
   if (typeof field.showInList === "boolean") return field.showInList;
   return true;
+}
+
+function applySchemaCoercion(values, schema) {
+  const payload = { ...values };
+  (schema || []).forEach((field) => {
+    if (field.type === "images") {
+      payload[field.key] = normalizeImageItems(values[field.key]);
+    }
+  });
+  return payload;
+}
+
+function formatFieldValue(field, value) {
+  if (field?.type === "images") {
+    const count = normalizeImageItems(value).length;
+    return count ? `已上传${count}张` : "未上传";
+  }
+  return value;
+}
+
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (num) => String(num).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function fieldItem(key, value, isFull = false) {

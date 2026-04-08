@@ -75,12 +75,28 @@
                 </div>
                 <div id="patient-admission-daily" class="list-stack"></div>
               </div>
+
+              <div class="detail-group">
+                <div class="section-title section-title-with-action">
+                  <span>住院测评</span>
+                  <button id="admission-assessment-btn" class="btn btn-light btn-small" type="button">新增测评</button>
+                </div>
+                <p class="mine-copy">点击新增测评，选择模板与版本并勾选评分选项，系统自动计算得分与区间。</p>
+                <div id="admission-template-summary" class="list-stack"></div>
+              </div>
             </div>
 
             <div id="patient-daily-detail-pane" class="hidden">
               <div class="detail-group">
                 <div class="section-title">日常记录详情</div>
                 <div id="patient-daily-detail-card" class="list-stack"></div>
+              </div>
+            </div>
+
+            <div id="patient-assessment-detail-pane" class="hidden">
+              <div class="detail-group">
+                <div class="section-title">测评明细</div>
+                <div id="patient-assessment-detail-card" class="list-stack"></div>
               </div>
             </div>
           </div>
@@ -155,13 +171,6 @@
               <button id="add-template-grade-btn" class="btn btn-light btn-small" type="button">新增区间</button>
             </div>
             <div id="template-grade-list" class="list-stack"></div>
-          </div>
-
-          <div class="detail-group">
-            <div class="section-title">评分模拟</div>
-            <p class="mine-copy">选择各测评项得分后，系统将按分值占比计算总分并自动判断患病等级。</p>
-            <div id="template-simulator-list" class="list-stack"></div>
-            <div id="template-simulator-result" class="entity-card template-result-card"></div>
           </div>
         </div>
       </section>
@@ -276,7 +285,7 @@
   </div>
 
   <div id="modal-overlay" class="modal-overlay hidden">
-    <div class="modal">
+    <div id="modal-shell" class="modal">
       <div class="modal-head">
         <div class="modal-title-wrap">
           <h3 id="modal-title"></h3>
