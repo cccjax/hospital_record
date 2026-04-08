@@ -378,6 +378,36 @@ textarea {
   transform: translateY(-50%) translateX(2px);
 }
 
+.template-disease-card.expanded {
+  border-color: #a8c8f4;
+  box-shadow: 0 10px 24px rgba(24, 44, 76, 0.12);
+}
+
+.template-version-wrap {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed #d3e1f4;
+  background: #f7fbff;
+}
+
+.template-version-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #5f738c;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.template-version-wrap .template-version-card {
+  margin-top: 8px;
+}
+
+.template-version-wrap .template-version-card:first-child {
+  margin-top: 0;
+}
+
 .option-chip-row {
   margin-top: 10px;
   display: flex;
@@ -543,6 +573,22 @@ textarea {
   pointer-events: none;
   transform: translateY(-50%);
   transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.template-chevron-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  color: #7e95b3;
+  transition: transform 0.18s ease, color 0.18s ease;
+}
+
+.template-chevron-inline.expanded {
+  color: #43648c;
+  transform: rotate(90deg);
 }
 
 .entity-card.patient-card:hover .patient-chevron {
@@ -747,6 +793,40 @@ textarea {
   background: #edf3fa;
 }
 
+.option-rows {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.option-row {
+  display: grid;
+  grid-template-columns: 1fr 90px auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-row input {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d8e4f3;
+  font-size: 13px;
+  color: #1f3149;
+  background: #fff;
+}
+
+.option-row input:focus {
+  outline: none;
+  border-color: #7fb0e7;
+  box-shadow: 0 0 0 2px rgba(127, 176, 231, 0.2);
+}
+
+.option-row-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+
 .empty {
   border: 1px dashed #cddced;
   border-radius: 12px;
@@ -755,6 +835,11 @@ textarea {
   color: #647892;
   background: #f8fbff;
   font-size: 13px;
+}
+
+.empty.compact {
+  padding: 10px;
+  font-size: 12px;
 }
 
 .tab-bar {

@@ -10,6 +10,7 @@
   templateView: "disease",
   templateSelectedDiseaseId: "",
   templateSelectedVersionId: "",
+  templateExpandedDiseaseId: "",
   templateSimSelections: {},
   fieldsSortMode: false,
   schemas: {
@@ -32,6 +33,19 @@
       { key: "temperature", label: "体温(℃)", type: "number", required: false, showInList: true },
       { key: "bloodPressure", label: "血压", type: "text", required: false, showInList: true },
       { key: "notes", label: "病情记录", type: "textarea", required: false, showInList: false }
+    ],
+    templateDisease: [
+      { key: "diseaseCode", label: "病种编码", type: "text", required: false, showInList: true },
+      { key: "versionCount", label: "版本数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "itemCount", label: "测评项总数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "description", label: "说明", type: "textarea", required: false, showInList: true }
+    ],
+    templateVersion: [
+      { key: "year", label: "年度", type: "text", required: false, showInList: true },
+      { key: "itemCount", label: "测评项", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "optionCount", label: "选项数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "gradeCount", label: "分级区间", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "description", label: "说明", type: "textarea", required: false, showInList: true }
     ]
   },
   patients: [
@@ -104,7 +118,6 @@ state.templates = [
           {
             id: uid("tpli"),
             name: "呼吸困难程度",
-            weight: 35,
             options: [
               { id: uid("tplo"), label: "轻度", score: 1 },
               { id: uid("tplo"), label: "中度", score: 3 },
@@ -114,7 +127,6 @@ state.templates = [
           {
             id: uid("tpli"),
             name: "氧饱和度",
-            weight: 40,
             options: [
               { id: uid("tplo"), label: ">=95%", score: 1 },
               { id: uid("tplo"), label: "90%-94%", score: 3 },
@@ -124,7 +136,6 @@ state.templates = [
           {
             id: uid("tpli"),
             name: "咳痰性状变化",
-            weight: 25,
             options: [
               { id: uid("tplo"), label: "无明显变化", score: 1 },
               { id: uid("tplo"), label: "中等变化", score: 3 },
@@ -187,7 +198,7 @@ const moduleMeta = {
   },
   template: {
     title: "测评模板",
-    subtitle: "病种版本、测评项、评分占比与分级规则",
+    subtitle: "病种版本、测评项与分级规则",
     fab: ""
   },
   mine: {
@@ -392,6 +403,8 @@ function bindEvents() {
   el.modalClose.addEventListener("click", closeModal);
   el.modalCancel.addEventListener("click", closeModal);
   el.modalSubmit.addEventListener("click", submitModal);
+  el.modalForm.addEventListener("click", handleModalFormActions);
+  el.modalForm.addEventListener("input", handleModalFormInput);
   el.modalOverlay.addEventListener("click", (event) => {
     if (event.target === el.modalOverlay) closeModal();
   });
@@ -482,11 +495,6 @@ function refreshPageHeader() {
       el.pageSubtitle.textContent = `${disease.diseaseName} \u00b7 \u6d4b\u8bc4\u9879\u914d\u7f6e`;
       return;
     }
-    if (state.templateView === "version" && disease) {
-      el.pageTitle.textContent = disease.diseaseName || "\u75c5\u79cd\u6a21\u677f";
-      el.pageSubtitle.textContent = "\u6d4b\u8bc4\u7248\u672c\u5217\u8868";
-      return;
-    }
     el.pageTitle.textContent = "\u6d4b\u8bc4\u6a21\u677f";
     el.pageSubtitle.textContent = "\u75c5\u79cd\u5217\u8868";
     return;
@@ -559,25 +567,21 @@ function closePatientDetail(silent = false) {
 
 function closeTemplateDetail(silent = false) {
   if (state.templateView === "config") {
-    state.templateView = "version";
+    state.templateView = "disease";
+    state.templateSelectedVersionId = "";
+    state.templateExpandedDiseaseId = state.templateSelectedDiseaseId || state.templateExpandedDiseaseId;
     renderTemplateSection();
     // no toast on back navigation
     return;
-  }
-  if (state.templateView === "version") {
-    state.templateView = "disease";
-    state.templateSelectedVersionId = "";
-    renderTemplateSection();
-    // no toast on back navigation
   }
 }
 
 function openTemplateVersionView(diseaseId, silent = false) {
   if (!diseaseId) return;
+  state.templateView = "disease";
   state.templateSelectedDiseaseId = diseaseId;
   state.templateSelectedVersionId = "";
-  normalizeTemplateSelection();
-  state.templateView = "version";
+  state.templateExpandedDiseaseId = state.templateExpandedDiseaseId === diseaseId ? "" : diseaseId;
   renderTemplateSection();
 }
 
@@ -589,6 +593,7 @@ function openTemplateConfigView(versionId, silent = false) {
   state.templateSelectedVersionId = versionId;
   normalizeTemplateSelection();
   state.templateView = "config";
+  state.templateExpandedDiseaseId = disease.id;
   renderTemplateSection();
 }
 
@@ -1176,11 +1181,9 @@ function renderTemplateSection() {
   let selectedDisease = getSelectedTemplateDisease();
   let selectedVersion = getSelectedTemplateVersion();
 
-  if (!selectedDisease) {
+  if (state.templateView === "config" && (!selectedDisease || !selectedVersion)) {
     state.templateView = "disease";
-  }
-  if (state.templateView === "config" && !selectedVersion) {
-    state.templateView = "version";
+    state.templateSelectedVersionId = "";
   }
 
   selectedDisease = getSelectedTemplateDisease();
@@ -1188,7 +1191,7 @@ function renderTemplateSection() {
   const versionCount = diseases.reduce((sum, disease) => sum + (disease.versions?.length || 0), 0);
 
   el.templateDiseasePane.classList.toggle("hidden", state.templateView !== "disease");
-  el.templateVersionPane.classList.toggle("hidden", state.templateView !== "version");
+  el.templateVersionPane.classList.add("hidden");
   el.templateConfigPane.classList.toggle("hidden", state.templateView !== "config");
 
   if (state.activeModule === "template") {
@@ -1200,34 +1203,29 @@ function renderTemplateSection() {
     statItem("\u7248\u672c\u6570\u91cf", versionCount)
   ].join("");
 
-  el.templateDiseaseList.innerHTML = diseases.length
-    ? diseases.map((disease) => renderTemplateDiseaseCard(disease, disease.id === state.templateSelectedDiseaseId)).join("")
-    : `<div class="empty">\u6682\u65e0\u75c5\u79cd\u6a21\u677f\uff0c\u8bf7\u5148\u65b0\u589e\u75c5\u79cd</div>`;
-
-  el.templateVersionTitle.textContent = selectedDisease
-    ? `${selectedDisease.diseaseName} \u00b7 \u7248\u672c\u7ba1\u7406`
-    : "\u7248\u672c\u7ba1\u7406";
-  el.templateItemTitle.textContent = selectedVersion
-    ? `${selectedVersion.versionName} \u00b7 \u6d4b\u8bc4\u9879\u914d\u7f6e`
-    : "\u6d4b\u8bc4\u9879\u914d\u7f6e";
+  if (state.templateView === "disease") {
+    el.templateDiseaseList.innerHTML = diseases.length
+      ? diseases
+        .map((disease) =>
+          renderTemplateDiseaseCard(
+            disease,
+            disease.id === state.templateExpandedDiseaseId,
+            disease.id === state.templateSelectedDiseaseId
+          ))
+        .join("")
+      : `<div class="empty">\u6682\u65e0\u75c5\u79cd\u6a21\u677f\uff0c\u8bf7\u5148\u65b0\u589e\u75c5\u79cd</div>`;
+    return;
+  }
 
   if (!selectedDisease) {
-    el.templateVersionList.innerHTML = `<div class="empty">\u8bf7\u5148\u65b0\u589e\u75c5\u79cd\u6a21\u677f</div>`;
     el.templateItemList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u6d4b\u8bc4\u9879</div>`;
     el.templateGradeList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u5206\u7ea7\u533a\u95f4</div>`;
     el.templateSimulatorList.innerHTML = `<div class="empty">\u8bf7\u5148\u914d\u7f6e\u6d4b\u8bc4\u9879\u548c\u8bc4\u5206\u9009\u9879</div>`;
     el.templateSimulatorResult.innerHTML = renderEmptyTemplateResult("\u8bf7\u9009\u62e9\u75c5\u79cd\u4e0e\u7248\u672c\u540e\u5f00\u59cb\u914d\u7f6e");
-    el.addTemplateVersionBtn.disabled = true;
     el.addTemplateItemBtn.disabled = true;
     el.addTemplateGradeBtn.disabled = true;
     return;
   }
-
-  const versions = selectedDisease.versions || [];
-  el.templateVersionList.innerHTML = versions.length
-    ? versions.map((version) => renderTemplateVersionCard(version, version.id === state.templateSelectedVersionId)).join("")
-    : `<div class="empty">\u5f53\u524d\u75c5\u79cd\u6682\u65e0\u7248\u672c\uff0c\u8bf7\u5148\u65b0\u589e\u7248\u672c</div>`;
-  el.addTemplateVersionBtn.disabled = false;
 
   if (!selectedVersion) {
     el.templateItemList.innerHTML = `<div class="empty">\u8bf7\u5148\u9009\u62e9\u7248\u672c\u540e\u914d\u7f6e\u6d4b\u8bc4\u9879</div>`;
@@ -1260,52 +1258,93 @@ function renderTemplateSection() {
   el.templateSimulatorResult.innerHTML = renderTemplateSimulatorResult(selectedVersion);
 }
 
-function renderTemplateDiseaseCard(disease, active) {
+function getTemplateDiseaseFieldValue(disease, field) {
+  if (!disease || !field) return "";
+  if (field.key === "versionCount") return (disease.versions || []).length;
+  if (field.key === "itemCount") {
+    return (disease.versions || []).reduce((sum, version) => sum + ((version.items || []).length), 0);
+  }
+  return disease[field.key];
+}
+
+function getTemplateVersionFieldValue(version, field) {
+  if (!version || !field) return "";
+  if (field.key === "itemCount") return (version.items || []).length;
+  if (field.key === "optionCount") {
+    return (version.items || []).reduce((sum, item) => sum + ((item.options || []).length), 0);
+  }
+  if (field.key === "gradeCount") return (version.gradeRules || []).length;
+  return version[field.key];
+}
+
+function renderTemplateDiseaseCard(disease, expanded, active) {
   const versions = disease.versions || [];
-  const itemCount = versions.reduce((sum, version) => sum + ((version.items || []).length), 0);
+  const schema = state.schemas.templateDisease || [];
+  const visibleFields = schema.filter((field) => isFieldVisibleInList("templateDisease", field));
+  const fieldHtml = visibleFields.length
+    ? visibleFields
+      .map((field) =>
+        fieldItem(field.label, getTemplateDiseaseFieldValue(disease, field), field.type === "textarea"))
+      .join("")
+    : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
+  const versionList = expanded
+    ? (versions.length
+      ? versions
+        .map((version) =>
+          renderTemplateVersionCard(
+            version,
+            version.id === state.templateSelectedVersionId && disease.id === state.templateSelectedDiseaseId,
+            disease.id
+          ))
+        .join("")
+      : `<div class="empty compact">\u5f53\u524d\u75c5\u79cd\u6682\u65e0\u7248\u672c\uff0c\u8bf7\u5148\u65b0\u589e\u7248\u672c</div>`)
+    : "";
+  const versionHeader = expanded
+    ? `
+      <div class="template-version-head">
+        <span>\u7248\u672c\u5217\u8868</span>
+        <button class="mini-btn ghost" data-action="add-template-version" data-id="${esc(disease.id)}">\u65b0\u589e\u7248\u672c</button>
+      </div>
+    `
+    : "";
   return `
-    <article class="entity-card template-disease-card template-nav-card ${active ? "active" : ""}" data-id="${esc(disease.id)}">
+    <article class="entity-card template-disease-card template-nav-card ${active ? "active" : ""} ${expanded ? "expanded" : ""}" data-id="${esc(disease.id)}">
       <div class="entity-head">
         <div class="entity-title">${esc(disease.diseaseName || "\u672a\u547d\u540d\u75c5\u79cd")}</div>
         <div class="field-head-actions">
-          <span class="entity-tag ${active ? "active" : ""}">${active ? "\u5df2\u9009\u4e2d" : "\u53ef\u9009\u62e9"}</span>
           <button class="mini-btn edit" data-action="edit-template-disease" data-id="${esc(disease.id)}">\u7f16\u8f91</button>
           <button class="mini-btn delete" data-action="delete-template-disease" data-id="${esc(disease.id)}">\u5220\u9664</button>
+          <span class="template-chevron-inline ${expanded ? "expanded" : ""}" aria-hidden="true">\u203a</span>
         </div>
       </div>
-      <div class="field-grid">
-        ${fieldItem("\u75c5\u79cd\u7f16\u7801", disease.diseaseCode || "-")}
-        ${fieldItem("\u7248\u672c\u6570", versions.length)}
-        ${fieldItem("\u6d4b\u8bc4\u9879\u603b\u6570", itemCount)}
-        ${fieldItem("\u8bf4\u660e", disease.description || "-", true)}
-      </div>
-      <span class="patient-chevron" aria-hidden="true">\u203a</span>
+      <div class="field-grid">${fieldHtml}</div>
+      ${expanded
+        ? `<div class="template-version-wrap">${versionHeader}${versionList}</div>`
+        : ""}
     </article>
   `;
 }
 
-function renderTemplateVersionCard(version, active) {
-  const itemCount = (version.items || []).length;
-  const optionCount = (version.items || []).reduce((sum, item) => sum + ((item.options || []).length), 0);
+function renderTemplateVersionCard(version, active, diseaseId = "") {
+  const schema = state.schemas.templateVersion || [];
+  const visibleFields = schema.filter((field) => isFieldVisibleInList("templateVersion", field));
+  const fieldHtml = visibleFields.length
+    ? visibleFields
+      .map((field) =>
+        fieldItem(field.label, getTemplateVersionFieldValue(version, field), field.type === "textarea"))
+      .join("")
+    : fieldItem("提示", "当前未配置列表显示字段，请在字段配置中开启");
   return `
-    <article class="entity-card template-version-card template-nav-card ${active ? "active" : ""}" data-id="${esc(version.id)}">
+    <article class="entity-card template-version-card template-nav-card ${active ? "active" : ""}" data-id="${esc(version.id)}" data-disease-id="${esc(diseaseId)}">
       <div class="entity-head">
         <div class="entity-title">${esc(version.versionName || "\u672a\u547d\u540d\u7248\u672c")}</div>
         <div class="field-head-actions">
-          <span class="entity-tag ${active ? "active" : ""}">${active ? "\u5df2\u9009\u4e2d" : "\u53ef\u9009\u62e9"}</span>
-          <button class="mini-btn edit" data-action="edit-template-version" data-id="${esc(version.id)}">\u7f16\u8f91</button>
-          <button class="mini-btn delete" data-action="delete-template-version" data-id="${esc(version.id)}">\u5220\u9664</button>
+          <button class="mini-btn edit" data-action="edit-template-version" data-id="${esc(version.id)}" data-disease-id="${esc(diseaseId)}">\u7f16\u8f91</button>
+          <button class="mini-btn delete" data-action="delete-template-version" data-id="${esc(version.id)}" data-disease-id="${esc(diseaseId)}">\u5220\u9664</button>
+          <span class="template-chevron-inline" aria-hidden="true">\u203a</span>
         </div>
       </div>
-      <div class="field-grid">
-        ${fieldItem("\u7248\u672c\u53f7", version.versionName || "-")}
-        ${fieldItem("\u5e74\u5ea6", version.year || "-")}
-        ${fieldItem("\u6d4b\u8bc4\u9879", itemCount)}
-        ${fieldItem("\u9009\u9879\u6570", optionCount)}
-        ${fieldItem("\u5206\u7ea7\u533a\u95f4", (version.gradeRules || []).length)}
-        ${fieldItem("\u8bf4\u660e", version.description || "-", true)}
-      </div>
-      <span class="patient-chevron" aria-hidden="true">\u203a</span>
+      <div class="field-grid">${fieldHtml}</div>
     </article>
   `;
 }
@@ -1320,7 +1359,6 @@ function renderTemplateItemCard(item) {
       <div class="entity-head">
         <div class="entity-title">${esc(item.name || "未命名测评项")}</div>
         <div class="field-head-actions">
-          <span class="entity-tag">占比 ${esc(String(item.weight || 0))}%</span>
           <button class="mini-btn edit" data-action="edit-template-item" data-id="${esc(item.id)}">编辑</button>
           <button class="mini-btn delete" data-action="delete-template-item" data-id="${esc(item.id)}">删除</button>
         </div>
@@ -1365,7 +1403,6 @@ function renderTemplateSimulatorItem(versionId, item) {
     <article class="entity-card template-sim-card">
       <div class="entity-head">
         <div class="entity-title">${esc(item.name || "未命名测评项")}</div>
-        <span class="entity-tag">占比 ${esc(String(item.weight || 0))}%</span>
       </div>
       <select data-action="template-select-score" data-item-id="${esc(item.id)}">
         ${optionHtml}
@@ -1382,7 +1419,7 @@ function renderTemplateSimulatorResult(version) {
       <span class="entity-tag ${result.level ? "active" : ""}">${esc(result.level || "待评估")}</span>
     </div>
     <div class="field-grid">
-      ${fieldItem("综合得分", `${result.score.toFixed(1)} / 100`)}
+      ${fieldItem("综合得分", `${result.score.toFixed(1)}`)}
       ${fieldItem("完成项", `${result.filledCount}/${result.totalCount}`)}
       ${fieldItem("患病等级", result.level || "未命中等级区间")}
       ${fieldItem("判定说明", result.note || "请选择每个测评项的评分选项后自动计算", true)}
@@ -1410,29 +1447,20 @@ function calculateTemplateResult(version) {
   const map = state.templateSimSelections[version?.id] || {};
 
   let filledCount = 0;
-  let weightedSum = 0;
-  let totalWeight = 0;
+  let totalScore = 0;
 
   for (const item of items) {
-    const weight = Number(item.weight || 0);
-    if (weight <= 0) continue;
     const options = item.options || [];
     if (!options.length) continue;
-
-    totalWeight += weight;
-    const maxScore = Math.max(...options.map((opt) => Number(opt.score || 0)));
-    if (maxScore <= 0) continue;
 
     const selectedId = map[item.id];
     const selectedOption = options.find((opt) => opt.id === selectedId);
     if (!selectedOption) continue;
     filledCount += 1;
-
-    const normalized = Number(selectedOption.score || 0) / maxScore;
-    weightedSum += normalized * weight;
+    totalScore += Number(selectedOption.score || 0);
   }
 
-  const score = totalWeight > 0 ? (weightedSum / totalWeight) * 100 : 0;
+  const score = totalScore;
   const rules = [...(version?.gradeRules || [])].sort((a, b) => Number(a.min || 0) - Number(b.min || 0));
   const hit = rules.find((rule) => score >= Number(rule.min || 0) && score <= Number(rule.max || 0));
 
@@ -1472,11 +1500,26 @@ function handleTemplateActions(event) {
       deleteTemplateDiseaseById(id);
       return;
     }
+    if (action === "add-template-version") {
+      if (id) {
+        state.templateSelectedDiseaseId = id;
+      }
+      openAddTemplateVersionModal();
+      return;
+    }
     if (action === "edit-template-version") {
+      const diseaseId = btn.dataset.diseaseId || btn.closest(".template-version-card")?.dataset.diseaseId;
+      if (diseaseId) {
+        state.templateSelectedDiseaseId = diseaseId;
+      }
       openEditTemplateVersionModal(id);
       return;
     }
     if (action === "delete-template-version") {
+      const diseaseId = btn.dataset.diseaseId || btn.closest(".template-version-card")?.dataset.diseaseId;
+      if (diseaseId) {
+        state.templateSelectedDiseaseId = diseaseId;
+      }
       deleteTemplateVersionById(id);
       return;
     }
@@ -1498,27 +1541,51 @@ function handleTemplateActions(event) {
     }
   }
 
-  const diseaseCard = event.target.closest(".template-disease-card[data-id]");
-  if (diseaseCard) {
-    openTemplateVersionView(diseaseCard.dataset.id);
+  const versionCard = event.target.closest(".template-version-card[data-id]");
+  if (versionCard) {
+    const diseaseId = versionCard.dataset.diseaseId;
+    if (diseaseId) {
+      state.templateSelectedDiseaseId = diseaseId;
+    }
+    openTemplateConfigView(versionCard.dataset.id);
     return;
   }
 
-  const versionCard = event.target.closest(".template-version-card[data-id]");
-  if (versionCard) {
-    openTemplateConfigView(versionCard.dataset.id);
+  const diseaseCard = event.target.closest(".template-disease-card[data-id]");
+  if (diseaseCard) {
+    openTemplateVersionView(diseaseCard.dataset.id);
   }
 }
 
+function getTemplateFormFields(moduleKey, baseFields = []) {
+  const schemaFields = (state.schemas[moduleKey] || []).filter((field) => !field.computed);
+  const merged = [...baseFields];
+  for (const field of schemaFields) {
+    if (merged.some((item) => item.key === field.key)) continue;
+    merged.push(field);
+  }
+  return merged.map((field) => ({
+    ...field,
+    readonly: !!field.readonly || !!field.locked
+  }));
+}
+
+function collectTemplateValues(fields, values) {
+  const payload = {};
+  for (const field of fields) {
+    payload[field.key] = String(values[field.key] ?? "").trim();
+  }
+  return payload;
+}
+
 function openAddTemplateDiseaseModal() {
-  const fields = [
-    { key: "diseaseName", label: "病种名称", type: "text", required: true },
-    { key: "diseaseCode", label: "病种编码", type: "text", required: false },
-    { key: "description", label: "说明", type: "textarea", required: false }
-  ];
+  const fields = getTemplateFormFields("templateDisease", [
+    { key: "diseaseName", label: "病种名称", type: "text", required: true }
+  ]);
 
   openModal("新增病种模板", fields, {}, (values) => {
-    const diseaseName = (values.diseaseName || "").trim();
+    const payload = collectTemplateValues(fields, values);
+    const diseaseName = payload.diseaseName;
     if (!diseaseName) {
       alert("病种名称不能为空。");
       return false;
@@ -1526,14 +1593,13 @@ function openAddTemplateDiseaseModal() {
 
     const row = {
       id: uid("tpld"),
-      diseaseName,
-      diseaseCode: (values.diseaseCode || "").trim(),
-      description: (values.description || "").trim(),
-      versions: []
+      versions: [],
+      ...payload
     };
     state.templates.unshift(row);
     state.templateSelectedDiseaseId = row.id;
     state.templateSelectedVersionId = "";
+    state.templateExpandedDiseaseId = row.id;
     persistDataState();
     renderTemplateSection();
     showToast("病种模板已新增");
@@ -1545,21 +1611,18 @@ function openEditTemplateDiseaseModal(id) {
   const disease = state.templates.find((item) => item.id === id);
   if (!disease) return;
 
-  const fields = [
-    { key: "diseaseName", label: "病种名称", type: "text", required: true },
-    { key: "diseaseCode", label: "病种编码", type: "text", required: false },
-    { key: "description", label: "说明", type: "textarea", required: false }
-  ];
+  const fields = getTemplateFormFields("templateDisease", [
+    { key: "diseaseName", label: "病种名称", type: "text", required: true }
+  ]);
 
   openModal("编辑病种模板", fields, disease, (values) => {
-    const diseaseName = (values.diseaseName || "").trim();
+    const payload = collectTemplateValues(fields, values);
+    const diseaseName = payload.diseaseName;
     if (!diseaseName) {
       alert("病种名称不能为空。");
       return false;
     }
-    disease.diseaseName = diseaseName;
-    disease.diseaseCode = (values.diseaseCode || "").trim();
-    disease.description = (values.description || "").trim();
+    Object.assign(disease, payload);
     persistDataState();
     renderTemplateSection();
     showToast("病种模板已更新");
@@ -1580,6 +1643,9 @@ function deleteTemplateDiseaseById(id) {
     state.templateSelectedDiseaseId = "";
     state.templateSelectedVersionId = "";
   }
+  if (state.templateExpandedDiseaseId === id) {
+    state.templateExpandedDiseaseId = "";
+  }
   normalizeTemplateSelection();
   persistDataState();
   renderTemplateSection();
@@ -1592,14 +1658,13 @@ function openAddTemplateVersionModal() {
     alert("\u8bf7\u5148\u9009\u62e9\u75c5\u79cd\u6a21\u677f\u3002");
     return;
   }
-  const fields = [
-    { key: "versionName", label: "\u7248\u672c\u540d\u79f0", type: "text", required: true },
-    { key: "year", label: "\u7248\u672c\u5e74\u5ea6", type: "text", required: false },
-    { key: "description", label: "\u7248\u672c\u8bf4\u660e", type: "textarea", required: false }
-  ];
+  const fields = getTemplateFormFields("templateVersion", [
+    { key: "versionName", label: "\u7248\u672c\u540d\u79f0", type: "text", required: true }
+  ]);
 
   openModal("\u65b0\u589e\u6d4b\u8bc4\u7248\u672c", fields, {}, (values) => {
-    const versionName = (values.versionName || "").trim();
+    const payload = collectTemplateValues(fields, values);
+    const versionName = payload.versionName;
     if (!versionName) {
       alert("\u7248\u672c\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a\u3002");
       return false;
@@ -1607,16 +1672,15 @@ function openAddTemplateVersionModal() {
 
     const row = {
       id: uid("tplv"),
-      versionName,
-      year: (values.year || "").trim(),
-      description: (values.description || "").trim(),
       items: [],
-      gradeRules: []
+      gradeRules: [],
+      ...payload
     };
     disease.versions = disease.versions || [];
     disease.versions.unshift(row);
     state.templateSelectedVersionId = row.id;
     state.templateSimSelections[row.id] = {};
+    state.templateExpandedDiseaseId = disease.id;
     persistDataState();
     renderTemplateSection();
     showToast("\u6d4b\u8bc4\u7248\u672c\u5df2\u65b0\u589e");
@@ -1628,21 +1692,18 @@ function openEditTemplateVersionModal(id) {
   const version = getSelectedTemplateDisease()?.versions?.find((item) => item.id === id);
   if (!version) return;
 
-  const fields = [
-    { key: "versionName", label: "\u7248\u672c\u540d\u79f0", type: "text", required: true },
-    { key: "year", label: "\u7248\u672c\u5e74\u5ea6", type: "text", required: false },
-    { key: "description", label: "\u7248\u672c\u8bf4\u660e", type: "textarea", required: false }
-  ];
+  const fields = getTemplateFormFields("templateVersion", [
+    { key: "versionName", label: "\u7248\u672c\u540d\u79f0", type: "text", required: true }
+  ]);
 
   openModal("\u7f16\u8f91\u6d4b\u8bc4\u7248\u672c", fields, version, (values) => {
-    const versionName = (values.versionName || "").trim();
+    const payload = collectTemplateValues(fields, values);
+    const versionName = payload.versionName;
     if (!versionName) {
       alert("\u7248\u672c\u540d\u79f0\u4e0d\u80fd\u4e3a\u7a7a\u3002");
       return false;
     }
-    version.versionName = versionName;
-    version.year = (values.year || "").trim();
-    version.description = (values.description || "").trim();
+    Object.assign(version, payload);
     persistDataState();
     renderTemplateSection();
     showToast("\u6d4b\u8bc4\u7248\u672c\u5df2\u66f4\u65b0");
@@ -1677,22 +1738,16 @@ function openAddTemplateItemModal() {
 
   const fields = [
     { key: "name", label: "测评项名称", type: "text", required: true },
-    { key: "weight", label: "分数占比(%)", type: "number", required: true },
-    { key: "optionLines", label: "评分选项(每行: 选项|分数)", type: "textarea", required: true }
+    { key: "options", label: "评分选项", type: "optionRows", required: true }
   ];
   openModal("新增测评项", fields, {}, (values) => {
     const name = (values.name || "").trim();
-    const weight = Number(values.weight || 0);
     if (!name) {
       alert("测评项名称不能为空。");
       return false;
     }
-    if (!Number.isFinite(weight) || weight <= 0 || weight > 100) {
-      alert("分数占比需在 0 到 100 之间。");
-      return false;
-    }
 
-    const options = parseTemplateOptionLines(values.optionLines || "");
+    const options = parseTemplateOptionRows(values.options || "");
     if (!options.ok) {
       alert(options.message);
       return false;
@@ -1702,7 +1757,6 @@ function openAddTemplateItemModal() {
     version.items.push({
       id: uid("tpli"),
       name,
-      weight,
       options: options.rows
     });
     persistDataState();
@@ -1720,30 +1774,22 @@ function openEditTemplateItemModal(id) {
 
   const fields = [
     { key: "name", label: "测评项名称", type: "text", required: true },
-    { key: "weight", label: "分数占比(%)", type: "number", required: true },
-    { key: "optionLines", label: "评分选项(每行: 选项|分数)", type: "textarea", required: true }
+    { key: "options", label: "评分选项", type: "optionRows", required: true }
   ];
-  const optionLines = (item.options || []).map((opt) => `${opt.label}|${opt.score}`).join("\n");
 
-  openModal("编辑测评项", fields, { ...item, optionLines }, (values) => {
+  openModal("编辑测评项", fields, { ...item, options: item.options || [] }, (values) => {
     const name = (values.name || "").trim();
-    const weight = Number(values.weight || 0);
     if (!name) {
       alert("测评项名称不能为空。");
       return false;
     }
-    if (!Number.isFinite(weight) || weight <= 0 || weight > 100) {
-      alert("分数占比需在 0 到 100 之间。");
-      return false;
-    }
-    const options = parseTemplateOptionLines(values.optionLines || "");
+    const options = parseTemplateOptionRows(values.options || "");
     if (!options.ok) {
       alert(options.message);
       return false;
     }
 
     item.name = name;
-    item.weight = weight;
     item.options = options.rows;
     const map = state.templateSimSelections[version.id] || {};
     if (map[item.id] && !item.options.some((opt) => opt.id === map[item.id])) {
@@ -1877,6 +1923,52 @@ function parseTemplateOptionLines(rawText) {
   return { ok: true, rows };
 }
 
+function parseTemplateOptionRows(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return normalizeTemplateOptionRows(rawValue);
+  }
+  if (typeof rawValue === "string") {
+    const trimmed = rawValue.trim();
+    if (!trimmed) {
+      return { ok: false, message: "请至少填写一条评分选项。" };
+    }
+    if (trimmed.startsWith("[")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return normalizeTemplateOptionRows(parsed);
+      } catch {
+        return { ok: false, message: "评分选项数据解析失败。" };
+      }
+    }
+    if (trimmed.includes("|") || trimmed.includes(":") || trimmed.includes("：")) {
+      return parseTemplateOptionLines(trimmed);
+    }
+  }
+  return { ok: false, message: "请至少填写一条评分选项。" };
+}
+
+function normalizeTemplateOptionRows(rows) {
+  if (!Array.isArray(rows)) {
+    return { ok: false, message: "请至少填写一条评分选项。" };
+  }
+  const normalized = [];
+  for (const row of rows) {
+    const label = String(row?.label || "").trim();
+    const score = Number(row?.score);
+    if (!label) {
+      return { ok: false, message: "评分选项名称不能为空。" };
+    }
+    if (!Number.isFinite(score)) {
+      return { ok: false, message: `评分选项分值非法：${label}` };
+    }
+    normalized.push({ id: row?.id || uid("tplo"), label, score });
+  }
+  if (!normalized.length) {
+    return { ok: false, message: "请至少填写一条评分选项。" };
+  }
+  return { ok: true, rows: normalized };
+}
+
 function parseGradeRuleInput(values) {
   const min = Number(values.min || 0);
   const max = Number(values.max || 0);
@@ -1908,6 +2000,10 @@ function normalizeTemplateSelection() {
   const diseaseExists = state.templates.some((item) => item.id === state.templateSelectedDiseaseId);
   if (!diseaseExists) {
     state.templateSelectedDiseaseId = state.templates[0].id;
+  }
+  const expandedExists = state.templates.some((item) => item.id === state.templateExpandedDiseaseId);
+  if (!expandedExists) {
+    state.templateExpandedDiseaseId = "";
   }
   const disease = getSelectedTemplateDisease();
   disease.versions = Array.isArray(disease.versions) ? disease.versions : [];
@@ -2833,6 +2929,14 @@ function deleteField(moduleKey, key) {
   if (moduleKey === "patient") state.patients.forEach((item) => delete item[key]);
   if (moduleKey === "admission") state.admissions.forEach((item) => delete item[key]);
   if (moduleKey === "daily") state.dailyRecords.forEach((item) => delete item[key]);
+  if (moduleKey === "templateDisease") {
+    state.templates.forEach((item) => delete item[key]);
+  }
+  if (moduleKey === "templateVersion") {
+    state.templates.forEach((disease) => {
+      (disease.versions || []).forEach((version) => delete version[key]);
+    });
+  }
 }
 
 function backfillField(moduleKey, key, defaultValue) {
@@ -2844,6 +2948,15 @@ function backfillField(moduleKey, key, defaultValue) {
   }
   if (moduleKey === "daily") {
     state.dailyRecords = state.dailyRecords.map((item) => ({ ...item, [key]: defaultValue }));
+  }
+  if (moduleKey === "templateDisease") {
+    state.templates = state.templates.map((item) => ({ ...item, [key]: defaultValue }));
+  }
+  if (moduleKey === "templateVersion") {
+    state.templates = state.templates.map((disease) => ({
+      ...disease,
+      versions: (disease.versions || []).map((version) => ({ ...version, [key]: defaultValue }))
+    }));
   }
 }
 
@@ -2858,6 +2971,13 @@ function renameField(moduleKey, oldKey, newKey) {
   if (moduleKey === "patient") state.patients = state.patients.map(remap);
   if (moduleKey === "admission") state.admissions = state.admissions.map(remap);
   if (moduleKey === "daily") state.dailyRecords = state.dailyRecords.map(remap);
+  if (moduleKey === "templateDisease") state.templates = state.templates.map(remap);
+  if (moduleKey === "templateVersion") {
+    state.templates = state.templates.map((disease) => ({
+      ...disease,
+      versions: (disease.versions || []).map(remap)
+    }));
+  }
 }
 
 function hydrateFromStorage() {
@@ -2943,12 +3063,14 @@ function normalizeImportedData(raw) {
 
   const templatesRaw = Array.isArray(raw.templates) ? raw.templates : (state.templates || []);
   const templates = templatesRaw.map((disease) => ({
+    ...(disease || {}),
     id: disease?.id || uid("tpld"),
     diseaseName: String(disease?.diseaseName || "").trim(),
     diseaseCode: String(disease?.diseaseCode || "").trim(),
     description: String(disease?.description || "").trim(),
     versions: Array.isArray(disease?.versions)
       ? disease.versions.map((version) => ({
+        ...(version || {}),
         id: version?.id || uid("tplv"),
         versionName: String(version?.versionName || "").trim(),
         year: String(version?.year || "").trim(),
@@ -2957,7 +3079,6 @@ function normalizeImportedData(raw) {
           ? version.items.map((item) => ({
             id: item?.id || uid("tpli"),
             name: String(item?.name || "").trim(),
-            weight: Number(item?.weight || 0),
             options: Array.isArray(item?.options)
               ? item.options.map((opt) => ({
                 id: opt?.id || uid("tplo"),
@@ -2998,6 +3119,7 @@ function applyImportedData(nextData) {
   state.templateView = "disease";
   state.templateSelectedDiseaseId = "";
   state.templateSelectedVersionId = "";
+  state.templateExpandedDiseaseId = "";
   state.templateSimSelections = {};
   repairLegacyDataArtifacts();
   enforceCoreFieldRules();
@@ -3053,6 +3175,15 @@ function submitModal() {
     payload[node.dataset.field] = String(node.value || "").trim();
   }
 
+  el.modalForm.querySelectorAll(".option-rows[data-field]").forEach((container) => {
+    syncOptionRowsValue(container);
+    const fieldKey = container.dataset.field;
+    const hidden = container.closest(".form-item")?.querySelector(`input[type="hidden"][data-field="${fieldKey}"]`);
+    if (hidden) {
+      payload[fieldKey] = String(hidden.value || "").trim();
+    }
+  });
+
   const wrappers = el.modalForm.querySelectorAll(".form-item");
   for (const node of wrappers) {
     const required = node.dataset.required === "true";
@@ -3078,6 +3209,34 @@ function renderFormItem(field, value) {
   const val = readValue(value);
   const common = `data-field="${esc(field.key)}" ${field.readonly ? "disabled" : ""}`;
   const label = esc(field.label);
+
+  if (field.type === "optionRows") {
+    let rows = [];
+    if (Array.isArray(value)) {
+      rows = value;
+    } else if (typeof value === "string" && value.trim()) {
+      try {
+        rows = JSON.parse(value);
+      } catch {
+        rows = [];
+      }
+    }
+    if (!rows.length) {
+      rows = [{ id: uid("tplo"), label: "", score: "" }];
+    }
+    const rowsHtml = rows.map((row) => renderOptionRow(row)).join("");
+    const jsonValue = esc(JSON.stringify(rows));
+    return `
+      <div class="form-item option-rows-item" data-required="${field.required ? "true" : "false"}" data-key="${esc(field.key)}" data-label="${esc(field.label)}">
+        <label>${label}</label>
+        <div class="option-rows" data-field="${esc(field.key)}">${rowsHtml}</div>
+        <div class="option-row-actions">
+          <button class="mini-btn" type="button" data-action="add-option-row" data-field="${esc(field.key)}">新增选项</button>
+        </div>
+        <input type="hidden" value="${jsonValue}" ${common}>
+      </div>
+    `;
+  }
 
   if (field.type === "textarea") {
     return `
@@ -3113,6 +3272,64 @@ function renderFormItem(field, value) {
     <div class="form-item" data-required="${field.required ? "true" : "false"}" data-key="${esc(field.key)}" data-label="${esc(field.label)}">
       <label>${label}</label>
       <input type="${inputType}" value="${esc(val)}" ${common}>
+    </div>
+  `;
+}
+
+function handleModalFormActions(event) {
+  const btn = event.target.closest("button[data-action]");
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === "add-option-row") {
+    const fieldKey = btn.dataset.field;
+    const container = el.modalForm.querySelector(`.option-rows[data-field="${fieldKey}"]`);
+    if (!container) return;
+    container.insertAdjacentHTML("beforeend", renderOptionRow({}));
+    syncOptionRowsValue(container);
+    return;
+  }
+  if (action === "remove-option-row") {
+    const row = btn.closest(".option-row");
+    const container = btn.closest(".option-rows");
+    if (!row || !container) return;
+    row.remove();
+    if (!container.querySelector(".option-row")) {
+      container.insertAdjacentHTML("beforeend", renderOptionRow({}));
+    }
+    syncOptionRowsValue(container);
+  }
+}
+
+function handleModalFormInput(event) {
+  const container = event.target.closest(".option-rows");
+  if (!container) return;
+  syncOptionRowsValue(container);
+}
+
+function syncOptionRowsValue(container) {
+  const fieldKey = container.dataset.field;
+  const rows = Array.from(container.querySelectorAll(".option-row")).map((row) => {
+    const label = row.querySelector(".option-label")?.value || "";
+    const score = row.querySelector(".option-score")?.value || "";
+    const id = row.dataset.optionId || uid("tplo");
+    row.dataset.optionId = id;
+    return { id, label: String(label).trim(), score: String(score).trim() };
+  });
+  const hidden = container.closest(".form-item")?.querySelector(`input[type="hidden"][data-field="${fieldKey}"]`);
+  if (hidden) {
+    hidden.value = JSON.stringify(rows);
+  }
+}
+
+function renderOptionRow(row = {}) {
+  const id = row.id || uid("tplo");
+  const label = esc(readValue(row.label || ""));
+  const score = esc(readValue(row.score || ""));
+  return `
+    <div class="option-row" data-option-id="${esc(id)}">
+      <input class="option-label" type="text" placeholder="选项名称" value="${label}">
+      <input class="option-score" type="number" placeholder="分数" value="${score}">
+      <button class="mini-btn ghost" type="button" data-action="remove-option-row">移除</button>
     </div>
   `;
 }
@@ -3163,6 +3380,19 @@ function repairLegacyDataArtifacts() {
       { key: "temperature", label: "体温(℃)", type: "number", required: false, showInList: true },
       { key: "bloodPressure", label: "血压", type: "text", required: false, showInList: true },
       { key: "notes", label: "病情记录", type: "textarea", required: false, showInList: false }
+    ],
+    templateDisease: [
+      { key: "diseaseCode", label: "病种编码", type: "text", required: false, showInList: true },
+      { key: "versionCount", label: "版本数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "itemCount", label: "测评项总数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "description", label: "说明", type: "textarea", required: false, showInList: true }
+    ],
+    templateVersion: [
+      { key: "year", label: "年度", type: "text", required: false, showInList: true },
+      { key: "itemCount", label: "测评项", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "optionCount", label: "选项数", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "gradeCount", label: "分级区间", type: "number", required: false, showInList: true, locked: true, computed: true },
+      { key: "description", label: "说明", type: "textarea", required: false, showInList: true }
     ]
   };
 
@@ -3190,6 +3420,7 @@ function repairLegacyDataArtifacts() {
       row.type = baseField.type;
       row.required = !!baseField.required || !!row.required;
       if (baseField.locked) row.locked = true;
+      if (baseField.computed) row.computed = true;
 
       if (!String(row.label || "").trim() || looksLikeMojibake(row.label)) {
         row.label = baseField.label;
@@ -3261,6 +3492,39 @@ function repairLegacyDataArtifacts() {
       return next;
     })
     .filter((row) => admissionIdSet.has(row.admissionId));
+
+  const diseaseSchema = state.schemas.templateDisease || [];
+  const versionSchema = state.schemas.templateVersion || [];
+  state.templates = (Array.isArray(state.templates) ? state.templates : []).map((disease) => {
+    const next = { ...(disease || {}) };
+    next.id = next.id || uid("tpld");
+    next.versions = Array.isArray(next.versions) ? next.versions : [];
+
+    for (const field of diseaseSchema) {
+      if (field.computed) continue;
+      if (!(field.key in next)) {
+        next[field.key] = defaultFieldValue(field);
+      }
+    }
+
+    next.versions = next.versions.map((version) => {
+      const vNext = { ...(version || {}) };
+      vNext.id = vNext.id || uid("tplv");
+      vNext.items = Array.isArray(vNext.items) ? vNext.items : [];
+      vNext.gradeRules = Array.isArray(vNext.gradeRules) ? vNext.gradeRules : [];
+
+      for (const field of versionSchema) {
+        if (field.computed) continue;
+        if (!(field.key in vNext)) {
+          vNext[field.key] = defaultFieldValue(field);
+        }
+      }
+
+      return vNext;
+    });
+
+    return next;
+  });
 }
 
 function isFieldVisibleInList(moduleKey, field) {
@@ -3316,6 +3580,8 @@ function moduleLabel(key) {
   if (key === "patient") return "病人信息";
   if (key === "admission") return "入院记录";
   if (key === "daily") return "日常记录";
+  if (key === "templateDisease") return "病种模板";
+  if (key === "templateVersion") return "版本列表";
   return key;
 }
 
