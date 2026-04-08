@@ -1,4 +1,4 @@
-# 双设备切换清单（SWITCH_CHECKLIST）
+﻿# 双设备切换清单（SWITCH_CHECKLIST）
 
 ## A 设备离开前（必须完成）
 - [ ] 检查改动范围（`git status` 或文件变更列表）

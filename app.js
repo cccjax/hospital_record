@@ -440,12 +440,13 @@ function switchModule(moduleKey, silent = false) {
     tab.classList.toggle("active", tab.dataset.module === moduleKey);
   });
 
+  if (moduleKey === "mine") {
+    renderMineSection();
+  }
+
   refreshPageHeader();
   refreshFabVisibility();
 
-  if (!silent) {
-    showToast(`${moduleMeta[moduleKey].title}模块`);
-  }
 }
 
 function refreshPageHeader() {
@@ -538,14 +539,14 @@ function closePatientDetail(silent = false) {
   if (state.patientDetailDailyId) {
     state.patientDetailDailyId = "";
     renderPatientSection();
-    if (!silent) showToast("已返回日常记录列表");
+    // no toast on back navigation
     return;
   }
   if (state.patientDetailAdmissionId) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
     renderPatientSection();
-    if (!silent) showToast("已返回入院记录");
+    // no toast on back navigation
     return;
   }
   if (!state.patientDetailNo) return;
@@ -553,21 +554,21 @@ function closePatientDetail(silent = false) {
   state.patientDetailAdmissionId = "";
   state.patientDetailDailyId = "";
   renderPatientSection();
-  if (!silent) showToast("已返回病人列表");
+  // no toast on back navigation
 }
 
 function closeTemplateDetail(silent = false) {
   if (state.templateView === "config") {
     state.templateView = "version";
     renderTemplateSection();
-    if (!silent) showToast("\u5df2\u8fd4\u56de\u7248\u672c\u5217\u8868");
+    // no toast on back navigation
     return;
   }
   if (state.templateView === "version") {
     state.templateView = "disease";
     state.templateSelectedVersionId = "";
     renderTemplateSection();
-    if (!silent) showToast("\u5df2\u8fd4\u56de\u75c5\u79cd\u5217\u8868");
+    // no toast on back navigation
   }
 }
 
@@ -578,7 +579,6 @@ function openTemplateVersionView(diseaseId, silent = false) {
   normalizeTemplateSelection();
   state.templateView = "version";
   renderTemplateSection();
-  if (!silent) showToast("\u5df2\u8fdb\u5165\u7248\u672c\u5217\u8868");
 }
 
 function openTemplateConfigView(versionId, silent = false) {
@@ -590,7 +590,6 @@ function openTemplateConfigView(versionId, silent = false) {
   normalizeTemplateSelection();
   state.templateView = "config";
   renderTemplateSection();
-  if (!silent) showToast("\u5df2\u8fdb\u5165\u6d4b\u8bc4\u9879\u914d\u7f6e");
 }
 
 function renderPatientSection() {
@@ -982,7 +981,6 @@ function handlePatientActions(event) {
     state.patientDetailAdmissionId = admissionCard.dataset.id;
     state.patientDetailDailyId = "";
     renderPatientSection();
-    showToast("已进入入院详情");
     return;
   }
 
@@ -990,7 +988,6 @@ function handlePatientActions(event) {
   if (dailyCard) {
     state.patientDetailDailyId = dailyCard.dataset.id;
     renderPatientSection();
-    showToast("已进入日常记录详情");
     return;
   }
 
@@ -1000,7 +997,6 @@ function handlePatientActions(event) {
     state.patientDetailAdmissionId = "";
     state.patientDetailDailyId = "";
     renderPatientSection();
-    showToast("已进入病人明细");
   }
 }
 
@@ -2014,11 +2010,6 @@ function openMineSubPage(menuKey, silent = false) {
   renderMineSection();
   refreshPageHeader();
   refreshFabVisibility();
-
-  if (!silent) {
-    const label = menuKey === "migration" ? "数据迁移" : menuKey === "security" ? "密码保护" : "字段配置";
-    showToast(`已进入${label}`);
-  }
 }
 
 function closeMineSubPage(silent = false) {
@@ -2032,9 +2023,7 @@ function closeMineSubPage(silent = false) {
   renderMineSection();
   refreshPageHeader();
   refreshFabVisibility();
-  if (!silent) {
-    showToast("已返回我的菜单");
-  }
+  // no toast on back navigation
 }
 
 function handleMineActions(event) {
@@ -2237,7 +2226,6 @@ function toggleFieldSortMode() {
     clearFieldSortVisuals();
   }
   renderFieldSection();
-  showToast(state.fieldsSortMode ? "已进入调整顺序模式" : "已退出调整顺序模式");
 }
 
 function renderFieldCard(field, moduleKey, index, total) {
@@ -2268,7 +2256,6 @@ function renderFieldCard(field, moduleKey, index, total) {
         </div>
       </div>
       <div class="field-grid">
-        ${fieldItem("键名", field.key)}
         ${fieldItem("类型", field.type)}
         ${fieldItem("必填", field.required ? "是" : "否")}
         ${fieldItem("列表显示", fixedPrimary ? "主键固定显示(右上角)" : (visible ? "是" : "否"))}
@@ -2772,9 +2759,9 @@ function openAddFieldModal() {
 function openEditFieldModal(moduleKey, field) {
   const mandatoryRequired = isCoreRequiredField(moduleKey, field.key);
   const fields = [
-    { key: "key", label: "字段键名", type: "text", required: true, readonly: !!field.locked },
+    { key: "key", label: "字段键名", type: "text", required: true, readonly: true },
     { key: "label", label: "字段名称", type: "text", required: true },
-    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select"], required: true, readonly: !!field.locked },
+    { key: "type", label: "字段类型", type: "select", options: ["text", "number", "date", "textarea", "select"], required: true, readonly: true },
     { key: "required", label: "是否必填", type: "select", options: ["true", "false"], required: true, readonly: mandatoryRequired },
     { key: "showInList", label: "是否在列表显示", type: "select", options: ["true", "false"], required: true, readonly: moduleKey === "patient" && field.key === "admissionNo" },
     { key: "options", label: "下拉选项(逗号分隔，仅select类型)", type: "text", required: false }
@@ -2793,13 +2780,8 @@ function openEditFieldModal(moduleKey, field) {
     },
     (values) => {
       const nextKey = (values.key || "").trim();
-      if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(nextKey)) {
-        alert("字段键名格式不正确。");
-        return false;
-      }
-
-      if (nextKey !== field.key && state.schemas[moduleKey].some((item) => item.key === nextKey)) {
-        alert("字段键名已存在。");
+      if (nextKey !== field.key) {
+        alert("字段键名创建后不可修改。");
         return false;
       }
 
@@ -2807,9 +2789,13 @@ function openEditFieldModal(moduleKey, field) {
       const target = schema.find((item) => item.key === field.key);
       if (!target) return false;
 
-      target.key = nextKey;
+      target.key = field.key;
       target.label = (values.label || "").trim();
-      target.type = values.type;
+      if (values.type !== field.type) {
+        alert("字段类型创建后不可修改。");
+        return false;
+      }
+      target.type = field.type;
       target.required = values.required === "true";
       target.showInList = values.showInList === "true";
 
@@ -2826,15 +2812,11 @@ function openEditFieldModal(moduleKey, field) {
         target.locked = true;
       }
 
-      if (values.type === "select") {
+      if (field.type === "select") {
         const opts = (values.options || "").split(",").map((s) => s.trim()).filter(Boolean);
         target.options = opts.length ? opts : ["选项1"];
       } else {
         delete target.options;
-      }
-
-      if (nextKey !== field.key) {
-        renameField(moduleKey, field.key, nextKey);
       }
 
       persistDataState();
