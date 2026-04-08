@@ -1,0 +1,418 @@
+import 'app_models.dart';
+
+typedef IdFactory = String Function(String prefix);
+
+AppData buildDefaultAppData(IdFactory createId) {
+  final adm1 = createId('adm');
+  final adm2 = createId('adm');
+  final daily1 = createId('daily');
+  final daily2 = createId('daily');
+  final tplDisease = createId('tpld');
+  final tplVersion2026 = createId('tplv');
+  final tplVersion2024 = createId('tplv');
+
+  final item1 = createId('tpli');
+  final item2 = createId('tpli');
+  final item3 = createId('tpli');
+
+  final data = AppData(
+    schemas: <String, List<FieldSchema>>{
+      'patient': const <FieldSchema>[
+        FieldSchema(
+          key: 'admissionNo',
+          label: '住院号',
+          type: FieldType.text,
+          required: true,
+          locked: true,
+          showInList: false,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'name',
+          label: '姓名',
+          type: FieldType.text,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'gender',
+          label: '性别',
+          type: FieldType.select,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>['男', '女'],
+        ),
+        FieldSchema(
+          key: 'age',
+          label: '年龄',
+          type: FieldType.number,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'phone',
+          label: '联系电话',
+          type: FieldType.text,
+          required: false,
+          locked: false,
+          showInList: false,
+          computed: false,
+          options: <String>[],
+        ),
+      ],
+      'admission': const <FieldSchema>[
+        FieldSchema(
+          key: 'admitDate',
+          label: '入院日期',
+          type: FieldType.date,
+          required: true,
+          locked: true,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'department',
+          label: '科室',
+          type: FieldType.text,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'diagnosis',
+          label: '初步诊断',
+          type: FieldType.text,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'attendingDoctor',
+          label: '主治医生',
+          type: FieldType.text,
+          required: true,
+          locked: false,
+          showInList: false,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'status',
+          label: '状态',
+          type: FieldType.select,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>['在院', '出院'],
+        ),
+      ],
+      'daily': const <FieldSchema>[
+        FieldSchema(
+          key: 'recordDate',
+          label: '记录日期',
+          type: FieldType.date,
+          required: true,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'temperature',
+          label: '体温(℃)',
+          type: FieldType.number,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'bloodPressure',
+          label: '血压',
+          type: FieldType.text,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'notes',
+          label: '病情记录',
+          type: FieldType.textarea,
+          required: false,
+          locked: false,
+          showInList: false,
+          computed: false,
+          options: <String>[],
+        ),
+      ],
+      'templateDisease': const <FieldSchema>[
+        FieldSchema(
+          key: 'diseaseCode',
+          label: '病种编码',
+          type: FieldType.text,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'versionCount',
+          label: '版本数',
+          type: FieldType.number,
+          required: false,
+          locked: true,
+          showInList: true,
+          computed: true,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'itemCount',
+          label: '测评项总数',
+          type: FieldType.number,
+          required: false,
+          locked: true,
+          showInList: true,
+          computed: true,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'description',
+          label: '说明',
+          type: FieldType.textarea,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+      ],
+      'templateVersion': const <FieldSchema>[
+        FieldSchema(
+          key: 'year',
+          label: '年度',
+          type: FieldType.text,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'itemCount',
+          label: '测评项',
+          type: FieldType.number,
+          required: false,
+          locked: true,
+          showInList: true,
+          computed: true,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'optionCount',
+          label: '选项数',
+          type: FieldType.number,
+          required: false,
+          locked: true,
+          showInList: true,
+          computed: true,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'gradeCount',
+          label: '分级区间',
+          type: FieldType.number,
+          required: false,
+          locked: true,
+          showInList: true,
+          computed: true,
+          options: <String>[],
+        ),
+        FieldSchema(
+          key: 'description',
+          label: '说明',
+          type: FieldType.textarea,
+          required: false,
+          locked: false,
+          showInList: true,
+          computed: false,
+          options: <String>[],
+        ),
+      ],
+    },
+    patients: <PatientRecord>[
+      PatientRecord(
+        admissionNo: 'ZY2026001',
+        values: <String, dynamic>{
+          'admissionNo': 'ZY2026001',
+          'name': '张明',
+          'gender': '男',
+          'age': 42,
+          'phone': '13800001111',
+        },
+      ),
+      PatientRecord(
+        admissionNo: 'ZY2026002',
+        values: <String, dynamic>{
+          'admissionNo': 'ZY2026002',
+          'name': '李萍',
+          'gender': '女',
+          'age': 35,
+          'phone': '13800002222',
+        },
+      ),
+    ],
+    admissions: <AdmissionRecord>[
+      AdmissionRecord(
+        id: adm1,
+        admissionNo: 'ZY2026001',
+        values: <String, dynamic>{
+          '_id': adm1,
+          'admissionNo': 'ZY2026001',
+          'admitDate': '2026-04-05',
+          'department': '心内科',
+          'diagnosis': '冠心病',
+          'attendingDoctor': '李医生',
+          'status': '在院',
+        },
+      ),
+      AdmissionRecord(
+        id: adm2,
+        admissionNo: 'ZY2026002',
+        values: <String, dynamic>{
+          '_id': adm2,
+          'admissionNo': 'ZY2026002',
+          'admitDate': '2026-04-04',
+          'department': '普外科',
+          'diagnosis': '胆囊炎',
+          'attendingDoctor': '王医生',
+          'status': '在院',
+        },
+      ),
+    ],
+    dailyRecords: <DailyRecord>[
+      DailyRecord(
+        id: daily1,
+        admissionId: adm1,
+        values: <String, dynamic>{
+          '_id': daily1,
+          'admissionId': adm1,
+          'recordDate': '2026-04-06',
+          'temperature': '37.1',
+          'bloodPressure': '128/83',
+          'notes': '生命体征平稳，睡眠可。',
+        },
+      ),
+      DailyRecord(
+        id: daily2,
+        admissionId: adm1,
+        values: <String, dynamic>{
+          '_id': daily2,
+          'admissionId': adm1,
+          'recordDate': '2026-04-07',
+          'temperature': '36.9',
+          'bloodPressure': '124/80',
+          'notes': '早餐后活动良好，无胸闷。',
+        },
+      ),
+    ],
+    templates: <TemplateDisease>[
+      TemplateDisease(
+        id: tplDisease,
+        diseaseName: '慢阻肺急性加重',
+        diseaseCode: 'COPD-AE',
+        description: '用于评估住院慢阻肺病人急性加重风险等级。',
+        versions: <TemplateVersion>[
+          TemplateVersion(
+            id: tplVersion2026,
+            versionName: '2026版',
+            year: '2026',
+            description: '按2026年院内护理规范执行。',
+            items: <TemplateItem>[
+              TemplateItem(
+                id: item1,
+                name: '呼吸困难程度',
+                options: <TemplateOption>[
+                  TemplateOption(id: createId('tplo'), label: '轻度', score: 1),
+                  TemplateOption(id: createId('tplo'), label: '中度', score: 3),
+                  TemplateOption(id: createId('tplo'), label: '重度', score: 5),
+                ],
+              ),
+              TemplateItem(
+                id: item2,
+                name: '氧饱和度',
+                options: <TemplateOption>[
+                  TemplateOption(id: createId('tplo'), label: '>=95%', score: 1),
+                  TemplateOption(id: createId('tplo'), label: '90%-94%', score: 3),
+                  TemplateOption(id: createId('tplo'), label: '<90%', score: 5),
+                ],
+              ),
+              TemplateItem(
+                id: item3,
+                name: '咳痰性状变化',
+                options: <TemplateOption>[
+                  TemplateOption(id: createId('tplo'), label: '无明显变化', score: 1),
+                  TemplateOption(id: createId('tplo'), label: '中等变化', score: 3),
+                  TemplateOption(id: createId('tplo'), label: '明显恶化', score: 5),
+                ],
+              ),
+            ],
+            gradeRules: <TemplateGradeRule>[
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 0,
+                max: 39,
+                level: '低风险',
+                note: '常规观察',
+              ),
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 40,
+                max: 69,
+                level: '中风险',
+                note: '加强巡查',
+              ),
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 70,
+                max: 100,
+                level: '高风险',
+                note: '重点监护',
+              ),
+            ],
+          ),
+          TemplateVersion(
+            id: tplVersion2024,
+            versionName: '2024版',
+            year: '2024',
+            description: '历史版本，供追溯对照。',
+            items: const <TemplateItem>[],
+            gradeRules: const <TemplateGradeRule>[],
+          ),
+        ],
+      ),
+    ],
+    admissionAssessments: <String, List<AssessmentRecord>>{},
+    admissionImaging: <String, List<ImagingItem>>{},
+  );
+
+  return data;
+}
