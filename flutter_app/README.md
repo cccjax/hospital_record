@@ -38,6 +38,29 @@ flutter test
 flutter run -d emulator-5554
 ```
 
+## Android 正式签名（发布）
+1. 生成签名文件（示例）：
+```bash
+keytool -genkeypair -v -keystore android/upload-keystore.jks -storetype JKS -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+```
+2. 复制 `android/key.properties.example` 为 `android/key.properties`，填入真实密码与路径：
+```properties
+storePassword=你的仓库密码
+keyPassword=你的密钥密码
+keyAlias=upload
+storeFile=../upload-keystore.jks
+```
+3. 构建发布包：
+```bash
+flutter build apk --release
+```
+4. 产物路径：
+- `build/app/outputs/flutter-apk/app-release.apk`
+
+说明：
+- `android/key.properties` 与 `*.jks` 已加入 `.gitignore`，不会被提交。
+- 未配置 `key.properties` 时，release 会回退 debug 签名，仅用于本地测试，不建议分发。
+
 ## 说明
 - 当前以业务稳定性与功能完整性优先，再持续做 UI 精修。
 - 如果遇到 UI 与原型不一致，请在 issue 中附页面截图与复现路径，便于快速对齐。

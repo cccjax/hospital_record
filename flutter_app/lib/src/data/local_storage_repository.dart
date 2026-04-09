@@ -15,6 +15,7 @@ class LocalStorageRepository {
     SecuritySettings loadedSecurity = const SecuritySettings(
       passwordEnabled: false,
       passwordValue: '',
+      biometricEnabled: false,
     );
 
     final dataRaw = prefs.getString(dataKey);

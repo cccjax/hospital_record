@@ -507,18 +507,22 @@ class SecuritySettings {
   const SecuritySettings({
     required this.passwordEnabled,
     required this.passwordValue,
+    this.biometricEnabled = false,
   });
 
   final bool passwordEnabled;
   final String passwordValue;
+  final bool biometricEnabled;
 
   SecuritySettings copyWith({
     bool? passwordEnabled,
     String? passwordValue,
+    bool? biometricEnabled,
   }) {
     return SecuritySettings(
       passwordEnabled: passwordEnabled ?? this.passwordEnabled,
       passwordValue: passwordValue ?? this.passwordValue,
+      biometricEnabled: biometricEnabled ?? this.biometricEnabled,
     );
   }
 
@@ -526,6 +530,7 @@ class SecuritySettings {
     return SecuritySettings(
       passwordEnabled: json['passwordEnabled'] == true,
       passwordValue: (json['passwordValue'] ?? '').toString(),
+      biometricEnabled: json['biometricEnabled'] == true,
     );
   }
 
@@ -533,6 +538,7 @@ class SecuritySettings {
     return <String, dynamic>{
       'passwordEnabled': passwordEnabled,
       'passwordValue': passwordValue,
+      'biometricEnabled': biometricEnabled,
     };
   }
 }

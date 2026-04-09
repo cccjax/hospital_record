@@ -44,6 +44,7 @@ class HospitalAppState extends ChangeNotifier {
   SecuritySettings security = const SecuritySettings(
     passwordEnabled: false,
     passwordValue: '',
+    biometricEnabled: false,
   );
   bool sessionUnlocked = true;
   String? _lastErrorMessage;
@@ -60,7 +61,11 @@ class HospitalAppState extends ChangeNotifier {
     final snapshot = await repository.load();
     if (snapshot == null) {
       data = buildDefaultAppData(_createId);
-      security = const SecuritySettings(passwordEnabled: false, passwordValue: '');
+      security = const SecuritySettings(
+        passwordEnabled: false,
+        passwordValue: '',
+        biometricEnabled: false,
+      );
     } else {
       data = snapshot.data;
       security = snapshot.security;
@@ -84,6 +89,10 @@ class HospitalAppState extends ChangeNotifier {
 
   bool get isPasswordEnabled {
     return security.passwordEnabled && security.passwordValue.isNotEmpty;
+  }
+
+  bool get isBiometricEnabled {
+    return isPasswordEnabled && security.biometricEnabled;
   }
 
   int get patientCount => data.patients.length;
@@ -978,8 +987,17 @@ class HospitalAppState extends ChangeNotifier {
     security = security.copyWith(
       passwordEnabled: false,
       passwordValue: '',
+      biometricEnabled: false,
     );
     sessionUnlocked = true;
+    await repository.saveSecurity(security);
+    notifyListeners();
+  }
+
+  Future<void> setBiometricEnabled(bool enabled) async {
+    security = security.copyWith(
+      biometricEnabled: enabled,
+    );
     await repository.saveSecurity(security);
     notifyListeners();
   }
@@ -995,6 +1013,12 @@ class HospitalAppState extends ChangeNotifier {
   void lockSession() {
     if (!isPasswordEnabled) return;
     sessionUnlocked = false;
+    notifyListeners();
+  }
+
+  void unlockSessionWithBiometric() {
+    if (!isBiometricEnabled) return;
+    sessionUnlocked = true;
     notifyListeners();
   }
 

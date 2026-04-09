@@ -15,6 +15,7 @@ dependencies:
   shared_preferences: ^2.3.2
   image_picker: ^1.1.2
   file_picker: ^8.1.2
+  local_auth: ^2.3.0
   uuid: ^4.5.1
   intl: ^0.19.0
 
