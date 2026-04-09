@@ -31,29 +31,40 @@ class ShellPage extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: NavigationBar(
-              height: 72,
-              selectedIndex: state.tabIndex,
-              onDestinationSelected: (index) => state.setTab(index),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: '首页',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.fact_check_outlined),
-                  selectedIcon: Icon(Icons.fact_check_rounded),
-                  label: '模板',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: '我的',
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x2B173958),
+                  blurRadius: 22,
+                  offset: Offset(0, 9),
                 ),
               ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: NavigationBar(
+                selectedIndex: state.tabIndex,
+                onDestinationSelected: (index) => state.setTab(index),
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home_rounded),
+                    label: '首页',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.fact_check_outlined),
+                    selectedIcon: Icon(Icons.fact_check_rounded),
+                    label: '模板',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline_rounded),
+                    selectedIcon: Icon(Icons.person_rounded),
+                    label: '我的',
+                  ),
+                ],
+              ),
             ),
           ),
         ),

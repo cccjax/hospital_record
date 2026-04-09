@@ -132,7 +132,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
         );
       }
       return DropdownButtonFormField<String>(
-        value: _selectValues[field.key],
+        initialValue: _selectValues[field.key],
         decoration: InputDecoration(labelText: label),
         items: field.options
             .map(

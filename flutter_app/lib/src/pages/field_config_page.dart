@@ -22,6 +22,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     final state = context.watch<HospitalAppState>();
     final module = state.fieldConfigModule;
     final schema = state.schemaOf(module);
+    final visibleCount = schema.where((field) => field.showInList).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -39,14 +40,22 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          _FieldStatsCard(
+            moduleName: _moduleLabel(module),
+            visibleCount: visibleCount,
+            totalCount: schema.length,
+          ),
+          const SizedBox(height: 10),
           SectionCard(
             title: '配置模块',
             child: DropdownButtonFormField<String>(
-              value: module,
+              initialValue: module,
               items: const [
                 DropdownMenuItem(value: 'patient', child: Text('病人信息')),
                 DropdownMenuItem(value: 'admission', child: Text('入院记录')),
                 DropdownMenuItem(value: 'daily', child: Text('日常记录')),
+                DropdownMenuItem(value: 'templateDisease', child: Text('病种模板')),
+                DropdownMenuItem(value: 'templateVersion', child: Text('版本列表')),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -140,6 +149,23 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     );
   }
 
+  String _moduleLabel(String moduleKey) {
+    switch (moduleKey) {
+      case 'patient':
+        return '病人信息';
+      case 'admission':
+        return '入院记录';
+      case 'daily':
+        return '日常记录';
+      case 'templateDisease':
+        return '病种模板';
+      case 'templateVersion':
+        return '版本列表';
+      default:
+        return moduleKey;
+    }
+  }
+
   Future<void> _openFieldDialog(
     BuildContext context,
     String module, {
@@ -160,7 +186,8 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final keyLocked = editing?.locked == true;
+            final keyLocked = editing != null;
+            final typeLocked = editing != null;
             final canToggleRequired = !(editing?.locked == true);
             return AlertDialog(
               title: Text(editing == null ? '新增字段' : '编辑字段'),
@@ -185,7 +212,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                       ),
                       const SizedBox(height: 10),
                       DropdownButtonFormField<FieldType>(
-                        value: type,
+                        initialValue: type,
                         decoration: const InputDecoration(labelText: '字段类型'),
                         items: const [
                           DropdownMenuItem(value: FieldType.text, child: Text('文本')),
@@ -193,13 +220,16 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                           DropdownMenuItem(value: FieldType.date, child: Text('日期')),
                           DropdownMenuItem(value: FieldType.textarea, child: Text('多行文本')),
                           DropdownMenuItem(value: FieldType.select, child: Text('下拉选项')),
+                          DropdownMenuItem(value: FieldType.images, child: Text('图片上传')),
                         ],
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setDialogState(() {
-                            type = value;
-                          });
-                        },
+                        onChanged: typeLocked
+                            ? null
+                            : (value) {
+                                if (value == null) return;
+                                setDialogState(() {
+                                  type = value;
+                                });
+                              },
                       ),
                       if (type == FieldType.select) ...[
                         const SizedBox(height: 10),
@@ -243,15 +273,16 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                 ),
                 FilledButton(
                   onPressed: () {
-                    final key = keyController.text.trim();
+                    final key = editing?.key ?? keyController.text.trim();
                     final label = labelController.text.trim();
+                    final fixedType = editing?.type ?? type;
                     if (key.isEmpty || label.isEmpty) {
                       ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(content: Text('字段键名和字段名称不能为空')),
                       );
                       return;
                     }
-                    final options = type == FieldType.select
+                    final options = fixedType == FieldType.select
                         ? optionsController.text
                             .split(',')
                             .map((e) => e.trim())
@@ -261,7 +292,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                     final field = FieldSchema(
                       key: key,
                       label: label,
-                      type: type,
+                      type: fixedType,
                       required: required,
                       locked: editing?.locked ?? false,
                       showInList: showInList,
@@ -306,12 +337,111 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
       content: '确认删除该字段吗？已写入该字段的数据将丢失。',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     final state = context.read<HospitalAppState>();
     final ok = state.deleteField(module, key);
     if (!ok && context.mounted) {
       final message = state.takeLastErrorMessage() ?? '删除失败';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+}
+
+class _FieldStatsCard extends StatelessWidget {
+  const _FieldStatsCard({
+    required this.moduleName,
+    required this.visibleCount,
+    required this.totalCount,
+  });
+
+  final String moduleName;
+  final int visibleCount;
+  final int totalCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
+        ),
+        border: Border.all(color: const Color(0xFFE7EEF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F2744),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: _StatCell(
+                label: '当前模块',
+                value: moduleName,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatCell(
+                label: '列表显示',
+                value: '$visibleCount/$totalCount',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCell extends StatelessWidget {
+  const _StatCell({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5EEF9)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF5A6A7E),
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF1F3149),
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -344,38 +474,39 @@ class _FieldRow extends StatelessWidget {
     final tags = <String>[
       _fieldTypeLabel(field.type),
       if (field.required) '必填',
-      if (field.locked) '锁定',
+      if (field.locked) '系统字段',
       if (field.computed) '计算字段',
-      if (field.showInList) '列表展示',
+      if (field.showInList) '列表显示',
     ];
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F9FE),
+          color: const Color(0xFFF9FBFF),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFD8E3F3)),
+          border: Border.all(color: const Color(0xFFDCE8F6)),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
           child: Column(
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
-                      '${field.label}  (${field.key})',
+                      field.label,
                       style: const TextStyle(
-                        color: Color(0xFF22364E),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        color: Color(0xFF1F3149),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
                       ),
                     ),
                   ),
                   _RowAction(title: '编辑', color: const Color(0xFF2C88D8), onTap: onEdit),
                   _RowAction(
-                    title: field.showInList ? '隐藏' : '显示',
+                    title: field.showInList ? '设为隐藏' : '设为显示',
                     color: const Color(0xFF637A97),
                     onTap: onToggleShow,
                   ),
@@ -388,11 +519,13 @@ class _FieldRow extends StatelessWidget {
                     IconButton(
                       onPressed: onMoveUp,
                       icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                      visualDensity: VisualDensity.compact,
                     ),
                   if (sortMode)
                     IconButton(
                       onPressed: onMoveDown,
                       icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                      visualDensity: VisualDensity.compact,
                     ),
                   if (sortMode) onDragHandle ?? const SizedBox.shrink(),
                 ],
@@ -408,15 +541,16 @@ class _FieldRow extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEAF1FA),
+                          color: const Color(0xFFF5F9FF),
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: const Color(0xFFD3E0F1)),
+                          border: Border.all(color: const Color(0xFFD9E5F4)),
                         ),
                         child: Text(
                           tag,
                           style: const TextStyle(
                             color: Color(0xFF5E738E),
                             fontWeight: FontWeight.w600,
+                            fontSize: 12,
                           ),
                         ),
                       ),
@@ -443,7 +577,7 @@ class _FieldRow extends StatelessWidget {
       case FieldType.select:
         return '下拉';
       case FieldType.images:
-        return '图片';
+        return '图片上传';
     }
   }
 }
@@ -473,6 +607,7 @@ class _RowAction extends StatelessWidget {
             style: TextStyle(
               color: onTap == null ? const Color(0xFFB2BDCC) : color,
               fontWeight: FontWeight.w700,
+              fontSize: 12,
             ),
           ),
         ),

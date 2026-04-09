@@ -61,7 +61,7 @@ class _MineSecurityPageState extends State<MineSecurityPage> {
                   FilledButton.tonal(
                     onPressed: () async {
                       await context.read<HospitalAppState>().disablePassword();
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('已关闭密码保护')),
                       );
@@ -104,7 +104,7 @@ class _MineSecurityPageState extends State<MineSecurityPage> {
                       return;
                     }
                     await context.read<HospitalAppState>().enableOrChangePassword(pwd);
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     _passwordController.clear();
                     _confirmController.clear();
                     ScaffoldMessenger.of(context).showSnackBar(

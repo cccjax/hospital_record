@@ -31,18 +31,24 @@ class PatientDetailPage extends StatelessWidget {
     }
 
     final patientSchema = state.schemaOf('patient').where((f) => f.key != 'admissionNo').toList();
-    final admissionListSchema = state.listSchemaOf('admission')
-        .where((f) => f.key != 'admitDate')
-        .toList();
+    final admissionListSchema = state.listSchemaOf('admission').where((f) => f.key != 'admitDate').toList();
     final admissions = state.admissionsOf(admissionNo);
+    final totalDailyCount = admissions.fold<int>(0, (sum, row) => sum + state.dailyOf(row.id).length);
 
     return Scaffold(
       appBar: _buildAppBar(),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          _HeroSummary(
+            patientName: (patient.values['name'] ?? '未命名病人').toString(),
+            admissionNo: admissionNo,
+            admissionCount: admissions.length,
+            dailyCount: totalDailyCount,
+          ),
+          const SizedBox(height: 10),
           SectionCard(
-            title: '病人概况',
+            title: '基础信息',
             action: FilledButton.tonal(
               onPressed: () => _openPatientEditDialog(context, patient),
               child: const Text('编辑基础信息'),
@@ -201,7 +207,130 @@ class PatientDetailPage extends StatelessWidget {
       content: '删除后该入院下的日常记录、测评记录与影像资料也会一起删除，是否继续？',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     context.read<HospitalAppState>().deleteAdmission(admissionId);
+  }
+}
+
+class _HeroSummary extends StatelessWidget {
+  const _HeroSummary({
+    required this.patientName,
+    required this.admissionNo,
+    required this.admissionCount,
+    required this.dailyCount,
+  });
+
+  final String patientName;
+  final String admissionNo;
+  final int admissionCount;
+  final int dailyCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
+        ),
+        border: Border.all(color: const Color(0xFFE7EEF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F2744),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              patientName,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1F3149),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '住院号 $admissionNo · 基础信息与住院过程记录',
+              style: const TextStyle(
+                color: Color(0xFF5F6F85),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeroStat(
+                    label: '入院记录',
+                    value: '$admissionCount',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HeroStat(
+                    label: '日常记录',
+                    value: '$dailyCount',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5EEF9)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF5A6A7E),
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF1F3149),
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -230,21 +359,22 @@ class _AdmissionCard extends StatelessWidget {
         onTap: onOpen,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             title,
                             style: const TextStyle(
-                              fontSize: 29,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1D324A),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F3149),
                             ),
                           ),
                         ),
@@ -253,13 +383,13 @@ class _AdmissionCard extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: status == '在院'
-                                  ? const Color(0xFFE6F3E9)
-                                  : const Color(0xFFEEF2F7),
+                                  ? const Color(0xFFE8F7F3)
+                                  : const Color(0xFFF5F9FF),
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
                                 color: status == '在院'
-                                    ? const Color(0xFFB5D8BC)
-                                    : const Color(0xFFCFD7E2),
+                                    ? const Color(0xFFBDE6DD)
+                                    : const Color(0xFFD9E5F4),
                               ),
                             ),
                             child: Text(
@@ -267,16 +397,18 @@ class _AdmissionCard extends StatelessWidget {
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: status == '在院'
-                                    ? const Color(0xFF2A7F3D)
+                                    ? const Color(0xFF0F695F)
                                     : const Color(0xFF596C84),
+                                fontSize: 12,
                               ),
                             ),
                           ),
+                        const SizedBox(width: 5),
                         _InlineAction(title: '编辑', color: const Color(0xFF2888D8), onTap: onEdit),
                         _InlineAction(title: '删除', color: const Color(0xFFD34C64), onTap: onDelete),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     FieldGrid(
                       schema: listSchema,
                       values: row.values,
@@ -285,14 +417,14 @@ class _AdmissionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 2),
+              const SizedBox(width: 4),
               const SizedBox(
-                width: 30,
+                width: 18,
                 child: Center(
                   child: Icon(
                     Icons.chevron_right_rounded,
-                    size: 27,
-                    color: Color(0xFF607B99),
+                    size: 20,
+                    color: Color(0xFF7E95B3),
                   ),
                 ),
               ),
@@ -318,17 +450,18 @@ class _InlineAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 5),
+      padding: const EdgeInsets.only(left: 4),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Text(
             title,
             style: TextStyle(
               fontWeight: FontWeight.w700,
               color: color,
+              fontSize: 12,
             ),
           ),
         ),

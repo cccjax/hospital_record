@@ -124,7 +124,7 @@ class AssessmentScoreBar extends StatelessWidget {
                           fontSize: 13,
                           height: 1.15,
                           fontWeight: FontWeight.w600,
-                          color: _segmentColor(i).withOpacity(0.95),
+                          color: _segmentColor(i).withValues(alpha: 0.95),
                         ),
                       ),
                     ),

@@ -6,7 +6,6 @@ import '../state/hospital_app_state.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
 import '../widgets/field_grid.dart';
-import '../widgets/section_card.dart';
 import 'patient_detail_page.dart';
 
 class HomeTabPage extends StatefulWidget {
@@ -53,20 +52,13 @@ class _HomeTabPageState extends State<HomeTabPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 100),
         children: [
-          SectionCard(
-            title: '概览',
-            action: FilledButton.tonal(
-              onPressed: state.toggleInHospitalFilter,
-              child: Text(state.patientInHospitalOnly ? '在院筛选: 开' : '在院筛选: 关'),
-            ),
-            child: Row(
-              children: [
-                _StatPill(label: '病人总数', value: '${state.patientCount}'),
-                const SizedBox(width: 8),
-                _StatPill(label: '在院病人', value: '${state.inHospitalCount}'),
-              ],
-            ),
+          _HeroCard(
+            patientCount: state.patientCount,
+            inHospitalCount: state.inHospitalCount,
+            filterActive: state.patientInHospitalOnly,
+            onToggleFilter: state.toggleInHospitalFilter,
           ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -144,6 +136,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       content: '删除后将同步删除该病人的入院记录、日常记录、测评和影像资料，是否继续？',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     context.read<HospitalAppState>().deletePatient(admissionNo);
   }
 
@@ -166,8 +159,87 @@ class _HomeTabPageState extends State<HomeTabPage> {
   }
 }
 
-class _StatPill extends StatelessWidget {
-  const _StatPill({
+class _HeroCard extends StatelessWidget {
+  const _HeroCard({
+    required this.patientCount,
+    required this.inHospitalCount,
+    required this.filterActive,
+    required this.onToggleFilter,
+  });
+
+  final int patientCount;
+  final int inHospitalCount;
+  final bool filterActive;
+  final VoidCallback onToggleFilter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
+        ),
+        border: Border.all(color: const Color(0xFFE7EEF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F2744),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '概览',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1F3149),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '病人档案支持实时检索与快速编辑',
+              style: TextStyle(
+                color: Color(0xFF5F6F85),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeroMetric(
+                    label: '病人总数',
+                    value: '$patientCount',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _FilterStatCard(
+                    value: '$inHospitalCount',
+                    active: filterActive,
+                    onTap: onToggleFilter,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroMetric extends StatelessWidget {
+  const _HeroMetric({
     required this.label,
     required this.value,
   });
@@ -177,32 +249,99 @@ class _StatPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFFEEF4FD),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFD9E5F6)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5EEF9)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF5A6A7E),
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFF1F3149),
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterStatCard extends StatelessWidget {
+  const _FilterStatCard({
+    required this.value,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String value;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: <Color>[Color(0xFFE9F4FF), Color(0xFFF0F9FF)],
+                  )
+                : null,
+            color: active ? null : const Color(0xFFF7FBFF),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: active ? const Color(0xFF84B8F2) : const Color(0xFFE5EEF9),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF72849D),
-                  fontSize: 13,
+                '在院病人',
+                style: TextStyle(
+                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF5A6A7E),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               Text(
                 value,
-                style: const TextStyle(
-                  color: Color(0xFF1C3F67),
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
+                style: TextStyle(
+                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF1F3149),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                active ? '已筛选在院病人' : '点击筛选在院病人',
+                style: TextStyle(
+                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF6582A7),
+                  fontSize: 11,
                 ),
               ),
             ],
@@ -235,29 +374,38 @@ class _PatientCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         onTap: onOpen,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           child: Column(
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Text(
                       (patient.values['name'] ?? '-').toString(),
                       style: const TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E324A),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F3149),
                       ),
                     ),
                   ),
-                  Text(
-                    patient.admissionNo,
-                    style: const TextStyle(
-                      color: Color(0xFF5B6F89),
-                      fontWeight: FontWeight.w700,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(999),
+                      color: const Color(0xFFF5F9FF),
+                      border: Border.all(color: const Color(0xFFD9E5F4)),
+                    ),
+                    child: Text(
+                      '住院号 ${patient.admissionNo}',
+                      style: const TextStyle(
+                        color: Color(0xFF4E627D),
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 5),
                   _ActionText(
                     title: '编辑',
                     color: const Color(0xFF2C89D8),
@@ -268,15 +416,14 @@ class _PatientCard extends StatelessWidget {
                     color: const Color(0xFFD54E67),
                     onTap: onDelete,
                   ),
-                  const SizedBox(width: 2),
                   const Icon(
                     Icons.chevron_right_rounded,
-                    size: 28,
-                    color: Color(0xFF68819E),
+                    size: 20,
+                    color: Color(0xFF7E95B3),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               FieldGrid(
                 schema: listSchema,
                 values: patient.values,
@@ -309,12 +456,13 @@ class _ActionText extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Text(
             title,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
+              fontSize: 12,
             ),
           ),
         ),

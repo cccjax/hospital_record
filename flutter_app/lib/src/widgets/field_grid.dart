@@ -77,14 +77,14 @@ class _FieldCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F7FC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E8F4)),
+        color: const Color(0xFFF9FBFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFEBF1FA)),
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: compact ? 8 : 10,
+          horizontal: 8,
+          vertical: compact ? 7 : 8,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,19 +92,19 @@ class _FieldCell extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: compact ? 13 : 14,
-                color: const Color(0xFF6D7C92),
-                height: 1.1,
+                fontSize: compact ? 11.5 : 12,
+                color: const Color(0xFF66778F),
+                height: 1.2,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             Text(
               value,
               style: TextStyle(
-                fontSize: compact ? 16 : 20,
-                color: const Color(0xFF1F3045),
+                fontSize: compact ? 13 : 13.5,
+                color: const Color(0xFF1F3149),
                 fontWeight: FontWeight.w600,
-                height: 1.12,
+                height: 1.25,
               ),
             ),
           ],

@@ -95,7 +95,7 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
-                  value: _diseaseId.isEmpty ? null : _diseaseId,
+                  initialValue: _diseaseId.isEmpty ? null : _diseaseId,
                   decoration: const InputDecoration(labelText: '病种模板'),
                   items: state.data.templates
                       .map(
@@ -119,7 +119,7 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: _versionId.isEmpty ? null : _versionId,
+                  initialValue: _versionId.isEmpty ? null : _versionId,
                   decoration: const InputDecoration(labelText: '模板版本'),
                   items: (disease?.versions ?? const <TemplateVersion>[])
                       .map(
@@ -238,33 +238,84 @@ class _ItemOptionsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: const Color(0xFFFDFEFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE7F5)),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               item.name,
               style: const TextStyle(
-                fontSize: 19,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF22364F),
+                color: Color(0xFF1F3149),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 for (final option in item.options)
-                  ChoiceChip(
-                    label: Text('${option.label} (${option.score})'),
-                    selected: selectedOptionId == option.id,
-                    onSelected: (_) => onChanged(option.id),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => onChanged(option.id),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: selectedOptionId == option.id
+                            ? const Color(0xFFE7F1FE)
+                            : const Color(0xFFF5F9FF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: selectedOptionId == option.id
+                              ? const Color(0xFF77A9E8)
+                              : const Color(0xFFD9E5F4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            selectedOptionId == option.id
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_off,
+                            size: 14,
+                            color: selectedOptionId == option.id
+                                ? const Color(0xFF2A5E98)
+                                : const Color(0xFF8A9CB2),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            option.label,
+                            style: TextStyle(
+                              color: selectedOptionId == option.id
+                                  ? const Color(0xFF2A5E98)
+                                  : const Color(0xFF617992),
+                              fontSize: 12,
+                              fontWeight: selectedOptionId == option.id
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${option.score}分',
+                            style: TextStyle(
+                              color: selectedOptionId == option.id
+                                  ? const Color(0xFF2A5E98)
+                                  : const Color(0xFF617992),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
               ],
             ),

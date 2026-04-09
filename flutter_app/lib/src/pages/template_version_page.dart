@@ -22,6 +22,7 @@ class TemplateVersionPage extends StatelessWidget {
     final state = context.watch<HospitalAppState>();
     final disease = state.findDisease(diseaseId);
     final version = state.findVersion(diseaseId, versionId);
+    final optionCount = version?.items.fold<int>(0, (sum, item) => sum + item.options.length) ?? 0;
     if (disease == null || version == null) {
       return Scaffold(
         appBar: _buildAppBar(),
@@ -34,15 +35,14 @@ class TemplateVersionPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          Text(
-            '${disease.diseaseName} · ${version.versionName}',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF24405D),
-            ),
+          _VersionOverviewCard(
+            diseaseName: disease.diseaseName,
+            versionName: version.versionName,
+            itemCount: version.items.length,
+            optionCount: optionCount,
+            gradeCount: version.gradeRules.length,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           SectionCard(
             title: '测评项配置',
             action: FilledButton.tonal(
@@ -64,7 +64,7 @@ class TemplateVersionPage extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text(
-                      '暂无测评项',
+                      '当前版本暂无测评项，请先新增',
                       style: TextStyle(color: Color(0xFF7588A1)),
                     ),
                   ),
@@ -125,6 +125,7 @@ class TemplateVersionPage extends StatelessWidget {
   }) async {
     final state = context.read<HospitalAppState>();
     final nameController = TextEditingController(text: editing?.name ?? '');
+    final quickController = TextEditingController();
     final drafts = (editing?.options ?? const <TemplateOption>[])
         .map(
           (option) => _OptionDraft(
@@ -156,6 +157,40 @@ class TemplateVersionPage extends StatelessWidget {
                         decoration: const InputDecoration(labelText: '测评项名称 *'),
                       ),
                       const SizedBox(height: 10),
+                      TextField(
+                        controller: quickController,
+                        decoration: const InputDecoration(
+                          labelText: '快速录入（可选）',
+                          hintText: '示例：无症状:0,轻度:2,重度:5',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.tonal(
+                          onPressed: () {
+                            final parsed = _parseQuickOptions(
+                              quickController.text,
+                              state: state,
+                            );
+                            if (parsed.isEmpty) {
+                              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                                const SnackBar(content: Text('快速录入格式无效，请使用“名称:分数”')),
+                              );
+                              return;
+                            }
+                            for (final draft in drafts) {
+                              draft.dispose();
+                            }
+                            drafts
+                              ..clear()
+                              ..addAll(parsed);
+                            setDialogState(() {});
+                          },
+                          child: const Text('按快速录入生成'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       for (var i = 0; i < drafts.length; i++)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -172,7 +207,7 @@ class TemplateVersionPage extends StatelessWidget {
                                 width: 110,
                                 child: TextField(
                                   controller: drafts[i].scoreController,
-                                  decoration: const InputDecoration(labelText: '分值'),
+                                  decoration: const InputDecoration(labelText: '分数'),
                                   keyboardType: TextInputType.number,
                                 ),
                               ),
@@ -260,6 +295,7 @@ class TemplateVersionPage extends StatelessWidget {
     );
 
     nameController.dispose();
+    quickController.dispose();
     for (final draft in drafts) {
       draft.dispose();
     }
@@ -361,6 +397,34 @@ class TemplateVersionPage extends StatelessWidget {
     noteController.dispose();
   }
 
+  List<_OptionDraft> _parseQuickOptions(
+    String raw, {
+    required HospitalAppState state,
+  }) {
+    final text = raw.trim();
+    if (text.isEmpty) return const <_OptionDraft>[];
+    final segments = text.split(',');
+    final drafts = <_OptionDraft>[];
+    for (final seg in segments) {
+      final unit = seg.trim();
+      if (unit.isEmpty) continue;
+      final pair = unit.split(':');
+      if (pair.length < 2) return const <_OptionDraft>[];
+      final label = pair.first.trim();
+      final scoreRaw = pair.sublist(1).join(':').trim();
+      final score = double.tryParse(scoreRaw);
+      if (label.isEmpty || score == null) return const <_OptionDraft>[];
+      drafts.add(
+        _OptionDraft(
+          id: state.createRuntimeId('tplo'),
+          labelController: TextEditingController(text: label),
+          scoreController: TextEditingController(text: score.toString()),
+        ),
+      );
+    }
+    return drafts;
+  }
+
   Future<void> _deleteItem(BuildContext context, String itemId) async {
     final confirmed = await showDeleteConfirmDialog(
       context,
@@ -368,6 +432,7 @@ class TemplateVersionPage extends StatelessWidget {
       content: '确认删除该测评项吗？',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     context.read<HospitalAppState>().deleteTemplateItem(diseaseId, versionId, itemId);
   }
 
@@ -378,7 +443,124 @@ class TemplateVersionPage extends StatelessWidget {
       content: '确认删除该分级区间吗？',
     );
     if (!confirmed) return;
+    if (!context.mounted) return;
     context.read<HospitalAppState>().deleteTemplateGradeRule(diseaseId, versionId, ruleId);
+  }
+}
+
+class _VersionOverviewCard extends StatelessWidget {
+  const _VersionOverviewCard({
+    required this.diseaseName,
+    required this.versionName,
+    required this.itemCount,
+    required this.optionCount,
+    required this.gradeCount,
+  });
+
+  final String diseaseName;
+  final String versionName;
+  final int itemCount;
+  final int optionCount;
+  final int gradeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
+        ),
+        border: Border.all(color: const Color(0xFFE7EEF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F2744),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              diseaseName,
+              style: const TextStyle(
+                color: Color(0xFF1F3149),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              versionName,
+              style: const TextStyle(
+                color: Color(0xFF5F6F85),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _MetricTile(label: '测评项', value: '$itemCount')),
+                const SizedBox(width: 8),
+                Expanded(child: _MetricTile(label: '选项数', value: '$optionCount')),
+                const SizedBox(width: 8),
+                Expanded(child: _MetricTile(label: '分级区间', value: '$gradeCount')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5EEF9)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF5A6A7E),
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF1F3149),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -395,25 +577,27 @@ class _ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final optionCount = item.options.length;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FE),
+        color: const Color(0xFFFDFEFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD9E4F3)),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Text(
                     item.name,
                     style: const TextStyle(
-                      color: Color(0xFF243A56),
-                      fontSize: 17,
+                      color: Color(0xFF1F3149),
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -422,10 +606,38 @@ class _ItemCard extends StatelessWidget {
                 _ActionText(title: '删除', color: const Color(0xFFD34E66), onTap: onDelete),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 7),
             Text(
-              item.options.map((option) => '${option.label}:${option.score}').join('  ·  '),
-              style: const TextStyle(color: Color(0xFF5D728D)),
+              '选项数量 $optionCount',
+              style: const TextStyle(
+                color: Color(0xFF6E839C),
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                for (final option in item.options)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F9FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFD9E5F4)),
+                    ),
+                    child: Text(
+                      '${option.label} · ${option.score}分',
+                      style: const TextStyle(
+                        color: Color(0xFF526A85),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
         ),
@@ -449,36 +661,59 @@ class _RuleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FE),
+        color: const Color(0xFFFDFEFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD9E4F3)),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${rule.level}  (${rule.min.toInt()}-${rule.max.toInt()})',
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    rule.level,
                     style: const TextStyle(
-                      color: Color(0xFF243A56),
-                      fontSize: 17,
+                      color: Color(0xFF1F3149),
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  if (rule.note.trim().isNotEmpty)
-                    Text(
-                      rule.note,
-                      style: const TextStyle(color: Color(0xFF5E738F)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F9FF),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFD9E5F4)),
+                  ),
+                  child: Text(
+                    '${rule.min.toInt()} - ${rule.max.toInt()} 分',
+                    style: const TextStyle(
+                      color: Color(0xFF4E627D),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
                     ),
-                ],
-              ),
+                  ),
+                ),
+                _ActionText(title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
+                _ActionText(title: '删除', color: const Color(0xFFD34E66), onTap: onDelete),
+              ],
             ),
-            _ActionText(title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
-            _ActionText(title: '删除', color: const Color(0xFFD34E66), onTap: onDelete),
+            if (rule.note.trim().isNotEmpty) ...[
+              const SizedBox(height: 7),
+              Text(
+                rule.note,
+                style: const TextStyle(
+                  color: Color(0xFF5E738F),
+                  height: 1.3,
+                  fontSize: 12.5,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -500,17 +735,18 @@ class _ActionText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.only(left: 4),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
           child: Text(
             title,
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w700,
+              fontSize: 12,
             ),
           ),
         ),

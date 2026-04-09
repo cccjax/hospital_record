@@ -82,7 +82,7 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
                     final ok = await context
                         .read<HospitalAppState>()
                         .importDataFromJson(_jsonController.text);
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(ok ? '导入成功' : '导入失败，请检查数据')),
                     );

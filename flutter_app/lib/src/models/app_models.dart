@@ -343,6 +343,7 @@ class TemplateVersion {
     required this.description,
     required this.items,
     required this.gradeRules,
+    this.extraValues = const <String, dynamic>{},
   });
 
   final String id;
@@ -351,30 +352,48 @@ class TemplateVersion {
   final String description;
   final List<TemplateItem> items;
   final List<TemplateGradeRule> gradeRules;
+  final Map<String, dynamic> extraValues;
 
   factory TemplateVersion.fromJson(Map<String, dynamic> json) {
+    final raw = _cloneMap(json);
+    const knownKeys = <String>{
+      'id',
+      'versionName',
+      'year',
+      'description',
+      'items',
+      'gradeRules',
+    };
+    final extras = <String, dynamic>{};
+    for (final entry in raw.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        extras[entry.key] = entry.value;
+      }
+    }
     return TemplateVersion(
-      id: (json['id'] ?? '').toString(),
-      versionName: (json['versionName'] ?? '').toString(),
-      year: (json['year'] ?? '').toString(),
-      description: (json['description'] ?? '').toString(),
-      items: (json['items'] is List)
-          ? (json['items'] as List)
+      id: (raw['id'] ?? '').toString(),
+      versionName: (raw['versionName'] ?? '').toString(),
+      year: (raw['year'] ?? '').toString(),
+      description: (raw['description'] ?? '').toString(),
+      items: (raw['items'] is List)
+          ? (raw['items'] as List)
               .whereType<Map>()
               .map((e) => TemplateItem.fromJson(_cloneMap(e)))
               .toList()
           : const [],
-      gradeRules: (json['gradeRules'] is List)
-          ? (json['gradeRules'] as List)
+      gradeRules: (raw['gradeRules'] is List)
+          ? (raw['gradeRules'] as List)
               .whereType<Map>()
               .map((e) => TemplateGradeRule.fromJson(_cloneMap(e)))
               .toList()
           : const [],
+      extraValues: extras,
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      ...extraValues,
       'id': id,
       'versionName': versionName,
       'year': year,
@@ -392,6 +411,7 @@ class TemplateDisease {
     required this.diseaseCode,
     required this.description,
     required this.versions,
+    this.extraValues = const <String, dynamic>{},
   });
 
   final String id;
@@ -399,24 +419,41 @@ class TemplateDisease {
   final String diseaseCode;
   final String description;
   final List<TemplateVersion> versions;
+  final Map<String, dynamic> extraValues;
 
   factory TemplateDisease.fromJson(Map<String, dynamic> json) {
+    final raw = _cloneMap(json);
+    const knownKeys = <String>{
+      'id',
+      'diseaseName',
+      'diseaseCode',
+      'description',
+      'versions',
+    };
+    final extras = <String, dynamic>{};
+    for (final entry in raw.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        extras[entry.key] = entry.value;
+      }
+    }
     return TemplateDisease(
-      id: (json['id'] ?? '').toString(),
-      diseaseName: (json['diseaseName'] ?? '').toString(),
-      diseaseCode: (json['diseaseCode'] ?? '').toString(),
-      description: (json['description'] ?? '').toString(),
-      versions: (json['versions'] is List)
-          ? (json['versions'] as List)
+      id: (raw['id'] ?? '').toString(),
+      diseaseName: (raw['diseaseName'] ?? '').toString(),
+      diseaseCode: (raw['diseaseCode'] ?? '').toString(),
+      description: (raw['description'] ?? '').toString(),
+      versions: (raw['versions'] is List)
+          ? (raw['versions'] as List)
               .whereType<Map>()
               .map((e) => TemplateVersion.fromJson(_cloneMap(e)))
               .toList()
           : const [],
+      extraValues: extras,
     );
   }
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      ...extraValues,
       'id': id,
       'diseaseName': diseaseName,
       'diseaseCode': diseaseCode,
