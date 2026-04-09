@@ -53,7 +53,7 @@ class _MineSecurityPageState extends State<MineSecurityPage> {
                   style: TextStyle(
                     color: enabled ? const Color(0xFF2D8B49) : const Color(0xFF9A5A32),
                     fontWeight: FontWeight.w800,
-                    fontSize: 18,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(width: 12),

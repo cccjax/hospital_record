@@ -41,7 +41,7 @@ class MineTabPage extends StatelessWidget {
           ),
           _MenuCard(
             title: '字段配置',
-            subtitle: '统一配置病人/入院/日常字段并同步模块显示',
+            subtitle: '统一配置病人/入院/日常/模板字段并控制列表显示',
             tag: '模块联动',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const FieldConfigPage()),
@@ -75,7 +75,7 @@ class _MenuCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(14),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
             child: Row(
               children: [
                 Expanded(
@@ -83,29 +83,31 @@ class _MenuCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Text(
                               title,
                               style: const TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF22364E),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1F3149),
                               ),
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEFF4FB),
+                              color: const Color(0xFFF5F9FF),
                               borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: const Color(0xFFD9E4F3)),
+                              border: Border.all(color: const Color(0xFFD9E5F4)),
                             ),
                             child: Text(
                               tag,
                               style: const TextStyle(
                                 color: Color(0xFF5D728C),
                                 fontWeight: FontWeight.w700,
+                                fontSize: 12,
                               ),
                             ),
                           ),
@@ -116,15 +118,19 @@ class _MenuCard extends StatelessWidget {
                         subtitle,
                         style: const TextStyle(
                           color: Color(0xFF71849D),
+                          fontSize: 13,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 28,
-                  color: Color(0xFF607A98),
+                const SizedBox(
+                  width: 18,
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: Color(0xFF7E95B3),
+                  ),
                 ),
               ],
             ),

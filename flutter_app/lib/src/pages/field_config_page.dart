@@ -171,159 +171,27 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     String module, {
     FieldSchema? editing,
   }) async {
-    final state = context.read<HospitalAppState>();
-    final keyController = TextEditingController(text: editing?.key ?? '');
-    final labelController = TextEditingController(text: editing?.label ?? '');
-    final optionsController = TextEditingController(
-      text: (editing?.options ?? const <String>[]).join(','),
-    );
-    var type = editing?.type ?? FieldType.text;
-    var required = editing?.required ?? false;
-    var showInList = editing?.showInList ?? true;
-
-    await showDialog<void>(
+    final result = await showDialog<FieldSchema>(
       context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            final keyLocked = editing != null;
-            final typeLocked = editing != null;
-            final canToggleRequired = !(editing?.locked == true);
-            return AlertDialog(
-              title: Text(editing == null ? '新增字段' : '编辑字段'),
-              content: SizedBox(
-                width: 470,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: keyController,
-                        enabled: !keyLocked,
-                        decoration: const InputDecoration(
-                          labelText: '字段键名 *',
-                          hintText: '例如: bloodSugar',
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: labelController,
-                        decoration: const InputDecoration(labelText: '字段名称 *'),
-                      ),
-                      const SizedBox(height: 10),
-                      DropdownButtonFormField<FieldType>(
-                        initialValue: type,
-                        decoration: const InputDecoration(labelText: '字段类型'),
-                        items: const [
-                          DropdownMenuItem(value: FieldType.text, child: Text('文本')),
-                          DropdownMenuItem(value: FieldType.number, child: Text('数字')),
-                          DropdownMenuItem(value: FieldType.date, child: Text('日期')),
-                          DropdownMenuItem(value: FieldType.textarea, child: Text('多行文本')),
-                          DropdownMenuItem(value: FieldType.select, child: Text('下拉选项')),
-                          DropdownMenuItem(value: FieldType.images, child: Text('图片上传')),
-                        ],
-                        onChanged: typeLocked
-                            ? null
-                            : (value) {
-                                if (value == null) return;
-                                setDialogState(() {
-                                  type = value;
-                                });
-                              },
-                      ),
-                      if (type == FieldType.select) ...[
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: optionsController,
-                          decoration: const InputDecoration(
-                            labelText: '下拉选项',
-                            hintText: '用英文逗号分隔，例如: 在院,出院',
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      SwitchListTile(
-                        value: required,
-                        title: const Text('是否必填'),
-                        onChanged: canToggleRequired
-                            ? (value) {
-                                setDialogState(() {
-                                  required = value;
-                                });
-                              }
-                            : null,
-                      ),
-                      SwitchListTile(
-                        value: showInList,
-                        title: const Text('是否列表展示'),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            showInList = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('取消'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    final key = editing?.key ?? keyController.text.trim();
-                    final label = labelController.text.trim();
-                    final fixedType = editing?.type ?? type;
-                    if (key.isEmpty || label.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('字段键名和字段名称不能为空')),
-                      );
-                      return;
-                    }
-                    final options = fixedType == FieldType.select
-                        ? optionsController.text
-                            .split(',')
-                            .map((e) => e.trim())
-                            .where((e) => e.isNotEmpty)
-                            .toList()
-                        : const <String>[];
-                    final field = FieldSchema(
-                      key: key,
-                      label: label,
-                      type: fixedType,
-                      required: required,
-                      locked: editing?.locked ?? false,
-                      showInList: showInList,
-                      computed: editing?.computed ?? false,
-                      options: options,
-                    );
-
-                    final ok = editing == null
-                        ? state.addCustomField(module, field)
-                        : state.updateField(module, editing.key, field);
-                    if (ok) {
-                      Navigator.of(dialogContext).pop();
-                    } else {
-                      final message = state.takeLastErrorMessage() ?? '保存失败';
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        SnackBar(content: Text(message)),
-                      );
-                    }
-                  },
-                  child: const Text('保存'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (dialogContext) => _FieldEditorDialog(editing: editing),
     );
 
-    keyController.dispose();
-    labelController.dispose();
-    optionsController.dispose();
+    if (!context.mounted || result == null) return;
+
+    // The popup route may still be in teardown in this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final latestState = context.read<HospitalAppState>();
+      final ok = editing == null
+          ? latestState.addCustomField(module, result)
+          : latestState.updateField(module, editing.key, result);
+      if (!ok && mounted) {
+        final message = latestState.takeLastErrorMessage() ?? '保存失败';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    });
   }
 
   Future<void> _deleteField(
@@ -344,6 +212,175 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
       final message = state.takeLastErrorMessage() ?? '删除失败';
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+}
+
+class _FieldEditorDialog extends StatefulWidget {
+  const _FieldEditorDialog({
+    required this.editing,
+  });
+
+  final FieldSchema? editing;
+
+  @override
+  State<_FieldEditorDialog> createState() => _FieldEditorDialogState();
+}
+
+class _FieldEditorDialogState extends State<_FieldEditorDialog> {
+  late final TextEditingController _keyController;
+  late final TextEditingController _labelController;
+  late final TextEditingController _optionsController;
+
+  late FieldType _type;
+  late bool _required;
+  late bool _showInList;
+
+  @override
+  void initState() {
+    super.initState();
+    _keyController = TextEditingController(text: widget.editing?.key ?? '');
+    _labelController = TextEditingController(text: widget.editing?.label ?? '');
+    _optionsController = TextEditingController(
+      text: (widget.editing?.options ?? const <String>[]).join(','),
+    );
+    _type = widget.editing?.type ?? FieldType.text;
+    _required = widget.editing?.required ?? false;
+    _showInList = widget.editing?.showInList ?? true;
+  }
+
+  @override
+  void dispose() {
+    _keyController.dispose();
+    _labelController.dispose();
+    _optionsController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final editing = widget.editing;
+    final keyLocked = editing != null;
+    final typeLocked = editing != null;
+    final canToggleRequired = !(editing?.locked == true);
+
+    return AlertDialog(
+      title: Text(editing == null ? '新增字段' : '编辑字段'),
+      content: SizedBox(
+        width: 470,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _keyController,
+                enabled: !keyLocked,
+                decoration: const InputDecoration(
+                  labelText: '字段键名 *',
+                  hintText: '例如: bloodSugar',
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _labelController,
+                decoration: const InputDecoration(labelText: '字段名称 *'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<FieldType>(
+                initialValue: _type,
+                decoration: const InputDecoration(labelText: '字段类型'),
+                items: const [
+                  DropdownMenuItem(value: FieldType.text, child: Text('文本')),
+                  DropdownMenuItem(value: FieldType.number, child: Text('数字')),
+                  DropdownMenuItem(value: FieldType.date, child: Text('日期')),
+                  DropdownMenuItem(value: FieldType.textarea, child: Text('多行文本')),
+                  DropdownMenuItem(value: FieldType.select, child: Text('下拉选项')),
+                  DropdownMenuItem(value: FieldType.images, child: Text('图片上传')),
+                ],
+                onChanged: typeLocked
+                    ? null
+                    : (value) {
+                        if (value == null) return;
+                        setState(() {
+                          _type = value;
+                        });
+                      },
+              ),
+              if (_type == FieldType.select) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _optionsController,
+                  decoration: const InputDecoration(
+                    labelText: '下拉选项',
+                    hintText: '用英文逗号分隔，例如: 在院,出院',
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              SwitchListTile(
+                value: _required,
+                title: const Text('是否必填'),
+                onChanged: canToggleRequired
+                    ? (value) {
+                        setState(() {
+                          _required = value;
+                        });
+                      }
+                    : null,
+              ),
+              SwitchListTile(
+                value: _showInList,
+                title: const Text('是否列表展示'),
+                onChanged: (value) {
+                  setState(() {
+                    _showInList = value;
+                  });
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: _onSubmit,
+          child: const Text('保存'),
+        ),
+      ],
+    );
+  }
+
+  void _onSubmit() {
+    final key = widget.editing?.key ?? _keyController.text.trim();
+    final label = _labelController.text.trim();
+    final fixedType = widget.editing?.type ?? _type;
+    if (key.isEmpty || label.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('字段键名和字段名称不能为空')),
+      );
+      return;
+    }
+    final options = fixedType == FieldType.select
+        ? _optionsController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList()
+        : const <String>[];
+    final field = FieldSchema(
+      key: key,
+      label: label,
+      type: fixedType,
+      required: _required,
+      locked: widget.editing?.locked ?? false,
+      showInList: _showInList,
+      computed: widget.editing?.computed ?? false,
+      options: options,
+    );
+    Navigator.of(context).pop(field);
   }
 }
 

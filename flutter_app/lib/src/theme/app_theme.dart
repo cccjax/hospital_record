@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 ThemeData buildAppTheme() {
   const primary = Color(0xFF0D766E);
   const card = Color(0xFFF8FBFF);
+  const buttonTextStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: 13);
+  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
 
   final scheme = ColorScheme.fromSeed(
     seedColor: primary,
@@ -21,12 +23,12 @@ ThemeData buildAppTheme() {
       centerTitle: false,
       elevation: 0,
       shadowColor: Color(0x3A123A47),
-      toolbarHeight: 62,
+      toolbarHeight: 60,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
       ),
       titleTextStyle: TextStyle(
-        fontSize: 23,
+        fontSize: 22,
         fontWeight: FontWeight.w800,
         color: Colors.white,
         letterSpacing: 0.2,
@@ -37,16 +39,43 @@ ThemeData buildAppTheme() {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFDCE8F6)),
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFE7EEF9)),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 42),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        shape: buttonShape,
+        elevation: 0,
+        textStyle: buttonTextStyle,
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 40),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        shape: buttonShape,
+        side: const BorderSide(color: Color(0xFFBCD2EA)),
+        foregroundColor: const Color(0xFF2F5F96),
+        textStyle: buttonTextStyle,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        foregroundColor: const Color(0xFF325E8F),
+        textStyle: buttonTextStyle,
+      ),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(
+        minimumSize: const Size(34, 34),
+        padding: const EdgeInsets.all(8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -69,14 +98,14 @@ ThemeData buildAppTheme() {
           final selected = states.contains(WidgetState.selected);
           return IconThemeData(
             color: selected ? const Color(0xFF1F5B95) : const Color(0xFF7A8FA8),
-            size: selected ? 23 : 21,
+            size: selected ? 22 : 20,
           );
         },
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: const Color(0xFFF8FBFF),
+      fillColor: const Color(0xFFFFFFFF),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFD3E0F1)),
@@ -89,9 +118,15 @@ ThemeData buildAppTheme() {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFF6FA7E6), width: 1.35),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      hintStyle: const TextStyle(color: Color(0xFF8A9CB2)),
-      labelStyle: const TextStyle(color: Color(0xFF617690)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+      hintStyle: const TextStyle(color: Color(0xFF8A9CB2), fontSize: 13),
+      labelStyle: const TextStyle(color: Color(0xFF617690), fontSize: 13),
+    ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: const Color(0xFF1F2F46),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      contentTextStyle: const TextStyle(fontSize: 13, color: Color(0xFFF7FAFF)),
     ),
   );
 }

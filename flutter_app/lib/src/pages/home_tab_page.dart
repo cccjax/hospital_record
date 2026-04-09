@@ -214,6 +214,7 @@ class _HeroCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: _HeroMetric(
@@ -249,34 +250,38 @@ class _HeroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5EEF9)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF5A6A7E),
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
+    return SizedBox(
+      height: 66,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF7FBFF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5EEF9)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF5A6A7E),
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF1F3149),
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF1F3149),
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -300,51 +305,57 @@ class _FilterStatCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: active
-                ? const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: <Color>[Color(0xFFE9F4FF), Color(0xFFF0F9FF)],
-                  )
-                : null,
-            color: active ? null : const Color(0xFFF7FBFF),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: active ? const Color(0xFF84B8F2) : const Color(0xFFE5EEF9),
+        child: SizedBox(
+          height: 66,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: active
+                  ? const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: <Color>[Color(0xFFE9F4FF), Color(0xFFF0F9FF)],
+                    )
+                  : null,
+              color: active ? null : const Color(0xFFF7FBFF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: active ? const Color(0xFF84B8F2) : const Color(0xFFE5EEF9),
+              ),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '在院病人',
-                style: TextStyle(
-                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF5A6A7E),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      '在院病人',
+                      style: TextStyle(
+                        color: active ? const Color(0xFF2F5F96) : const Color(0xFF5A6A7E),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      active ? Icons.filter_alt_rounded : Icons.filter_alt_outlined,
+                      size: 14,
+                      color: active ? const Color(0xFF2F5F96) : const Color(0xFF8AA0BC),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: TextStyle(
-                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF1F3149),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: active ? const Color(0xFF2F5F96) : const Color(0xFF1F3149),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                active ? '已筛选在院病人' : '点击筛选在院病人',
-                style: TextStyle(
-                  color: active ? const Color(0xFF2F5F96) : const Color(0xFF6582A7),
-                  fontSize: 11,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

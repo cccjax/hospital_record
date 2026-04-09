@@ -178,12 +178,12 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
               ),
             ),
           const SizedBox(height: 4),
-          FilledButton(
-            onPressed: version == null ? null : () => _save(context, version),
-            style: FilledButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: version == null ? null : () => _save(context, version),
+              child: const Text('保存测评'),
             ),
-            child: const Text('保存测评'),
           ),
         ],
       ),

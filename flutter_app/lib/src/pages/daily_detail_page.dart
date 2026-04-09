@@ -41,7 +41,7 @@ class DailyDetailPage extends StatelessWidget {
                 style: const TextStyle(
                   color: Color(0xFF24405E),
                   fontWeight: FontWeight.w700,
-                  fontSize: 18,
+                  fontSize: 15,
                 ),
               ),
             ),

@@ -69,7 +69,7 @@ class _UnlockPageState extends State<_UnlockPage> {
                     const Text(
                       '请输入访问密码',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1D324A),
                       ),
@@ -86,12 +86,12 @@ class _UnlockPageState extends State<_UnlockPage> {
                       onSubmitted: (_) => _submit(context),
                     ),
                     const SizedBox(height: 10),
-                    FilledButton(
-                      onPressed: () => _submit(context),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () => _submit(context),
+                        child: const Text('解锁进入'),
                       ),
-                      child: const Text('解锁'),
                     ),
                   ],
                 ),

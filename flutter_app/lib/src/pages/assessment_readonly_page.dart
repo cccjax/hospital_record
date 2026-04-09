@@ -147,9 +147,16 @@ class _SummaryPanel extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFEEF5FF), Color(0xFFF8FBFF)],
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
         ),
-        border: Border.all(color: const Color(0xFFD8E5F6)),
+        border: Border.all(color: const Color(0xFFE7EEF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x160F2744),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
@@ -166,17 +173,17 @@ class _SummaryPanel extends StatelessWidget {
                       Text(
                         diseaseName,
                         style: const TextStyle(
-                          color: Color(0xFF1F3651),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1F3149),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         versionName,
                         style: const TextStyle(
-                          color: Color(0xFF5D7694),
-                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF5F6F85),
+                          fontSize: 13,
                         ),
                       ),
                     ],
@@ -184,9 +191,9 @@ class _SummaryPanel extends StatelessWidget {
                 ),
                 DecoratedBox(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE4EFFC),
+                    color: const Color(0xFFF5F9FF),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFCADEF7)),
+                    border: Border.all(color: const Color(0xFFD9E5F4)),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -194,15 +201,15 @@ class _SummaryPanel extends StatelessWidget {
                       children: [
                         const Text(
                           '得分',
-                          style: TextStyle(color: Color(0xFF6982A1), fontSize: 12),
+                          style: TextStyle(color: Color(0xFF5A6A7E), fontSize: 12),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           score.toStringAsFixed(1),
                           style: const TextStyle(
-                            color: Color(0xFF1F4F89),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
+                            color: Color(0xFF1F3149),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
                           ),
                         ),
                       ],
@@ -265,9 +272,9 @@ class _ReadonlyItemCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: const Color(0xFFFDFEFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE7F5)),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
@@ -281,13 +288,14 @@ class _ReadonlyItemCard extends StatelessWidget {
                   height: 24,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE6EFFD),
+                    color: const Color(0xFFF5F9FF),
                     borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFD9E5F4)),
                   ),
                   child: Text(
                     '$index',
                     style: const TextStyle(
-                      color: Color(0xFF2A5F99),
+                      color: Color(0xFF4E627D),
                       fontWeight: FontWeight.w700,
                       fontSize: 12,
                     ),
@@ -298,9 +306,9 @@ class _ReadonlyItemCard extends StatelessWidget {
                   child: Text(
                     item.name,
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF22364F),
+                      color: Color(0xFF1F3149),
                     ),
                   ),
                 ),
@@ -308,14 +316,14 @@ class _ReadonlyItemCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE4EFFC),
+                      color: const Color(0xFFF5F9FF),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFFCDE0F8)),
+                      border: Border.all(color: const Color(0xFFD9E5F4)),
                     ),
                     child: Text(
                       '${selected.score}分',
                       style: const TextStyle(
-                        color: Color(0xFF1F4F89),
+                        color: Color(0xFF4E627D),
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
@@ -329,6 +337,7 @@ class _ReadonlyItemCard extends StatelessWidget {
               style: TextStyle(
                 color: selected == null ? const Color(0xFF8C9CB0) : const Color(0xFF2A5E98),
                 fontWeight: FontWeight.w600,
+                fontSize: 12.5,
               ),
             ),
             const SizedBox(height: 8),
@@ -341,12 +350,12 @@ class _ReadonlyItemCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: option.id == selectedOptionId
                           ? const Color(0xFFE7F1FE)
-                          : const Color(0xFFF1F5FA),
+                          : const Color(0xFFF5F9FF),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: option.id == selectedOptionId
                             ? const Color(0xFF77A9E8)
-                            : const Color(0xFFD5E0EF),
+                            : const Color(0xFFD9E5F4),
                       ),
                     ),
                     child: Padding(
@@ -359,7 +368,7 @@ class _ReadonlyItemCard extends StatelessWidget {
                               : const Color(0xFF617992),
                           fontWeight:
                               option.id == selectedOptionId ? FontWeight.w700 : FontWeight.w500,
-                          fontSize: 13,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -385,9 +394,9 @@ class _StatCapsule extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F6FD),
+        color: const Color(0xFFF5F9FF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD7E4F5)),
+        border: Border.all(color: const Color(0xFFD9E5F4)),
       ),
       child: Text(
         text,

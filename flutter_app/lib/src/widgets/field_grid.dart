@@ -31,15 +31,21 @@ class FieldGrid extends StatelessWidget {
       builder: (context, constraints) {
         const gap = 8.0;
         final col = math.max(1, columns);
-        final itemWidth = (constraints.maxWidth - gap * (col - 1)) / col;
+        final hasBoundedWidth = constraints.hasBoundedWidth && constraints.maxWidth.isFinite;
+        final itemWidth = hasBoundedWidth
+            ? (constraints.maxWidth - gap * (col - 1)) / col
+            : 180.0;
 
-        return Wrap(
+        final wrap = Wrap(
           spacing: gap,
           runSpacing: gap,
+          alignment: WrapAlignment.start,
           children: [
             for (final field in visible)
               SizedBox(
-                width: field.type == FieldType.textarea ? constraints.maxWidth : itemWidth,
+                width: !hasBoundedWidth
+                    ? null
+                    : (field.type == FieldType.textarea ? constraints.maxWidth : itemWidth),
                 child: _FieldCell(
                   label: field.label,
                   value: _displayValue(field, values[field.key]),
@@ -48,6 +54,16 @@ class FieldGrid extends StatelessWidget {
               ),
           ],
         );
+
+        // Force occupying full row width so partial rows stay left-aligned
+        // even when parent uses center alignment.
+        if (hasBoundedWidth) {
+          return SizedBox(
+            width: constraints.maxWidth,
+            child: wrap,
+          );
+        }
+        return wrap;
       },
     );
   }
