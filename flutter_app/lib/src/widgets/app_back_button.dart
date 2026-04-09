@@ -10,22 +10,18 @@ class AppBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onPressed ?? () => Navigator.of(context).maybePop(),
-        child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Center(
-            child: Icon(
-              Icons.chevron_left_rounded,
-              size: 26,
-              color: Colors.white,
-            ),
-          ),
+    return IconButton(
+      onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
+      tooltip: '返回',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 40, height: 40),
+      splashRadius: 20,
+      icon: const Padding(
+        padding: EdgeInsets.only(left: 2),
+        child: Icon(
+          Icons.arrow_back_ios_new_rounded,
+          size: 20,
+          color: Colors.white,
         ),
       ),
     );

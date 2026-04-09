@@ -216,7 +216,9 @@ class HospitalAppState extends ChangeNotifier {
     }
 
     final duplicated = data.patients.any(
-      (row) => row.admissionNo == admissionNo && row.admissionNo != editingAdmissionNo,
+      (row) =>
+          row.admissionNo == admissionNo &&
+          row.admissionNo != editingAdmissionNo,
     );
     if (duplicated) {
       _lastErrorMessage = '住院号已存在';
@@ -230,7 +232,8 @@ class HospitalAppState extends ChangeNotifier {
       data = data.copyWith(
         patients: data.patients.map((row) {
           if (row.admissionNo != editingAdmissionNo) return row;
-          return PatientRecord(admissionNo: editingAdmissionNo, values: payload);
+          return PatientRecord(
+              admissionNo: editingAdmissionNo, values: payload);
         }).toList(),
       );
     } else {
@@ -249,14 +252,19 @@ class HospitalAppState extends ChangeNotifier {
         .map((row) => row.id)
         .toSet();
 
-    final nextAssessments = Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
-      ..removeWhere((key, _) => affectedAdmissionIds.contains(key));
-    final nextImaging = Map<String, List<ImagingItem>>.from(data.admissionImaging)
-      ..removeWhere((key, _) => affectedAdmissionIds.contains(key));
+    final nextAssessments =
+        Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
+          ..removeWhere((key, _) => affectedAdmissionIds.contains(key));
+    final nextImaging =
+        Map<String, List<ImagingItem>>.from(data.admissionImaging)
+          ..removeWhere((key, _) => affectedAdmissionIds.contains(key));
 
     data = data.copyWith(
-      patients: data.patients.where((row) => row.admissionNo != admissionNo).toList(),
-      admissions: data.admissions.where((row) => row.admissionNo != admissionNo).toList(),
+      patients:
+          data.patients.where((row) => row.admissionNo != admissionNo).toList(),
+      admissions: data.admissions
+          .where((row) => row.admissionNo != admissionNo)
+          .toList(),
       dailyRecords: data.dailyRecords
           .where((row) => !affectedAdmissionIds.contains(row.admissionId))
           .toList(),
@@ -326,13 +334,16 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   void deleteAdmission(String admissionId) {
-    final nextAssessments = Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
-      ..remove(admissionId);
-    final nextImaging = Map<String, List<ImagingItem>>.from(data.admissionImaging)
-      ..remove(admissionId);
+    final nextAssessments =
+        Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
+          ..remove(admissionId);
+    final nextImaging =
+        Map<String, List<ImagingItem>>.from(data.admissionImaging)
+          ..remove(admissionId);
 
     data = data.copyWith(
-      admissions: data.admissions.where((row) => row.id != admissionId).toList(),
+      admissions:
+          data.admissions.where((row) => row.id != admissionId).toList(),
       dailyRecords: data.dailyRecords
           .where((row) => row.admissionId != admissionId)
           .toList(),
@@ -393,7 +404,8 @@ class HospitalAppState extends ChangeNotifier {
 
   void deleteDaily(String dailyId) {
     data = data.copyWith(
-      dailyRecords: data.dailyRecords.where((row) => row.id != dailyId).toList(),
+      dailyRecords:
+          data.dailyRecords.where((row) => row.id != dailyId).toList(),
     );
     _persistDataAndNotify();
   }
@@ -411,7 +423,8 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   void removeImaging(String admissionId, String imageId) {
-    final remain = imagingOf(admissionId).where((e) => e.id != imageId).toList();
+    final remain =
+        imagingOf(admissionId).where((e) => e.id != imageId).toList();
     final next = Map<String, List<ImagingItem>>.from(data.admissionImaging);
     if (remain.isEmpty) {
       next.remove(admissionId);
@@ -438,15 +451,18 @@ class HospitalAppState extends ChangeNotifier {
         rows.add(record);
       }
     }
-    final next = Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
-      ..[admissionId] = rows;
+    final next =
+        Map<String, List<AssessmentRecord>>.from(data.admissionAssessments)
+          ..[admissionId] = rows;
     data = data.copyWith(admissionAssessments: next);
     _persistDataAndNotify();
   }
 
   void deleteAssessment(String admissionId, String assessmentId) {
-    final remain = assessmentsOf(admissionId).where((e) => e.id != assessmentId).toList();
-    final next = Map<String, List<AssessmentRecord>>.from(data.admissionAssessments);
+    final remain =
+        assessmentsOf(admissionId).where((e) => e.id != assessmentId).toList();
+    final next =
+        Map<String, List<AssessmentRecord>>.from(data.admissionAssessments);
     if (remain.isEmpty) {
       next.remove(admissionId);
     } else {
@@ -481,7 +497,8 @@ class HospitalAppState extends ChangeNotifier {
     return '未分级';
   }
 
-  double calculateAssessmentScore(TemplateVersion version, Map<String, String> selections) {
+  double calculateAssessmentScore(
+      TemplateVersion version, Map<String, String> selections) {
     var total = 0.0;
     for (final item in version.items) {
       final selectedId = selections[item.id];
@@ -502,7 +519,8 @@ class HospitalAppState extends ChangeNotifier {
     if (key == 'description') return disease.description;
     if (key == 'versionCount') return disease.versions.length;
     if (key == 'itemCount') {
-      return disease.versions.fold<int>(0, (sum, version) => sum + version.items.length);
+      return disease.versions
+          .fold<int>(0, (sum, version) => sum + version.items.length);
     }
     return disease.extraValues[key];
   }
@@ -513,7 +531,8 @@ class HospitalAppState extends ChangeNotifier {
     if (key == 'description') return version.description;
     if (key == 'itemCount') return version.items.length;
     if (key == 'optionCount') {
-      return version.items.fold<int>(0, (sum, item) => sum + item.options.length);
+      return version.items
+          .fold<int>(0, (sum, item) => sum + item.options.length);
     }
     if (key == 'gradeCount') return version.gradeRules.length;
     return version.extraValues[key];
@@ -539,11 +558,13 @@ class HospitalAppState extends ChangeNotifier {
     required Map<String, dynamic> values,
   }) {
     _lastErrorMessage = null;
-    final schema = schemaOf('templateDisease').where((field) => !field.computed).toList();
+    final schema =
+        schemaOf('templateDisease').where((field) => !field.computed).toList();
     final payload = _applySchemaCoercion(values, schema);
 
     final rows = List<TemplateDisease>.from(data.templates);
-    final editingIndex = editingId == null ? -1 : rows.indexWhere((e) => e.id == editingId);
+    final editingIndex =
+        editingId == null ? -1 : rows.indexWhere((e) => e.id == editingId);
     if (editingId != null && editingIndex < 0) {
       _lastErrorMessage = '病种模板不存在';
       return false;
@@ -615,11 +636,13 @@ class HospitalAppState extends ChangeNotifier {
       return false;
     }
 
-    final schema = schemaOf('templateVersion').where((field) => !field.computed).toList();
+    final schema =
+        schemaOf('templateVersion').where((field) => !field.computed).toList();
     final payload = _applySchemaCoercion(values, schema);
     final disease = data.templates[diseaseIdx];
     final versions = List<TemplateVersion>.from(disease.versions);
-    final editingIndex = editingId == null ? -1 : versions.indexWhere((e) => e.id == editingId);
+    final editingIndex =
+        editingId == null ? -1 : versions.indexWhere((e) => e.id == editingId);
     if (editingId != null && editingIndex < 0) {
       _lastErrorMessage = '版本不存在';
       return false;
@@ -744,7 +767,8 @@ class HospitalAppState extends ChangeNotifier {
   void deleteTemplateItem(String diseaseId, String versionId, String itemId) {
     final versionRef = _locateVersion(diseaseId, versionId);
     if (versionRef == null) return;
-    final items = versionRef.version.items.where((e) => e.id != itemId).toList();
+    final items =
+        versionRef.version.items.where((e) => e.id != itemId).toList();
     _patchVersion(
       versionRef: versionRef,
       version: TemplateVersion(
@@ -768,9 +792,28 @@ class HospitalAppState extends ChangeNotifier {
     required String level,
     required String note,
   }) {
+    _lastErrorMessage = null;
     final versionRef = _locateVersion(diseaseId, versionId);
     if (versionRef == null) return false;
+    if (min > max) {
+      _lastErrorMessage = '最小值不能大于最大值';
+      return false;
+    }
     final rules = List<TemplateGradeRule>.from(versionRef.version.gradeRules);
+    if (editingId != null && !rules.any((e) => e.id == editingId)) {
+      _lastErrorMessage = '分级区间不存在';
+      return false;
+    }
+
+    for (final rule in rules) {
+      if (rule.id == editingId) continue;
+      final overlap = !(max < rule.min || min > rule.max);
+      if (overlap) {
+        _lastErrorMessage = '分数区间与「${rule.level}」重叠';
+        return false;
+      }
+    }
+
     if (editingId == null) {
       rules.add(
         TemplateGradeRule(
@@ -783,7 +826,10 @@ class HospitalAppState extends ChangeNotifier {
       );
     } else {
       final idx = rules.indexWhere((e) => e.id == editingId);
-      if (idx < 0) return false;
+      if (idx < 0) {
+        _lastErrorMessage = '分级区间不存在';
+        return false;
+      }
       rules[idx] = TemplateGradeRule(
         id: editingId,
         min: min,
@@ -807,10 +853,12 @@ class HospitalAppState extends ChangeNotifier {
     return true;
   }
 
-  void deleteTemplateGradeRule(String diseaseId, String versionId, String ruleId) {
+  void deleteTemplateGradeRule(
+      String diseaseId, String versionId, String ruleId) {
     final versionRef = _locateVersion(diseaseId, versionId);
     if (versionRef == null) return;
-    final rules = versionRef.version.gradeRules.where((e) => e.id != ruleId).toList();
+    final rules =
+        versionRef.version.gradeRules.where((e) => e.id != ruleId).toList();
     _patchVersion(
       versionRef: versionRef,
       version: TemplateVersion(
@@ -826,7 +874,8 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   List<FieldSchema> schemaOf(String moduleKey) {
-    return List<FieldSchema>.from(data.schemas[moduleKey] ?? const <FieldSchema>[]);
+    return List<FieldSchema>.from(
+        data.schemas[moduleKey] ?? const <FieldSchema>[]);
   }
 
   List<FieldSchema> listSchemaOf(String moduleKey) {
@@ -916,7 +965,8 @@ class HospitalAppState extends ChangeNotifier {
     final idx = schema.indexWhere((e) => e.key == key);
     if (idx < 0) return;
     final target = schema[idx];
-    final safeVisible = moduleKey == 'patient' && key == 'admissionNo' ? false : visible;
+    final safeVisible =
+        moduleKey == 'patient' && key == 'admissionNo' ? false : visible;
     schema[idx] = target.copyWith(showInList: safeVisible);
     final next = <String, List<FieldSchema>>{
       ...data.schemas,
@@ -961,7 +1011,8 @@ class HospitalAppState extends ChangeNotifier {
       if (raw is! Map) return false;
       final parsed = raw.map((key, value) => MapEntry(key.toString(), value));
       final candidate = (parsed['data'] is Map)
-          ? (parsed['data'] as Map).map((key, value) => MapEntry(key.toString(), value))
+          ? (parsed['data'] as Map)
+              .map((key, value) => MapEntry(key.toString(), value))
           : parsed;
       data = AppData.fromJson(candidate);
       _repairAndNormalizeData();
@@ -1079,7 +1130,8 @@ class HospitalAppState extends ChangeNotifier {
     ];
     final next = <String, List<FieldSchema>>{...data.schemas};
     for (final module in requiredModules) {
-      next[module] = List<FieldSchema>.from(next[module] ?? const <FieldSchema>[]);
+      next[module] =
+          List<FieldSchema>.from(next[module] ?? const <FieldSchema>[]);
     }
     data = data.copyWith(schemas: next);
   }
@@ -1098,17 +1150,21 @@ class HospitalAppState extends ChangeNotifier {
     }).toList();
 
     final repairedAdmissions = data.admissions
-        .where((row) => row.id.trim().isNotEmpty && row.admissionNo.trim().isNotEmpty)
+        .where((row) =>
+            row.id.trim().isNotEmpty && row.admissionNo.trim().isNotEmpty)
         .map((row) {
       final map = _fillDefaults(row.values, admissionSchema);
       map['_id'] = row.id;
       map['admissionNo'] = row.admissionNo;
-      return AdmissionRecord(id: row.id, admissionNo: row.admissionNo, values: map);
+      return AdmissionRecord(
+          id: row.id, admissionNo: row.admissionNo, values: map);
     }).toList();
 
     final admissionIdSet = repairedAdmissions.map((e) => e.id).toSet();
     final repairedDaily = data.dailyRecords
-        .where((row) => row.id.trim().isNotEmpty && admissionIdSet.contains(row.admissionId))
+        .where((row) =>
+            row.id.trim().isNotEmpty &&
+            admissionIdSet.contains(row.admissionId))
         .map((row) {
       final map = _fillDefaults(row.values, dailySchema);
       map['_id'] = row.id;
@@ -1157,7 +1213,9 @@ class HospitalAppState extends ChangeNotifier {
     final next = data.templates.map((disease) {
       final diseaseExtras = <String, dynamic>{...disease.extraValues};
       for (final field in diseaseSchema) {
-        if (field.computed || _templateDiseaseBuiltinKeys.contains(field.key)) continue;
+        if (field.computed || _templateDiseaseBuiltinKeys.contains(field.key)) {
+          continue;
+        }
         if (!diseaseExtras.containsKey(field.key)) {
           diseaseExtras[field.key] = _defaultValueForField(field);
         }
@@ -1166,21 +1224,27 @@ class HospitalAppState extends ChangeNotifier {
       final versions = disease.versions.map((version) {
         final versionExtras = <String, dynamic>{...version.extraValues};
         for (final field in versionSchema) {
-          if (field.computed || _templateVersionBuiltinKeys.contains(field.key)) continue;
+          if (field.computed ||
+              _templateVersionBuiltinKeys.contains(field.key)) {
+            continue;
+          }
           if (!versionExtras.containsKey(field.key)) {
             versionExtras[field.key] = _defaultValueForField(field);
           }
         }
 
         final items = version.items.map((item) {
-          final options = item.options.where((opt) => opt.id.trim().isNotEmpty).toList();
+          final options =
+              item.options.where((opt) => opt.id.trim().isNotEmpty).toList();
           return TemplateItem(
             id: item.id,
             name: item.name,
             options: options,
           );
         }).toList();
-        final rules = version.gradeRules.where((rule) => rule.id.trim().isNotEmpty).toList();
+        final rules = version.gradeRules
+            .where((rule) => rule.id.trim().isNotEmpty)
+            .toList();
         return TemplateVersion(
           id: version.id,
           versionName: version.versionName,
@@ -1269,7 +1333,8 @@ class HospitalAppState extends ChangeNotifier {
       data = data.copyWith(
         admissions: data.admissions.map((row) {
           final values = <String, dynamic>{...row.values}..remove(key);
-          return AdmissionRecord(id: row.id, admissionNo: row.admissionNo, values: values);
+          return AdmissionRecord(
+              id: row.id, admissionNo: row.admissionNo, values: values);
         }).toList(),
       );
       return;
@@ -1278,7 +1343,8 @@ class HospitalAppState extends ChangeNotifier {
       data = data.copyWith(
         dailyRecords: data.dailyRecords.map((row) {
           final values = <String, dynamic>{...row.values}..remove(key);
-          return DailyRecord(id: row.id, admissionId: row.admissionId, values: values);
+          return DailyRecord(
+              id: row.id, admissionId: row.admissionId, values: values);
         }).toList(),
       );
       return;
@@ -1305,7 +1371,8 @@ class HospitalAppState extends ChangeNotifier {
       data = data.copyWith(
         templates: data.templates.map((disease) {
           final versions = disease.versions.map((version) {
-            final extras = <String, dynamic>{...version.extraValues}..remove(key);
+            final extras = <String, dynamic>{...version.extraValues}
+              ..remove(key);
             final year = key == 'year' ? '' : version.year;
             final description = key == 'description' ? '' : version.description;
             return TemplateVersion(
@@ -1347,7 +1414,8 @@ class HospitalAppState extends ChangeNotifier {
         admissions: data.admissions.map((row) {
           if (row.values.containsKey(key)) return row;
           final values = <String, dynamic>{...row.values, key: value};
-          return AdmissionRecord(id: row.id, admissionNo: row.admissionNo, values: values);
+          return AdmissionRecord(
+              id: row.id, admissionNo: row.admissionNo, values: values);
         }).toList(),
       );
       return;
@@ -1357,7 +1425,8 @@ class HospitalAppState extends ChangeNotifier {
         dailyRecords: data.dailyRecords.map((row) {
           if (row.values.containsKey(key)) return row;
           final values = <String, dynamic>{...row.values, key: value};
-          return DailyRecord(id: row.id, admissionId: row.admissionId, values: values);
+          return DailyRecord(
+              id: row.id, admissionId: row.admissionId, values: values);
         }).toList(),
       );
       return;
@@ -1424,7 +1493,10 @@ class HospitalAppState extends ChangeNotifier {
                 extraValues: version.extraValues,
               );
             }
-            final extras = <String, dynamic>{...version.extraValues, key: value};
+            final extras = <String, dynamic>{
+              ...version.extraValues,
+              key: value
+            };
             return TemplateVersion(
               id: version.id,
               versionName: version.versionName,

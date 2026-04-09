@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
+import '../widgets/assessment_score_bar.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
 import '../widgets/field_grid.dart';
@@ -48,7 +49,10 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
         .schemaOf('admission')
         .where((field) => field.showInList || field.required)
         .toList();
-    final dailyListSchema = state.listSchemaOf('daily').where((f) => f.key != 'recordDate').toList();
+    final dailyListSchema = state
+        .listSchemaOf('daily')
+        .where((f) => f.key != 'recordDate')
+        .toList();
     final dailyList = state.dailyOf(widget.admissionId);
     final assessments = state.assessmentsOf(widget.admissionId);
     final imaging = state.imagingOf(widget.admissionId);
@@ -59,7 +63,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
           _HeroSummary(
-            patientName: patient == null ? '未命名病人' : '${patient.values['name'] ?? '-'}',
+            patientName:
+                patient == null ? '未命名病人' : '${patient.values['name'] ?? '-'}',
             admissionNo: admission.admissionNo,
             subtitle:
                 '${admission.values['admitDate'] ?? '未填写入院日期'} · ${admission.values['diagnosis'] ?? '未填写诊断'}',
@@ -113,11 +118,13 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(999),
                               color: const Color(0xFFF5F9FF),
-                              border: Border.all(color: const Color(0xFFD9E5F4)),
+                              border:
+                                  Border.all(color: const Color(0xFFD9E5F4)),
                             ),
                             child: Text(
                               '共 ${imaging.length} 张',
@@ -160,7 +167,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                       record: record,
                       state: state,
                       onOpen: () => _openAssessmentReadOnly(context, record.id),
-                      onEdit: () => _openAssessmentEdit(context, editingId: record.id),
+                      onEdit: () =>
+                          _openAssessmentEdit(context, editingId: record.id),
                       onDelete: () => _deleteAssessment(context, record.id),
                     ),
                   ),
@@ -225,7 +233,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     );
   }
 
-  Future<void> _editAdmission(BuildContext context, AdmissionRecord admission) async {
+  Future<void> _editAdmission(
+      BuildContext context, AdmissionRecord admission) async {
     final state = context.read<HospitalAppState>();
     final schema = state.schemaOf('admission');
     await showDialog<bool>(
@@ -257,7 +266,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     final initial = <String, dynamic>{
       for (final field in schema) field.key: '',
       ...?editing?.values,
-      if (editing == null) 'recordDate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      if (editing == null)
+        'recordDate': DateFormat('yyyy-MM-dd').format(DateTime.now()),
     };
 
     await showDialog<bool>(
@@ -313,7 +323,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     );
   }
 
-  Future<void> _openAssessmentReadOnly(BuildContext context, String assessmentId) async {
+  Future<void> _openAssessmentReadOnly(
+      BuildContext context, String assessmentId) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => AssessmentReadonlyPage(
@@ -324,7 +335,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     );
   }
 
-  Future<void> _deleteAssessment(BuildContext context, String assessmentId) async {
+  Future<void> _deleteAssessment(
+      BuildContext context, String assessmentId) async {
     final confirmed = await showDeleteConfirmDialog(
       context,
       title: '删除测评记录',
@@ -332,7 +344,9 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     );
     if (!confirmed) return;
     if (!context.mounted) return;
-    context.read<HospitalAppState>().deleteAssessment(widget.admissionId, assessmentId);
+    context
+        .read<HospitalAppState>()
+        .deleteAssessment(widget.admissionId, assessmentId);
   }
 
   Future<void> _pickFromCamera(BuildContext context) async {
@@ -476,11 +490,15 @@ class _HeroSummary extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Expanded(child: _SummaryStat(label: '日常记录', value: '$dailyCount')),
+                Expanded(
+                    child: _SummaryStat(label: '日常记录', value: '$dailyCount')),
                 const SizedBox(width: 8),
-                Expanded(child: _SummaryStat(label: '影像资料', value: '$imagingCount')),
+                Expanded(
+                    child: _SummaryStat(label: '影像资料', value: '$imagingCount')),
                 const SizedBox(width: 8),
-                Expanded(child: _SummaryStat(label: '住院测评', value: '$assessmentCount')),
+                Expanded(
+                    child:
+                        _SummaryStat(label: '住院测评', value: '$assessmentCount')),
               ],
             ),
           ],
@@ -624,8 +642,14 @@ class _DailyCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _ActionText(title: '编辑', color: const Color(0xFF2B88D8), onTap: onEdit),
-                        _ActionText(title: '删除', color: const Color(0xFFD35067), onTap: onDelete),
+                        _ActionText(
+                            title: '编辑',
+                            color: const Color(0xFF2B88D8),
+                            onTap: onEdit),
+                        _ActionText(
+                            title: '删除',
+                            color: const Color(0xFFD35067),
+                            onTap: onDelete),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -674,6 +698,9 @@ class _AssessmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final disease = state.findDisease(record.diseaseId);
     final version = state.findVersion(record.diseaseId, record.versionId);
+    final score = version == null
+        ? 0.0
+        : state.calculateAssessmentScore(version, record.selections);
     final title = disease?.diseaseName ?? '未知病种';
     final versionText = version?.versionName ?? '-';
     final timeText = DateFormat('yyyy-MM-dd HH:mm').format(record.createdAt);
@@ -702,8 +729,14 @@ class _AssessmentCard extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _ActionText(title: '编辑', color: const Color(0xFF2B88D8), onTap: onEdit),
-                        _ActionText(title: '删除', color: const Color(0xFFD35067), onTap: onDelete),
+                        _ActionText(
+                            title: '编辑',
+                            color: const Color(0xFF2B88D8),
+                            onTap: onEdit),
+                        _ActionText(
+                            title: '删除',
+                            color: const Color(0xFFD35067),
+                            onTap: onDelete),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -724,6 +757,24 @@ class _AssessmentCard extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (version != null && version.gradeRules.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FBFF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFDCE7F5)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+                          child: AssessmentScoreBar(
+                            score: score,
+                            rules: version.gradeRules,
+                            compact: true,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

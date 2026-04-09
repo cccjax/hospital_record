@@ -11,6 +11,15 @@ flutter pub get
 flutter run -d emulator-5554
 ```
 
+## 打包 APK（Release）
+```bash
+cd flutter_app
+flutter build apk --release
+```
+
+产物路径：
+- `flutter_app/build/app/outputs/flutter-apk/app-release.apk`
+
 ## 交接文档
 - `HANDOFF.md`
 - `SWITCH_CHECKLIST.md`

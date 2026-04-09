@@ -5,6 +5,7 @@ import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
+import '../widgets/editor_dialog.dart';
 import '../widgets/section_card.dart';
 
 class TemplateVersionPage extends StatelessWidget {
@@ -22,7 +23,9 @@ class TemplateVersionPage extends StatelessWidget {
     final state = context.watch<HospitalAppState>();
     final disease = state.findDisease(diseaseId);
     final version = state.findVersion(diseaseId, versionId);
-    final optionCount = version?.items.fold<int>(0, (sum, item) => sum + item.options.length) ?? 0;
+    final optionCount =
+        version?.items.fold<int>(0, (sum, item) => sum + item.options.length) ??
+            0;
     if (disease == null || version == null) {
       return Scaffold(
         appBar: _buildAppBar(),
@@ -124,6 +127,7 @@ class TemplateVersionPage extends StatelessWidget {
     TemplateItem? editing,
   }) async {
     final state = context.read<HospitalAppState>();
+    String? errorText;
     final nameController = TextEditingController(text: editing?.name ?? '');
     final quickController = TextEditingController();
     final drafts = (editing?.options ?? const <TemplateOption>[])
@@ -131,7 +135,8 @@ class TemplateVersionPage extends StatelessWidget {
           (option) => _OptionDraft(
             id: option.id,
             labelController: TextEditingController(text: option.label),
-            scoreController: TextEditingController(text: option.score.toString()),
+            scoreController:
+                TextEditingController(text: option.score.toString()),
           ),
         )
         .toList();
@@ -144,120 +149,35 @@ class TemplateVersionPage extends StatelessWidget {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(editing == null ? '新增测评项' : '编辑测评项'),
-              content: SizedBox(
-                width: 520,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextField(
-                        controller: nameController,
-                        decoration: const InputDecoration(labelText: '测评项名称 *'),
-                      ),
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: quickController,
-                        decoration: const InputDecoration(
-                          labelText: '快速录入（可选）',
-                          hintText: '示例：无症状:0,轻度:2,重度:5',
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.tonal(
-                          onPressed: () {
-                            final parsed = _parseQuickOptions(
-                              quickController.text,
-                              state: state,
-                            );
-                            if (parsed.isEmpty) {
-                              ScaffoldMessenger.of(dialogContext).showSnackBar(
-                                const SnackBar(content: Text('快速录入格式无效，请使用“名称:分数”')),
-                              );
-                              return;
-                            }
-                            for (final draft in drafts) {
-                              draft.dispose();
-                            }
-                            drafts
-                              ..clear()
-                              ..addAll(parsed);
-                            setDialogState(() {});
-                          },
-                          child: const Text('按快速录入生成'),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      for (var i = 0; i < drafts.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: drafts[i].labelController,
-                                  decoration: InputDecoration(labelText: '选项 ${i + 1}'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                width: 110,
-                                child: TextField(
-                                  controller: drafts[i].scoreController,
-                                  decoration: const InputDecoration(labelText: '分数'),
-                                  keyboardType: TextInputType.number,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              IconButton(
-                                onPressed: drafts.length <= 1
-                                    ? null
-                                    : () {
-                                        final target = drafts.removeAt(i);
-                                        target.dispose();
-                                        setDialogState(() {});
-                                      },
-                                icon: const Icon(Icons.delete_outline_rounded),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: FilledButton.tonal(
-                          onPressed: () {
-                            drafts.add(_OptionDraft.empty(state.createRuntimeId('tplo')));
-                            setDialogState(() {});
-                          },
-                          child: const Text('新增选项'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            return EditorDialog(
+              title: editing == null ? '新增测评项' : '编辑测评项',
+              subtitle: '支持手动录入与快速批量生成选项',
+              icon: Icons.rule_rounded,
+              maxWidth: 640,
               actions: [
-                TextButton(
+                OutlinedButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('取消'),
                 ),
-                FilledButton(
+                FilledButton.icon(
                   onPressed: () {
+                    setDialogState(() {
+                      errorText = null;
+                    });
                     final name = nameController.text.trim();
                     if (name.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('请填写测评项名称')),
-                      );
+                      setDialogState(() {
+                        errorText = '请填写测评项名称';
+                      });
                       return;
                     }
 
                     final options = <TemplateOption>[];
                     for (final draft in drafts) {
                       final label = draft.labelController.text.trim();
-                      final score = double.tryParse(draft.scoreController.text.trim()) ?? 0;
+                      final score =
+                          double.tryParse(draft.scoreController.text.trim()) ??
+                              0;
                       if (label.isEmpty) continue;
                       options.add(
                         TemplateOption(
@@ -268,9 +188,9 @@ class TemplateVersionPage extends StatelessWidget {
                       );
                     }
                     if (options.isEmpty) {
-                      ScaffoldMessenger.of(dialogContext).showSnackBar(
-                        const SnackBar(content: Text('至少保留一个选项')),
-                      );
+                      setDialogState(() {
+                        errorText = '至少保留一个选项';
+                      });
                       return;
                     }
 
@@ -283,11 +203,166 @@ class TemplateVersionPage extends StatelessWidget {
                     );
                     if (ok) {
                       Navigator.of(dialogContext).pop();
+                      return;
                     }
+                    setDialogState(() {
+                      errorText = state.takeLastErrorMessage() ?? '保存失败，请稍后重试';
+                    });
                   },
-                  child: const Text('保存'),
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('保存'),
                 ),
               ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  EditorPanel(
+                    title: '基础信息',
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: nameController,
+                          decoration: const InputDecoration(
+                            labelText: '测评项名称 *',
+                            hintText: '例如：疼痛程度',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: quickController,
+                          decoration: const InputDecoration(
+                            labelText: '快速录入（可选）',
+                            hintText: '示例：无症状:0,轻度:2,重度:5',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              final parsed = _parseQuickOptions(
+                                quickController.text,
+                                state: state,
+                              );
+                              if (parsed.isEmpty) {
+                                setDialogState(() {
+                                  errorText = '快速录入格式无效，请使用“名称:分数”';
+                                });
+                                return;
+                              }
+                              for (final draft in drafts) {
+                                draft.dispose();
+                              }
+                              drafts
+                                ..clear()
+                                ..addAll(parsed);
+                              setDialogState(() {
+                                errorText = null;
+                              });
+                            },
+                            icon: const Icon(Icons.auto_fix_high_rounded,
+                                size: 16),
+                            label: const Text('按快速录入生成'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  EditorPanel(
+                    title: '选项与分值',
+                    description: '每个选项都将参与评分计算',
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < drafts.length; i++) ...[
+                          Container(
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFFFFF),
+                              borderRadius: BorderRadius.circular(12),
+                              border:
+                                  Border.all(color: const Color(0xFFD8E4F3)),
+                            ),
+                            padding: const EdgeInsets.fromLTRB(10, 9, 8, 9),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: drafts[i].labelController,
+                                    decoration: InputDecoration(
+                                      labelText: '选项 ${i + 1}',
+                                      hintText: '请输入选项名称',
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 110,
+                                  child: TextField(
+                                    controller: drafts[i].scoreController,
+                                    decoration:
+                                        const InputDecoration(labelText: '分数'),
+                                    keyboardType: TextInputType.number,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                IconButton(
+                                  onPressed: drafts.length <= 1
+                                      ? null
+                                      : () {
+                                          final target = drafts.removeAt(i);
+                                          target.dispose();
+                                          setDialogState(() {
+                                            errorText = null;
+                                          });
+                                        },
+                                  icon:
+                                      const Icon(Icons.delete_outline_rounded),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (i != drafts.length - 1) const SizedBox(height: 8),
+                        ],
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: OutlinedButton.icon(
+                            onPressed: () {
+                              drafts.add(_OptionDraft.empty(
+                                  state.createRuntimeId('tplo')));
+                              setDialogState(() {
+                                errorText = null;
+                              });
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: const Text('新增选项'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF2F3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF0C7CD)),
+                      ),
+                      child: Text(
+                        errorText!,
+                        style: const TextStyle(
+                          color: Color(0xFFB63A49),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             );
           },
         );
@@ -306,87 +381,160 @@ class TemplateVersionPage extends StatelessWidget {
     TemplateGradeRule? editing,
   }) async {
     final state = context.read<HospitalAppState>();
+    String? errorText;
     final levelController = TextEditingController(text: editing?.level ?? '');
-    final minController = TextEditingController(text: editing?.min.toString() ?? '');
-    final maxController = TextEditingController(text: editing?.max.toString() ?? '');
+    final minController =
+        TextEditingController(text: editing?.min.toString() ?? '');
+    final maxController =
+        TextEditingController(text: editing?.max.toString() ?? '');
     final noteController = TextEditingController(text: editing?.note ?? '');
 
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(editing == null ? '新增等级区间' : '编辑等级区间'),
-          content: SizedBox(
-            width: 440,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: levelController,
-                  decoration: const InputDecoration(labelText: '区间名称 *'),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return EditorDialog(
+              title: editing == null ? '新增等级区间' : '编辑等级区间',
+              subtitle: '用于自动判断评分结果所在等级',
+              icon: Icons.ssid_chart_rounded,
+              maxWidth: 540,
+              actions: [
+                OutlinedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('取消'),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: minController,
-                        decoration: const InputDecoration(labelText: '最小值'),
-                        keyboardType: TextInputType.number,
-                      ),
+                FilledButton.icon(
+                  onPressed: () {
+                    setDialogState(() {
+                      errorText = null;
+                    });
+                    final level = levelController.text.trim();
+                    final min = double.tryParse(minController.text.trim()) ?? 0;
+                    final max = double.tryParse(maxController.text.trim()) ?? 0;
+                    if (level.isEmpty) {
+                      setDialogState(() {
+                        errorText = '请填写区间名称';
+                      });
+                      return;
+                    }
+                    if (min > max) {
+                      setDialogState(() {
+                        errorText = '最小值不能大于最大值';
+                      });
+                      return;
+                    }
+                    final overlapRule = _findOverlappingRule(
+                      state: state,
+                      min: min,
+                      max: max,
+                      excludeId: editing?.id,
+                    );
+                    if (overlapRule != null) {
+                      setDialogState(() {
+                        errorText =
+                            '与「${overlapRule.level}（${overlapRule.min}-${overlapRule.max}）」区间重叠，请调整分数范围';
+                      });
+                      return;
+                    }
+                    final ok = state.upsertTemplateGradeRule(
+                      diseaseId: diseaseId,
+                      versionId: versionId,
+                      editingId: editing?.id,
+                      min: min,
+                      max: max,
+                      level: level,
+                      note: noteController.text,
+                    );
+                    if (ok) {
+                      Navigator.of(dialogContext).pop();
+                      return;
+                    }
+                    setDialogState(() {
+                      errorText = state.takeLastErrorMessage() ?? '保存失败，请稍后重试';
+                    });
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('保存'),
+                ),
+              ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  EditorPanel(
+                    title: '区间配置',
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: levelController,
+                          decoration: const InputDecoration(
+                            labelText: '区间名称 *',
+                            hintText: '例如：中度风险',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: minController,
+                                decoration:
+                                    const InputDecoration(labelText: '最小值'),
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: maxController,
+                                decoration:
+                                    const InputDecoration(labelText: '最大值'),
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: maxController,
-                        decoration: const InputDecoration(labelText: '最大值'),
-                        keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 10),
+                  EditorPanel(
+                    title: '区间说明',
+                    description: '可选，用于解释该评分区间的临床含义',
+                    child: TextField(
+                      controller: noteController,
+                      decoration: const InputDecoration(
+                        labelText: '说明',
+                        hintText: '例如：建议48小时内复评并重点观察',
+                      ),
+                      minLines: 2,
+                      maxLines: 3,
+                    ),
+                  ),
+                  if (errorText != null) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF2F3),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF0C7CD)),
+                      ),
+                      child: Text(
+                        errorText!,
+                        style: const TextStyle(
+                          color: Color(0xFFB63A49),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12.5,
+                        ),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: noteController,
-                  decoration: const InputDecoration(labelText: '说明'),
-                  minLines: 2,
-                  maxLines: 3,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final level = levelController.text.trim();
-                final min = double.tryParse(minController.text.trim()) ?? 0;
-                final max = double.tryParse(maxController.text.trim()) ?? 0;
-                if (level.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    const SnackBar(content: Text('请填写区间名称')),
-                  );
-                  return;
-                }
-                final ok = state.upsertTemplateGradeRule(
-                  diseaseId: diseaseId,
-                  versionId: versionId,
-                  editingId: editing?.id,
-                  min: min,
-                  max: max,
-                  level: level,
-                  note: noteController.text,
-                );
-                if (ok) {
-                  Navigator.of(dialogContext).pop();
-                }
-              },
-              child: const Text('保存'),
-            ),
-          ],
+                ],
+              ),
+            );
+          },
         );
       },
     );
@@ -395,6 +543,24 @@ class TemplateVersionPage extends StatelessWidget {
     minController.dispose();
     maxController.dispose();
     noteController.dispose();
+  }
+
+  TemplateGradeRule? _findOverlappingRule({
+    required HospitalAppState state,
+    required double min,
+    required double max,
+    required String? excludeId,
+  }) {
+    final version = state.findVersion(diseaseId, versionId);
+    if (version == null) return null;
+    for (final rule in version.gradeRules) {
+      if (rule.id == excludeId) continue;
+      final hasOverlap = !(max < rule.min || min > rule.max);
+      if (hasOverlap) {
+        return rule;
+      }
+    }
+    return null;
   }
 
   List<_OptionDraft> _parseQuickOptions(
@@ -433,7 +599,9 @@ class TemplateVersionPage extends StatelessWidget {
     );
     if (!confirmed) return;
     if (!context.mounted) return;
-    context.read<HospitalAppState>().deleteTemplateItem(diseaseId, versionId, itemId);
+    context
+        .read<HospitalAppState>()
+        .deleteTemplateItem(diseaseId, versionId, itemId);
   }
 
   Future<void> _deleteRule(BuildContext context, String ruleId) async {
@@ -444,7 +612,9 @@ class TemplateVersionPage extends StatelessWidget {
     );
     if (!confirmed) return;
     if (!context.mounted) return;
-    context.read<HospitalAppState>().deleteTemplateGradeRule(diseaseId, versionId, ruleId);
+    context
+        .read<HospitalAppState>()
+        .deleteTemplateGradeRule(diseaseId, versionId, ruleId);
   }
 }
 
@@ -508,9 +678,11 @@ class _VersionOverviewCard extends StatelessWidget {
               children: [
                 Expanded(child: _MetricTile(label: '测评项', value: '$itemCount')),
                 const SizedBox(width: 8),
-                Expanded(child: _MetricTile(label: '选项数', value: '$optionCount')),
+                Expanded(
+                    child: _MetricTile(label: '选项数', value: '$optionCount')),
                 const SizedBox(width: 8),
-                Expanded(child: _MetricTile(label: '分级区间', value: '$gradeCount')),
+                Expanded(
+                    child: _MetricTile(label: '分级区间', value: '$gradeCount')),
               ],
             ),
           ],
@@ -602,8 +774,12 @@ class _ItemCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                _ActionText(title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
-                _ActionText(title: '删除', color: const Color(0xFFD34E66), onTap: onDelete),
+                _ActionText(
+                    title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
+                _ActionText(
+                    title: '删除',
+                    color: const Color(0xFFD34E66),
+                    onTap: onDelete),
               ],
             ),
             const SizedBox(height: 7),
@@ -622,7 +798,8 @@ class _ItemCard extends StatelessWidget {
               children: [
                 for (final option in item.options)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF5F9FF),
                       borderRadius: BorderRadius.circular(10),
@@ -684,7 +861,8 @@ class _RuleCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF5F9FF),
                     borderRadius: BorderRadius.circular(999),
@@ -699,8 +877,12 @@ class _RuleCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                _ActionText(title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
-                _ActionText(title: '删除', color: const Color(0xFFD34E66), onTap: onDelete),
+                _ActionText(
+                    title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
+                _ActionText(
+                    title: '删除',
+                    color: const Color(0xFFD34E66),
+                    onTap: onDelete),
               ],
             ),
             if (rule.note.trim().isNotEmpty) ...[

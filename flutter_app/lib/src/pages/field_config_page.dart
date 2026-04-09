@@ -5,6 +5,7 @@ import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
+import '../widgets/editor_dialog.dart';
 import '../widgets/section_card.dart';
 
 class FieldConfigPage extends StatefulWidget {
@@ -97,25 +98,30 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                         key: ValueKey(field.key),
                         field: field,
                         sortMode: true,
-                        canDelete: !state.isCoreRequiredField(module, field.key),
+                        canDelete:
+                            !state.isCoreRequiredField(module, field.key),
                         onDragHandle: ReorderableDragStartListener(
                           index: index,
                           child: const Icon(Icons.drag_indicator_rounded),
                         ),
                         onMoveUp: index > 0
-                            ? () => state.reorderFields(module, index, index - 1)
+                            ? () =>
+                                state.reorderFields(module, index, index - 1)
                             : null,
                         onMoveDown: index < schema.length - 1
-                            ? () => state.reorderFields(module, index, index + 1)
+                            ? () =>
+                                state.reorderFields(module, index, index + 2)
                             : null,
-                        onEdit: () => _openFieldDialog(context, module, editing: field),
-                        onToggleShow: field.key == 'admissionNo' && module == 'patient'
-                            ? null
-                            : () => state.toggleFieldVisibility(
-                                  module,
-                                  field.key,
-                                  !field.showInList,
-                                ),
+                        onEdit: () =>
+                            _openFieldDialog(context, module, editing: field),
+                        onToggleShow:
+                            field.key == 'admissionNo' && module == 'patient'
+                                ? null
+                                : () => state.toggleFieldVisibility(
+                                      module,
+                                      field.key,
+                                      !field.showInList,
+                                    ),
                         onDelete: state.isCoreRequiredField(module, field.key)
                             ? null
                             : () => _deleteField(context, module, field.key),
@@ -128,15 +134,18 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                         _FieldRow(
                           field: field,
                           sortMode: false,
-                          canDelete: !state.isCoreRequiredField(module, field.key),
-                          onEdit: () => _openFieldDialog(context, module, editing: field),
-                          onToggleShow: field.key == 'admissionNo' && module == 'patient'
-                              ? null
-                              : () => state.toggleFieldVisibility(
-                                    module,
-                                    field.key,
-                                    !field.showInList,
-                                  ),
+                          canDelete:
+                              !state.isCoreRequiredField(module, field.key),
+                          onEdit: () =>
+                              _openFieldDialog(context, module, editing: field),
+                          onToggleShow:
+                              field.key == 'admissionNo' && module == 'patient'
+                                  ? null
+                                  : () => state.toggleFieldVisibility(
+                                        module,
+                                        field.key,
+                                        !field.showInList,
+                                      ),
                           onDelete: state.isCoreRequiredField(module, field.key)
                               ? null
                               : () => _deleteField(context, module, field.key),
@@ -210,7 +219,8 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     final ok = state.deleteField(module, key);
     if (!ok && context.mounted) {
       final message = state.takeLastErrorMessage() ?? '删除失败';
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
     }
   }
 }
@@ -227,6 +237,7 @@ class _FieldEditorDialog extends StatefulWidget {
 }
 
 class _FieldEditorDialogState extends State<_FieldEditorDialog> {
+  final _formKey = GlobalKey<FormState>();
   late final TextEditingController _keyController;
   late final TextEditingController _labelController;
   late final TextEditingController _optionsController;
@@ -234,6 +245,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
   late FieldType _type;
   late bool _required;
   late bool _showInList;
+  String? _errorText;
 
   @override
   void initState() {
@@ -263,38 +275,79 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     final typeLocked = editing != null;
     final canToggleRequired = !(editing?.locked == true);
 
-    return AlertDialog(
-      title: Text(editing == null ? '新增字段' : '编辑字段'),
-      content: SizedBox(
-        width: 470,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: _keyController,
-                enabled: !keyLocked,
-                decoration: const InputDecoration(
-                  labelText: '字段键名 *',
-                  hintText: '例如: bloodSugar',
-                ),
+    return EditorDialog(
+      title: editing == null ? '新增字段' : '编辑字段',
+      subtitle: '统一配置字段的录入规则与列表展示方式',
+      icon: Icons.tune_rounded,
+      maxWidth: 560,
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton.icon(
+          onPressed: _onSubmit,
+          icon: const Icon(Icons.check_rounded),
+          label: const Text('保存'),
+        ),
+      ],
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            EditorPanel(
+              title: '基本信息',
+              child: Column(
+                children: [
+                  TextFormField(
+                    controller: _keyController,
+                    enabled: !keyLocked,
+                    decoration: const InputDecoration(
+                      labelText: '字段键名 *',
+                      hintText: '例如: bloodSugar',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return '请填写字段键名';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  TextFormField(
+                    controller: _labelController,
+                    decoration: const InputDecoration(
+                      labelText: '字段名称 *',
+                      hintText: '例如: 血糖',
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return '请填写字段名称';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _labelController,
-                decoration: const InputDecoration(labelText: '字段名称 *'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<FieldType>(
+            ),
+            const SizedBox(height: 10),
+            EditorPanel(
+              title: '字段类型',
+              description: typeLocked ? '系统字段类型不可修改' : '不同类型将影响录入控件样式',
+              child: DropdownButtonFormField<FieldType>(
                 initialValue: _type,
-                decoration: const InputDecoration(labelText: '字段类型'),
+                decoration: const InputDecoration(labelText: '选择字段类型'),
                 items: const [
                   DropdownMenuItem(value: FieldType.text, child: Text('文本')),
                   DropdownMenuItem(value: FieldType.number, child: Text('数字')),
                   DropdownMenuItem(value: FieldType.date, child: Text('日期')),
-                  DropdownMenuItem(value: FieldType.textarea, child: Text('多行文本')),
-                  DropdownMenuItem(value: FieldType.select, child: Text('下拉选项')),
-                  DropdownMenuItem(value: FieldType.images, child: Text('图片上传')),
+                  DropdownMenuItem(
+                      value: FieldType.textarea, child: Text('多行文本')),
+                  DropdownMenuItem(
+                      value: FieldType.select, child: Text('下拉选项')),
+                  DropdownMenuItem(
+                      value: FieldType.images, child: Text('图片上传')),
                 ],
                 onChanged: typeLocked
                     ? null
@@ -302,67 +355,90 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                         if (value == null) return;
                         setState(() {
                           _type = value;
+                          _errorText = null;
                         });
                       },
               ),
-              if (_type == FieldType.select) ...[
-                const SizedBox(height: 10),
-                TextField(
+            ),
+            if (_type == FieldType.select) ...[
+              const SizedBox(height: 10),
+              EditorPanel(
+                title: '下拉选项',
+                description: '用英文逗号分隔，例如：在院,出院',
+                child: TextFormField(
                   controller: _optionsController,
                   decoration: const InputDecoration(
-                    labelText: '下拉选项',
-                    hintText: '用英文逗号分隔，例如: 在院,出院',
+                    labelText: '选项内容',
+                    hintText: '例如：高风险,中风险,低风险',
                   ),
                 ),
-              ],
-              const SizedBox(height: 10),
-              SwitchListTile(
-                value: _required,
-                title: const Text('是否必填'),
-                onChanged: canToggleRequired
-                    ? (value) {
-                        setState(() {
-                          _required = value;
-                        });
-                      }
-                    : null,
-              ),
-              SwitchListTile(
-                value: _showInList,
-                title: const Text('是否列表展示'),
-                onChanged: (value) {
-                  setState(() {
-                    _showInList = value;
-                  });
-                },
               ),
             ],
-          ),
+            const SizedBox(height: 10),
+            EditorPanel(
+              title: '显示与校验',
+              child: Column(
+                children: [
+                  _buildToggleRow(
+                    title: '是否必填',
+                    subtitle: canToggleRequired ? '开启后录入时必须填写' : '系统字段，不可修改',
+                    value: _required,
+                    onChanged: canToggleRequired
+                        ? (value) {
+                            setState(() {
+                              _required = value;
+                            });
+                          }
+                        : null,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildToggleRow(
+                    title: '是否列表展示',
+                    subtitle: '关闭后仅在详情页显示',
+                    value: _showInList,
+                    onChanged: (value) {
+                      setState(() {
+                        _showInList = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+            if (_errorText != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF2F3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF0C8CF)),
+                ),
+                child: Text(
+                  _errorText!,
+                  style: const TextStyle(
+                    color: Color(0xFFB63A49),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
-        ),
-        FilledButton(
-          onPressed: _onSubmit,
-          child: const Text('保存'),
-        ),
-      ],
     );
   }
 
   void _onSubmit() {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _errorText = null;
+    });
     final key = widget.editing?.key ?? _keyController.text.trim();
     final label = _labelController.text.trim();
     final fixedType = widget.editing?.type ?? _type;
-    if (key.isEmpty || label.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('字段键名和字段名称不能为空')),
-      );
-      return;
-    }
     final options = fixedType == FieldType.select
         ? _optionsController.text
             .split(',')
@@ -370,6 +446,12 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
             .where((e) => e.isNotEmpty)
             .toList()
         : const <String>[];
+    if (fixedType == FieldType.select && options.isEmpty) {
+      setState(() {
+        _errorText = '下拉类型至少配置一个可选项';
+      });
+      return;
+    }
     final field = FieldSchema(
       key: key,
       label: label,
@@ -381,6 +463,56 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
       options: options,
     );
     Navigator.of(context).pop(field);
+  }
+
+  Widget _buildToggleRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    ValueChanged<bool>? onChanged,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFD8E3F2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Color(0xFF213852),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: Color(0xFF6A809D),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -541,7 +673,10 @@ class _FieldRow extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _RowAction(title: '编辑', color: const Color(0xFF2C88D8), onTap: onEdit),
+                  _RowAction(
+                      title: '编辑',
+                      color: const Color(0xFF2C88D8),
+                      onTap: onEdit),
                   _RowAction(
                     title: field.showInList ? '设为隐藏' : '设为显示',
                     color: const Color(0xFF637A97),
@@ -576,7 +711,8 @@ class _FieldRow extends StatelessWidget {
                   children: [
                     for (final tag in tags)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF5F9FF),
                           borderRadius: BorderRadius.circular(999),

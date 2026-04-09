@@ -8,24 +8,33 @@
 - 核心目标：业务逻辑准确、页面可用稳定、UI 持续贴近原型并提升质感
 
 ## 2. 当前状态（本轮完成）
-- 首页
-  - 修复概览区域布局约束异常（`BoxConstraints forces an infinite height`）
-  - 统计卡视觉统一且可正常渲染
-- 全局 UI
-  - 统一按钮风格（`FilledButton` / `FilledButton.tonal` / `TextButton` / `OutlinedButton` / `IconButton`）
-  - 统一按钮尺寸、圆角、字重和间距，减少页面风格割裂
-- 数据迁移（“我的 > 数据迁移”）
-  - 改为文件迁移：导出为 JSON 文件、从 JSON 文件导入
-  - 导入新增“前置校验 + 最终确认”机制
-    - 前置校验：UTF-8、JSON 合法性、顶层结构、关键字段类型、可解析性、空数据拦截
-    - 最终确认：明确提示“覆盖当前本地数据”，并展示导入摘要（病人/入院/日常/模板/测评/影像数量）
-- 字段展示
-  - 多行文本字段（`FieldType.textarea`）无论内容长短，展示时均占据整行
+- 新增/编辑 UI（重点）
+  - 新增统一编辑弹层组件（统一头部、分组面板、操作区、错误提示）
+  - 动态表单弹窗、字段配置弹窗、测评项/区间弹窗全部切换为统一风格
+  - 住院测评编辑页重做：信息层级更清晰、选项密度更合理
+- 住院测评体验优化
+  - 评分选项改为“每个选项独占一整行”，长度统一、点击区更稳定
+  - 评分条重做：区间分色更明显，显示区间边界分隔线，标记点颜色随区间变化
+  - 入院详情页的“住院测评记录行”新增紧凑评分条，便于快速查看结果
+- 规则校验增强
+  - “患病等级区间”新增“不可重叠”校验
+  - 页面层即时提示 + 状态层兜底校验（双保险）
+- 字段配置页
+  - 修复“调整顺序”中下箭头无效问题（上/下都可正常移动）
+- 全局细节
+  - 返回按钮重做为简洁左箭头（去外轮廓），与页面风格统一
+  - 保留此前完成项：数据迁移文件化、导入前置校验+最终确认、多行文本整行展示等
 
 ## 3. 关键文件
 - Flutter 入口：`flutter_app/lib/main.dart`
 - 全局状态：`flutter_app/lib/src/state/hospital_app_state.dart`
-- 首页：`flutter_app/lib/src/pages/home_tab_page.dart`
+- 编辑弹层组件：`flutter_app/lib/src/widgets/editor_dialog.dart`
+- 通用动态表单：`flutter_app/lib/src/widgets/dynamic_form_dialog.dart`
+- 评分条组件：`flutter_app/lib/src/widgets/assessment_score_bar.dart`
+- 字段配置页：`flutter_app/lib/src/pages/field_config_page.dart`
+- 模板版本页：`flutter_app/lib/src/pages/template_version_page.dart`
+- 入院详情页：`flutter_app/lib/src/pages/admission_detail_page.dart`
+- 住院测评编辑页：`flutter_app/lib/src/pages/assessment_edit_page.dart`
 - 数据迁移页：`flutter_app/lib/src/pages/mine_migration_page.dart`
 - 全局主题：`flutter_app/lib/src/theme/app_theme.dart`
 - 字段网格：`flutter_app/lib/src/widgets/field_grid.dart`
@@ -43,11 +52,12 @@ flutter run -d emulator-5554
 ## 5. 已知注意点
 - 当前仓库同时包含 Web 原型（`app.js` / `index.html` / `style.css`）与 Flutter 版本（`flutter_app/`），迭代以 Flutter 为主。
 - 数据导入是“覆盖式”写入，已加双保险（校验 + 最终确认），但仍建议在大规模操作前先导出一份当前备份。
+- 评分条颜色是按区间顺序映射调色板；如后续有明确风险等级语义（低/中/高），建议固定色义映射策略。
 
 ## 6. 建议下一步
-1. 在真实业务样例下回归导入校验提示文案（让错误信息更用户友好）。
-2. 增加“导入前自动快照备份”开关（可选）。
-3. 继续做 UI 精修（间距、信息密度、文字层级）以进一步贴近原型。
+1. 基于真实病种模板验证“区间不重叠”规则边界（闭区间/开区间业务定义）是否与业务一致。
+2. 继续统一剩余页面的小组件细节（页头按钮/信息标签/提示文案）以进一步贴近原型。
+3. 补一组面向核心流程的 widget/integration 测试（字段配置排序、测评录入、区间校验）。
 
 ## 7. Git 交接约定
 - 离开前：更新本文件 + `SWITCH_CHECKLIST.md`，并推送远端。

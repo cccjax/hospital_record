@@ -72,7 +72,14 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
     final state = context.watch<HospitalAppState>();
     final disease = state.findDisease(_diseaseId);
     final version = _currentVersion(state);
-    final score = version == null ? 0.0 : state.calculateAssessmentScore(version, _selections);
+    final score = version == null
+        ? 0.0
+        : state.calculateAssessmentScore(version, _selections);
+    final selectedCount = version == null
+        ? 0
+        : version.items
+            .where((item) => (_selections[item.id] ?? '').isNotEmpty)
+            .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -90,8 +97,15 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          _AssessmentHeaderCard(
+            selectedCount: selectedCount,
+            totalCount: version?.items.length ?? 0,
+            score: score,
+            hasVersion: version != null,
+          ),
+          const SizedBox(height: 10),
           SectionCard(
-            title: '住院测评录入',
+            title: '模板选择',
             child: Column(
               children: [
                 DropdownButtonFormField<String>(
@@ -180,9 +194,10 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
           const SizedBox(height: 4),
           SizedBox(
             width: double.infinity,
-            child: FilledButton(
+            child: FilledButton.icon(
               onPressed: version == null ? null : () => _save(context, version),
-              child: const Text('保存测评'),
+              icon: const Icon(Icons.check_rounded),
+              label: const Text('保存测评'),
             ),
           ),
         ],
@@ -223,6 +238,135 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
   }
 }
 
+class _AssessmentHeaderCard extends StatelessWidget {
+  const _AssessmentHeaderCard({
+    required this.selectedCount,
+    required this.totalCount,
+    required this.score,
+    required this.hasVersion,
+  });
+
+  final int selectedCount;
+  final int totalCount;
+  final double score;
+  final bool hasVersion;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF0F8FF)],
+        ),
+        border: Border.all(color: const Color(0xFFE4EDF9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x180F2744),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '住院测评录入',
+              style: TextStyle(
+                color: Color(0xFF1F3149),
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              '选择模板后勾选评分选项，系统会自动计算分值与区间',
+              style: TextStyle(
+                color: Color(0xFF627892),
+                fontSize: 12.5,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _HeaderMetric(
+                    label: '完成项',
+                    value: hasVersion ? '$selectedCount/$totalCount' : '--',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _HeaderMetric(
+                    label: '当前得分',
+                    value: hasVersion ? _formatScore(score) : '--',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String _formatScore(double value) {
+    if (value == value.toInt()) return value.toInt().toString();
+    return value.toStringAsFixed(1);
+  }
+}
+
+class _HeaderMetric extends StatelessWidget {
+  const _HeaderMetric({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDCE7F6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF60758F),
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF1D3149),
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ItemOptionsCard extends StatelessWidget {
   const _ItemOptionsCard({
     required this.item,
@@ -236,92 +380,164 @@ class _ItemOptionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    TemplateOption? selectedOption;
+    for (final option in item.options) {
+      if (option.id == selectedOptionId) {
+        selectedOption = option;
+        break;
+      }
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFFDFEFF),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(13),
         border: Border.all(color: const Color(0xFFDCE8F6)),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+        padding: const EdgeInsets.fromLTRB(11, 10, 11, 11),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.name,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1F3149),
-              ),
-            ),
-            const SizedBox(height: 7),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+            Row(
               children: [
-                for (final option in item.options)
-                  InkWell(
-                    borderRadius: BorderRadius.circular(10),
-                    onTap: () => onChanged(option.id),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: selectedOptionId == option.id
-                            ? const Color(0xFFE7F1FE)
-                            : const Color(0xFFF5F9FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: selectedOptionId == option.id
-                              ? const Color(0xFF77A9E8)
-                              : const Color(0xFFD9E5F4),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            selectedOptionId == option.id
-                                ? Icons.radio_button_checked
-                                : Icons.radio_button_off,
-                            size: 14,
-                            color: selectedOptionId == option.id
-                                ? const Color(0xFF2A5E98)
-                                : const Color(0xFF8A9CB2),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            option.label,
-                            style: TextStyle(
-                              color: selectedOptionId == option.id
-                                  ? const Color(0xFF2A5E98)
-                                  : const Color(0xFF617992),
-                              fontSize: 12,
-                              fontWeight: selectedOptionId == option.id
-                                  ? FontWeight.w700
-                                  : FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${option.score}分',
-                            style: TextStyle(
-                              color: selectedOptionId == option.id
-                                  ? const Color(0xFF2A5E98)
-                                  : const Color(0xFF617992),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                Expanded(
+                  child: Text(
+                    item.name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F3149),
+                    ),
+                  ),
+                ),
+                if (selectedOption != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEAF5FF),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0xFFC9DEF8)),
+                    ),
+                    child: Text(
+                      '${selectedOption.label} · ${_formatScore(selectedOption.score)}分',
+                      style: const TextStyle(
+                        color: Color(0xFF2B5E96),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11.5,
                       ),
                     ),
                   ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Column(
+              children: [
+                for (var i = 0; i < item.options.length; i++) ...[
+                  _OptionRow(
+                    option: item.options[i],
+                    selected: selectedOptionId == item.options[i].id,
+                    onTap: () => onChanged(item.options[i].id),
+                  ),
+                  if (i != item.options.length - 1) const SizedBox(height: 6),
+                ],
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatScore(double score) {
+    if (score == score.toInt()) return score.toInt().toString();
+    return score.toStringAsFixed(1);
+  }
+}
+
+class _OptionRow extends StatelessWidget {
+  const _OptionRow({
+    required this.option,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final TemplateOption option;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(11),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        constraints: const BoxConstraints(minHeight: 46),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFE8F3FF) : const Color(0xFFF6FAFF),
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: selected ? const Color(0xFF79A7E2) : const Color(0xFFD9E5F4),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 15,
+              color:
+                  selected ? const Color(0xFF2A5E98) : const Color(0xFF8A9CB2),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                option.label,
+                style: TextStyle(
+                  color: selected
+                      ? const Color(0xFF2A5E98)
+                      : const Color(0xFF617992),
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFFDDEEFF)
+                    : const Color(0xFFEAF1FA),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: selected
+                      ? const Color(0xFFA8CBF0)
+                      : const Color(0xFFD2DEEE),
+                ),
+              ),
+              child: Text(
+                '${_formatScore(option.score)}分',
+                style: TextStyle(
+                  color: selected
+                      ? const Color(0xFF2A5E98)
+                      : const Color(0xFF617992),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatScore(double score) {
+    if (score == score.toInt()) return score.toInt().toString();
+    return score.toStringAsFixed(1);
   }
 }
