@@ -5,6 +5,7 @@ import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/assessment_score_bar.dart';
+import '../widgets/responsive_layout.dart';
 import '../widgets/section_card.dart';
 
 class AssessmentEditPage extends StatefulWidget {
@@ -12,16 +13,19 @@ class AssessmentEditPage extends StatefulWidget {
     super.key,
     required this.admissionId,
     this.editingAssessmentId,
+    this.initialCatalog,
   });
 
   final String admissionId;
   final String? editingAssessmentId;
+  final TemplateCatalogType? initialCatalog;
 
   @override
   State<AssessmentEditPage> createState() => _AssessmentEditPageState();
 }
 
 class _AssessmentEditPageState extends State<AssessmentEditPage> {
+  TemplateCatalogType _catalog = TemplateCatalogType.assessment;
   String _diseaseId = '';
   String _versionId = '';
   Map<String, String> _selections = <String, String>{};
@@ -37,7 +41,6 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
 
   void _initDraft() {
     final state = context.read<HospitalAppState>();
-    final diseases = state.data.templates;
 
     if (widget.editingAssessmentId != null) {
       final editing = state
@@ -45,12 +48,16 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
           .where((e) => e.id == widget.editingAssessmentId)
           .toList();
       if (editing.isNotEmpty) {
+        _catalog = editing.first.catalog;
         _diseaseId = editing.first.diseaseId;
         _versionId = editing.first.versionId;
         _selections = Map<String, String>.from(editing.first.selections);
       }
+    } else if (widget.initialCatalog != null) {
+      _catalog = widget.initialCatalog!;
     }
 
+    final diseases = state.templatesOf(_catalog);
     if (_diseaseId.isEmpty && diseases.isNotEmpty) {
       _diseaseId = diseases.first.id;
     }
@@ -70,7 +77,8 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HospitalAppState>();
-    final disease = state.findDisease(_diseaseId);
+    final templates = state.templatesOf(_catalog);
+    final disease = state.findDisease(_diseaseId, catalog: _catalog);
     final version = _currentVersion(state);
     final score = version == null
         ? 0.0
@@ -80,6 +88,49 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
         : version.items
             .where((item) => (_selections[item.id] ?? '').isNotEmpty)
             .length;
+    final templateSection = _TemplatePickerCard(
+      diseaseId: _diseaseId,
+      versionId: _versionId,
+      catalog: _catalog,
+      disease: disease,
+      templates: templates,
+      score: score,
+      version: version,
+      onCatalogChanged: (value) {
+        if (value == _catalog) return;
+        final nextTemplates = state.templatesOf(value);
+        final nextDiseaseId =
+            nextTemplates.isNotEmpty ? nextTemplates.first.id : '';
+        final nextVersionId = nextTemplates.isNotEmpty &&
+                nextTemplates.first.versions.isNotEmpty
+            ? nextTemplates.first.versions.first.id
+            : '';
+        setState(() {
+          _catalog = value;
+          _diseaseId = nextDiseaseId;
+          _versionId = nextVersionId;
+          _selections = <String, String>{};
+        });
+      },
+      onDiseaseChanged: (value) {
+        if (value == null) return;
+        final nextDisease = state.findDisease(value, catalog: _catalog);
+        setState(() {
+          _diseaseId = value;
+          _selections = <String, String>{};
+          _versionId = nextDisease?.versions.isNotEmpty == true
+              ? nextDisease!.versions.first.id
+              : '';
+        });
+      },
+      onVersionChanged: (value) {
+        if (value == null) return;
+        setState(() {
+          _versionId = value;
+          _selections = <String, String>{};
+        });
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -94,120 +145,82 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        children: [
-          _AssessmentHeaderCard(
-            selectedCount: selectedCount,
-            totalCount: version?.items.length ?? 0,
-            score: score,
-            hasVersion: version != null,
-          ),
-          const SizedBox(height: 10),
-          SectionCard(
-            title: '模板选择',
-            child: Column(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final layout = ResponsiveLayout.fromWidth(constraints.maxWidth);
+          return ResponsiveBody(
+            layout: layout,
+            child: ListView(
+              padding: layout.listPadding(),
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _diseaseId.isEmpty ? null : _diseaseId,
-                  decoration: const InputDecoration(labelText: '病种模板'),
-                  items: state.data.templates
-                      .map(
-                        (disease) => DropdownMenuItem<String>(
-                          value: disease.id,
-                          child: Text(disease.diseaseName),
+                if (layout.useTwoPane) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _AssessmentHeaderCard(
+                          selectedCount: selectedCount,
+                          totalCount: version?.items.length ?? 0,
+                          score: score,
+                          hasVersion: version != null,
                         ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    final nextDisease = state.findDisease(value);
-                    setState(() {
-                      _diseaseId = value;
-                      _selections = <String, String>{};
-                      _versionId = nextDisease?.versions.isNotEmpty == true
-                          ? nextDisease!.versions.first.id
-                          : '';
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: _versionId.isEmpty ? null : _versionId,
-                  decoration: const InputDecoration(labelText: '模板版本'),
-                  items: (disease?.versions ?? const <TemplateVersion>[])
-                      .map(
-                        (version) => DropdownMenuItem<String>(
-                          value: version.id,
-                          child: Text(version.versionName),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _versionId = value;
-                      _selections = <String, String>{};
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                if (version != null)
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF4F8FD),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFD8E4F3)),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-                      child: AssessmentScoreBar(
-                        score: score,
-                        rules: version.gradeRules,
                       ),
+                      const SizedBox(width: 10),
+                      Expanded(child: templateSection),
+                    ],
+                  ),
+                ] else ...[
+                  _AssessmentHeaderCard(
+                    selectedCount: selectedCount,
+                    totalCount: version?.items.length ?? 0,
+                    score: score,
+                    hasVersion: version != null,
+                  ),
+                  const SizedBox(height: 10),
+                  templateSection,
+                ],
+                if (version != null)
+                  SectionCard(
+                    title: '评分选项（均为必填）',
+                    child: Column(
+                      children: [
+                        for (final item in version.items)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _ItemOptionsCard(
+                              item: item,
+                              selectedOptionId: _selections[item.id],
+                              onChanged: (optionId) {
+                                setState(() {
+                                  _selections[item.id] = optionId;
+                                });
+                              },
+                            ),
+                          ),
+                      ],
                     ),
                   ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed:
+                        version == null ? null : () => _save(context, version),
+                    icon: const Icon(Icons.check_rounded),
+                    label: const Text('保存测评'),
+                  ),
+                ),
               ],
             ),
-          ),
-          if (version != null)
-            SectionCard(
-              title: '评分选项（均为必填）',
-              child: Column(
-                children: [
-                  for (final item in version.items)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _ItemOptionsCard(
-                        item: item,
-                        selectedOptionId: _selections[item.id],
-                        onChanged: (optionId) {
-                          setState(() {
-                            _selections[item.id] = optionId;
-                          });
-                        },
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          const SizedBox(height: 4),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: version == null ? null : () => _save(context, version),
-              icon: const Icon(Icons.check_rounded),
-              label: const Text('保存测评'),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
   TemplateVersion? _currentVersion(HospitalAppState state) {
     if (_diseaseId.isEmpty || _versionId.isEmpty) return null;
-    return state.findVersion(_diseaseId, _versionId);
+    return state.findVersion(_diseaseId, _versionId, catalog: _catalog);
   }
 
   Future<void> _save(BuildContext context, TemplateVersion version) async {
@@ -227,6 +240,7 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
       versionId: _versionId,
       selections: Map<String, String>.from(_selections),
       createdAt: DateTime.now(),
+      catalog: _catalog,
     );
     state.upsertAssessment(
       admissionId: widget.admissionId,
@@ -235,6 +249,116 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
     );
     if (!mounted) return;
     Navigator.of(context).pop();
+  }
+}
+
+class _TemplatePickerCard extends StatelessWidget {
+  const _TemplatePickerCard({
+    required this.catalog,
+    required this.diseaseId,
+    required this.versionId,
+    required this.disease,
+    required this.templates,
+    required this.score,
+    required this.version,
+    required this.onCatalogChanged,
+    required this.onDiseaseChanged,
+    required this.onVersionChanged,
+  });
+
+  final TemplateCatalogType catalog;
+  final String diseaseId;
+  final String versionId;
+  final TemplateDisease? disease;
+  final List<TemplateDisease> templates;
+  final double score;
+  final TemplateVersion? version;
+  final ValueChanged<TemplateCatalogType> onCatalogChanged;
+  final ValueChanged<String?> onDiseaseChanged;
+  final ValueChanged<String?> onVersionChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: '模板选择',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () =>
+                      onCatalogChanged(TemplateCatalogType.assessment),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: catalog == TemplateCatalogType.assessment
+                        ? const Color(0xFFD8ECFF)
+                        : null,
+                  ),
+                  child: const Text('病情测评'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () =>
+                      onCatalogChanged(TemplateCatalogType.diagnosis),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: catalog == TemplateCatalogType.diagnosis
+                        ? const Color(0xFFD8ECFF)
+                        : null,
+                  ),
+                  child: const Text('诊断测评'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: diseaseId.isEmpty ? null : diseaseId,
+            decoration: const InputDecoration(labelText: '病种模板'),
+            items: templates
+                .map(
+                  (diseaseItem) => DropdownMenuItem<String>(
+                    value: diseaseItem.id,
+                    child: Text(diseaseItem.diseaseName),
+                  ),
+                )
+                .toList(),
+            onChanged: onDiseaseChanged,
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: versionId.isEmpty ? null : versionId,
+            decoration: const InputDecoration(labelText: '模板版本'),
+            items: (disease?.versions ?? const <TemplateVersion>[])
+                .map(
+                  (versionItem) => DropdownMenuItem<String>(
+                    value: versionItem.id,
+                    child: Text(versionItem.versionName),
+                  ),
+                )
+                .toList(),
+            onChanged: onVersionChanged,
+          ),
+          const SizedBox(height: 10),
+          if (version != null)
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F8FD),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFD8E4F3)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                child: AssessmentScoreBar(
+                  score: score,
+                  rules: version!.gradeRules,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

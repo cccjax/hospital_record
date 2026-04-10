@@ -245,6 +245,7 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
       'admissions',
       'dailyRecords',
       'templates',
+      'diagnosisTemplates',
       'admissionAssessments',
       'admissionImaging',
     };
@@ -277,6 +278,7 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
         data.admissions.length +
         data.dailyRecords.length +
         data.templates.length +
+        data.diagnosisTemplates.length +
         assessmentCount +
         imagingCount;
     if (total == 0) {
@@ -290,6 +292,7 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
         admissionCount: data.admissions.length,
         dailyCount: data.dailyRecords.length,
         templateCount: data.templates.length,
+        diagnosisTemplateCount: data.diagnosisTemplates.length,
         assessmentCount: assessmentCount,
         imagingCount: imagingCount,
       ),
@@ -302,6 +305,7 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
       'admissions',
       'dailyRecords',
       'templates',
+      'diagnosisTemplates',
     };
     for (final key in listKeys) {
       final value = payload[key];
@@ -374,7 +378,9 @@ class _MineMigrationPageState extends State<MineMigrationPage> {
               _SummaryLine(label: '病人', value: '${preview.patientCount}'),
               _SummaryLine(label: '入院记录', value: '${preview.admissionCount}'),
               _SummaryLine(label: '日常记录', value: '${preview.dailyCount}'),
-              _SummaryLine(label: '测评模板', value: '${preview.templateCount}'),
+              _SummaryLine(label: '病情评估模板', value: '${preview.templateCount}'),
+              _SummaryLine(
+                  label: '诊断模板', value: '${preview.diagnosisTemplateCount}'),
               _SummaryLine(label: '测评结果', value: '${preview.assessmentCount}'),
               _SummaryLine(label: '影像资料', value: '${preview.imagingCount}'),
             ],
@@ -536,6 +542,7 @@ class _ImportPreview {
     required this.admissionCount,
     required this.dailyCount,
     required this.templateCount,
+    required this.diagnosisTemplateCount,
     required this.assessmentCount,
     required this.imagingCount,
   });
@@ -545,6 +552,7 @@ class _ImportPreview {
   final int admissionCount;
   final int dailyCount;
   final int templateCount;
+  final int diagnosisTemplateCount;
   final int assessmentCount;
   final int imagingCount;
 }

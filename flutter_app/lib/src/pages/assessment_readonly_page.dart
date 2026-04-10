@@ -37,8 +37,32 @@ class AssessmentReadonlyPage extends StatelessWidget {
       );
     }
 
-    final disease = state.findDisease(current.diseaseId);
-    final version = state.findVersion(current.diseaseId, current.versionId);
+    var catalog = current.catalog;
+    var version = state.findVersion(
+      current.diseaseId,
+      current.versionId,
+      catalog: catalog,
+    );
+    if (version == null) {
+      final fallbackAssessment = state.findVersion(
+        current.diseaseId,
+        current.versionId,
+        catalog: TemplateCatalogType.assessment,
+      );
+      final fallbackDiagnosis = state.findVersion(
+        current.diseaseId,
+        current.versionId,
+        catalog: TemplateCatalogType.diagnosis,
+      );
+      if (fallbackAssessment != null) {
+        catalog = TemplateCatalogType.assessment;
+        version = fallbackAssessment;
+      } else if (fallbackDiagnosis != null) {
+        catalog = TemplateCatalogType.diagnosis;
+        version = fallbackDiagnosis;
+      }
+    }
+    final disease = state.findDisease(current.diseaseId, catalog: catalog);
     final score = version == null ? 0.0 : state.calculateAssessmentScore(version, current.selections);
     final level = version == null ? '-' : state.resolveAssessmentLevel(version, score);
     final itemTotal = version?.items.length ?? 0;

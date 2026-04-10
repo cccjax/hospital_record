@@ -10,10 +10,14 @@ AppData buildDefaultAppData(IdFactory createId) {
   final tplDisease = createId('tpld');
   final tplVersion2026 = createId('tplv');
   final tplVersion2024 = createId('tplv');
+  final diagTplDisease = createId('tpld');
+  final diagTplVersion = createId('tplv');
 
   final item1 = createId('tpli');
   final item2 = createId('tpli');
   final item3 = createId('tpli');
+  final diagItem1 = createId('tpli');
+  final diagItem2 = createId('tpli');
 
   final data = AppData(
     schemas: <String, List<FieldSchema>>{
@@ -57,6 +61,27 @@ AppData buildDefaultAppData(IdFactory createId) {
           showInList: true,
           computed: false,
           options: <String>[],
+        ),
+        FieldSchema(
+          key: 'nursingLevel',
+          label: '\u62A4\u7406\u7B49\u7EA7',
+          type: FieldType.select,
+          required: true,
+          locked: true,
+          showInList: true,
+          computed: false,
+          options: <String>[
+            '\u7279\u7EA7\u62A4\u7406',
+            '\u4E00\u7EA7\u62A4\u7406',
+            '\u4E8C\u7EA7\u62A4\u7406',
+            '\u4E09\u7EA7\u62A4\u7406',
+          ],
+          optionColors: <String, String>{
+            '\u7279\u7EA7\u62A4\u7406': '#F5C3CC',
+            '\u4E00\u7EA7\u62A4\u7406': '#FFD9A6',
+            '\u4E8C\u7EA7\u62A4\u7406': '#FFEFB5',
+            '\u4E09\u7EA7\u62A4\u7406': '#DDF4CC',
+          },
         ),
         FieldSchema(
           key: 'phone',
@@ -266,6 +291,7 @@ AppData buildDefaultAppData(IdFactory createId) {
           'name': '张明',
           'gender': '男',
           'age': 42,
+          'nursingLevel': '\u4E00\u7EA7\u62A4\u7406',
           'phone': '13800001111',
         },
       ),
@@ -276,6 +302,7 @@ AppData buildDefaultAppData(IdFactory createId) {
           'name': '李萍',
           'gender': '女',
           'age': 35,
+          'nursingLevel': '\u4E8C\u7EA7\u62A4\u7406',
           'phone': '13800002222',
         },
       ),
@@ -360,8 +387,10 @@ AppData buildDefaultAppData(IdFactory createId) {
                 id: item2,
                 name: '氧饱和度',
                 options: <TemplateOption>[
-                  TemplateOption(id: createId('tplo'), label: '>=95%', score: 1),
-                  TemplateOption(id: createId('tplo'), label: '90%-94%', score: 3),
+                  TemplateOption(
+                      id: createId('tplo'), label: '>=95%', score: 1),
+                  TemplateOption(
+                      id: createId('tplo'), label: '90%-94%', score: 3),
                   TemplateOption(id: createId('tplo'), label: '<90%', score: 5),
                 ],
               ),
@@ -369,7 +398,8 @@ AppData buildDefaultAppData(IdFactory createId) {
                 id: item3,
                 name: '咳痰性状变化',
                 options: <TemplateOption>[
-                  TemplateOption(id: createId('tplo'), label: '无明显变化', score: 1),
+                  TemplateOption(
+                      id: createId('tplo'), label: '无明显变化', score: 1),
                   TemplateOption(id: createId('tplo'), label: '中等变化', score: 3),
                   TemplateOption(id: createId('tplo'), label: '明显恶化', score: 5),
                 ],
@@ -406,6 +436,65 @@ AppData buildDefaultAppData(IdFactory createId) {
             description: '历史版本，供追溯对照。',
             items: const <TemplateItem>[],
             gradeRules: const <TemplateGradeRule>[],
+          ),
+        ],
+      ),
+    ],
+    diagnosisTemplates: <TemplateDisease>[
+      TemplateDisease(
+        id: diagTplDisease,
+        diseaseName: '急性肺部感染',
+        diseaseCode: 'DX-LUNG-INF',
+        description: '用于住院患者诊断模板记录与分级判断',
+        versions: <TemplateVersion>[
+          TemplateVersion(
+            id: diagTplVersion,
+            versionName: '2026版',
+            year: '2026',
+            description: '诊断模板示例版本',
+            items: <TemplateItem>[
+              TemplateItem(
+                id: diagItem1,
+                name: '影像学表现',
+                options: <TemplateOption>[
+                  TemplateOption(id: createId('tplo'), label: '局灶浸润', score: 2),
+                  TemplateOption(id: createId('tplo'), label: '多叶浸润', score: 4),
+                  TemplateOption(id: createId('tplo'), label: '弥漫病变', score: 6),
+                ],
+              ),
+              TemplateItem(
+                id: diagItem2,
+                name: '感染严重度',
+                options: <TemplateOption>[
+                  TemplateOption(id: createId('tplo'), label: '轻度', score: 2),
+                  TemplateOption(id: createId('tplo'), label: '中度', score: 4),
+                  TemplateOption(id: createId('tplo'), label: '重度', score: 6),
+                ],
+              ),
+            ],
+            gradeRules: <TemplateGradeRule>[
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 0,
+                max: 5,
+                level: '低风险',
+                note: '常规观察',
+              ),
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 6,
+                max: 9,
+                level: '中风险',
+                note: '建议复核',
+              ),
+              TemplateGradeRule(
+                id: createId('tplg'),
+                min: 10,
+                max: 20,
+                level: '高风险',
+                note: '重点监护',
+              ),
+            ],
           ),
         ],
       ),

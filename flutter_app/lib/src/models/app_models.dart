@@ -9,6 +9,11 @@ enum FieldType {
   images,
 }
 
+enum TemplateCatalogType {
+  assessment,
+  diagnosis,
+}
+
 FieldType fieldTypeFromString(String value) {
   switch (value) {
     case 'number':
@@ -54,6 +59,7 @@ class FieldSchema {
     required this.showInList,
     required this.computed,
     required this.options,
+    this.optionColors = const <String, String>{},
   });
 
   final String key;
@@ -64,6 +70,7 @@ class FieldSchema {
   final bool showInList;
   final bool computed;
   final List<String> options;
+  final Map<String, String> optionColors;
 
   FieldSchema copyWith({
     String? key,
@@ -74,6 +81,7 @@ class FieldSchema {
     bool? showInList,
     bool? computed,
     List<String>? options,
+    Map<String, String>? optionColors,
   }) {
     return FieldSchema(
       key: key ?? this.key,
@@ -84,6 +92,7 @@ class FieldSchema {
       showInList: showInList ?? this.showInList,
       computed: computed ?? this.computed,
       options: options ?? this.options,
+      optionColors: optionColors ?? this.optionColors,
     );
   }
 
@@ -102,6 +111,14 @@ class FieldSchema {
               .where((e) => e.isNotEmpty)
               .toList()
           : const [],
+      optionColors: (json['optionColors'] is Map)
+          ? (json['optionColors'] as Map).map(
+              (key, value) => MapEntry(
+                key.toString(),
+                value.toString(),
+              ),
+            )
+          : const <String, String>{},
     );
   }
 
@@ -115,6 +132,7 @@ class FieldSchema {
       'showInList': showInList,
       if (computed) 'computed': true,
       if (options.isNotEmpty) 'options': options,
+      if (optionColors.isNotEmpty) 'optionColors': optionColors,
     };
   }
 }
@@ -470,6 +488,7 @@ class AssessmentRecord {
     required this.versionId,
     required this.selections,
     required this.createdAt,
+    this.catalog = TemplateCatalogType.assessment,
   });
 
   final String id;
@@ -477,6 +496,7 @@ class AssessmentRecord {
   final String versionId;
   final Map<String, String> selections;
   final DateTime createdAt;
+  final TemplateCatalogType catalog;
 
   factory AssessmentRecord.fromJson(Map<String, dynamic> json) {
     final selectionsRaw = _cloneMap(json['selections']);
@@ -489,6 +509,9 @@ class AssessmentRecord {
       ),
       createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
           DateTime.now(),
+      catalog: (json['catalog'] ?? '').toString() == 'diagnosis'
+          ? TemplateCatalogType.diagnosis
+          : TemplateCatalogType.assessment,
     );
   }
 
@@ -499,6 +522,7 @@ class AssessmentRecord {
       'versionId': versionId,
       'selections': selections,
       'createdAt': createdAt.toIso8601String(),
+      'catalog': catalog.name,
     };
   }
 }
@@ -550,6 +574,7 @@ class AppData {
     required this.admissions,
     required this.dailyRecords,
     required this.templates,
+    required this.diagnosisTemplates,
     required this.admissionAssessments,
     required this.admissionImaging,
   });
@@ -559,6 +584,7 @@ class AppData {
   final List<AdmissionRecord> admissions;
   final List<DailyRecord> dailyRecords;
   final List<TemplateDisease> templates;
+  final List<TemplateDisease> diagnosisTemplates;
   final Map<String, List<AssessmentRecord>> admissionAssessments;
   final Map<String, List<ImagingItem>> admissionImaging;
 
@@ -569,6 +595,7 @@ class AppData {
       admissions: <AdmissionRecord>[],
       dailyRecords: <DailyRecord>[],
       templates: <TemplateDisease>[],
+      diagnosisTemplates: <TemplateDisease>[],
       admissionAssessments: <String, List<AssessmentRecord>>{},
       admissionImaging: <String, List<ImagingItem>>{},
     );
@@ -580,6 +607,7 @@ class AppData {
     List<AdmissionRecord>? admissions,
     List<DailyRecord>? dailyRecords,
     List<TemplateDisease>? templates,
+    List<TemplateDisease>? diagnosisTemplates,
     Map<String, List<AssessmentRecord>>? admissionAssessments,
     Map<String, List<ImagingItem>>? admissionImaging,
   }) {
@@ -589,6 +617,7 @@ class AppData {
       admissions: admissions ?? this.admissions,
       dailyRecords: dailyRecords ?? this.dailyRecords,
       templates: templates ?? this.templates,
+      diagnosisTemplates: diagnosisTemplates ?? this.diagnosisTemplates,
       admissionAssessments: admissionAssessments ?? this.admissionAssessments,
       admissionImaging: admissionImaging ?? this.admissionImaging,
     );
@@ -637,6 +666,13 @@ class AppData {
             .toList()
         : <TemplateDisease>[];
 
+    final diagnosisTemplates = (json['diagnosisTemplates'] is List)
+        ? (json['diagnosisTemplates'] as List)
+            .whereType<Map>()
+            .map((e) => TemplateDisease.fromJson(_cloneMap(e)))
+            .toList()
+        : <TemplateDisease>[];
+
     final admissionAssessmentsRaw = _cloneMap(json['admissionAssessments']);
     final admissionAssessments = <String, List<AssessmentRecord>>{};
     for (final entry in admissionAssessmentsRaw.entries) {
@@ -676,6 +712,7 @@ class AppData {
       admissions: admissions,
       dailyRecords: dailyRecords,
       templates: templates,
+      diagnosisTemplates: diagnosisTemplates,
       admissionAssessments: admissionAssessments,
       admissionImaging: admissionImaging,
     );
@@ -693,6 +730,7 @@ class AppData {
       'admissions': admissions.map((e) => e.toJson()).toList(),
       'dailyRecords': dailyRecords.map((e) => e.toJson()).toList(),
       'templates': templates.map((e) => e.toJson()).toList(),
+      'diagnosisTemplates': diagnosisTemplates.map((e) => e.toJson()).toList(),
       'admissionAssessments': admissionAssessments.map(
         (key, value) => MapEntry(
           key,

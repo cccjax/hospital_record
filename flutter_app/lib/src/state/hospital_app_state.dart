@@ -20,6 +20,7 @@ class HospitalAppState extends ChangeNotifier {
   int tabIndex = 0;
   String patientSearchQuery = '';
   bool patientInHospitalOnly = false;
+  String patientNursingLevelFilter = '';
   String templateSearchQuery = '';
   String fieldConfigModule = 'patient';
 
@@ -108,9 +109,14 @@ class HospitalAppState extends ChangeNotifier {
   List<PatientRecord> get filteredPatients {
     final keyword = patientSearchQuery.trim().toLowerCase();
     final inHospitalSet = getInHospitalPatientNoSet();
+    final nursingLevel = patientNursingLevelFilter.trim();
 
     return patients.where((row) {
       if (patientInHospitalOnly && !inHospitalSet.contains(row.admissionNo)) {
+        return false;
+      }
+      if (nursingLevel.isNotEmpty &&
+          (row.values['nursingLevel'] ?? '').toString() != nursingLevel) {
         return false;
       }
       if (keyword.isEmpty) return true;
@@ -120,9 +126,42 @@ class HospitalAppState extends ChangeNotifier {
     }).toList();
   }
 
+  List<String> get patientNursingLevels {
+    FieldSchema? field;
+    for (final row in schemaOf('patient')) {
+      if (row.key == 'nursingLevel') {
+        field = row;
+        break;
+      }
+    }
+    return List<String>.from(field?.options ?? const <String>[]);
+  }
+
+  Map<String, int> get patientNursingLevelCounts {
+    final map = <String, int>{};
+    for (final row in data.patients) {
+      final level = (row.values['nursingLevel'] ?? '').toString().trim();
+      if (level.isEmpty) continue;
+      map[level] = (map[level] ?? 0) + 1;
+    }
+    return map;
+  }
+
+  Map<String, String> get patientNursingLevelColors {
+    FieldSchema? field;
+    for (final row in schemaOf('patient')) {
+      if (row.key == 'nursingLevel') {
+        field = row;
+        break;
+      }
+    }
+    return Map<String, String>.from(
+        field?.optionColors ?? const <String, String>{});
+  }
+
   Set<String> getInHospitalPatientNoSet() {
     return data.admissions
-        .where((row) => (row.values['status'] ?? '').toString() == '在院')
+        .where((row) => (row.values['status'] ?? '').toString() == '鍦ㄩ櫌')
         .map((e) => e.admissionNo)
         .toSet();
   }
@@ -196,11 +235,16 @@ class HospitalAppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPatientNursingLevelFilter(String value) {
+    patientNursingLevelFilter = value.trim();
+    notifyListeners();
+  }
+
   bool hasInHospitalAdmission(String admissionNo) {
     return data.admissions.any(
       (row) =>
           row.admissionNo == admissionNo &&
-          (row.values['status'] ?? '').toString() == '在院',
+          (row.values['status'] ?? '').toString() == '鍦ㄩ櫌',
     );
   }
 
@@ -221,7 +265,7 @@ class HospitalAppState extends ChangeNotifier {
           row.admissionNo != editingAdmissionNo,
     );
     if (duplicated) {
-      _lastErrorMessage = '住院号已存在';
+      _lastErrorMessage = '浣忛櫌鍙峰凡瀛樺湪';
       return false;
     }
 
@@ -282,7 +326,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
 
     if (editingId == null && hasInHospitalAdmission(admissionNo)) {
-      _lastErrorMessage = '该病人已有在院记录，不能重复新增入院';
+      _lastErrorMessage = '璇ョ梾浜哄凡鏈夊湪闄㈣褰曪紝涓嶈兘閲嶅鏂板鍏ラ櫌';
       return false;
     }
 
@@ -291,7 +335,7 @@ class HospitalAppState extends ChangeNotifier {
     payload['admitDate'] = (payload['admitDate'] ?? '').toString();
 
     if ((payload['admitDate'] ?? '').toString().isEmpty) {
-      _lastErrorMessage = '入院日期不能为空';
+      _lastErrorMessage = '鍏ラ櫌鏃ユ湡涓嶈兘涓虹┖';
       return false;
     }
 
@@ -361,7 +405,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
     final payload = _applySchemaCoercion(values, schemaOf('daily'));
     if ((payload['recordDate'] ?? '').toString().isEmpty) {
-      _lastErrorMessage = '记录日期不能为空';
+      _lastErrorMessage = '璁板綍鏃ユ湡涓嶈兘涓虹┖';
       return false;
     }
 
@@ -472,15 +516,28 @@ class HospitalAppState extends ChangeNotifier {
     _persistDataAndNotify();
   }
 
-  TemplateDisease? findDisease(String diseaseId) {
-    for (final disease in data.templates) {
+  List<TemplateDisease> templatesOf(TemplateCatalogType catalog) {
+    return catalog == TemplateCatalogType.assessment
+        ? data.templates
+        : data.diagnosisTemplates;
+  }
+
+  TemplateDisease? findDisease(
+    String diseaseId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    for (final disease in templatesOf(catalog)) {
       if (disease.id == diseaseId) return disease;
     }
     return null;
   }
 
-  TemplateVersion? findVersion(String diseaseId, String versionId) {
-    final disease = findDisease(diseaseId);
+  TemplateVersion? findVersion(
+    String diseaseId,
+    String versionId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    final disease = findDisease(diseaseId, catalog: catalog);
     if (disease == null) return null;
     for (final version in disease.versions) {
       if (version.id == versionId) return version;
@@ -539,13 +596,72 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   List<TemplateDisease> get filteredTemplateDiseases {
+    return filteredTemplateDiseasesByCatalog(TemplateCatalogType.assessment);
+  }
+
+  List<TemplateDisease> filteredTemplateDiseasesByCatalog(
+    TemplateCatalogType catalog,
+  ) {
+    final source = templatesOf(catalog);
     final keyword = templateSearchQuery.trim().toLowerCase();
-    if (keyword.isEmpty) return data.templates;
-    return data.templates.where((disease) {
+    if (keyword.isEmpty) return source;
+    return source.where((disease) {
       final name = disease.diseaseName.toLowerCase();
       final code = disease.diseaseCode.toLowerCase();
       return name.contains(keyword) || code.contains(keyword);
     }).toList();
+  }
+
+  List<TemplateDiseaseBundle> get filteredTemplateDiseaseBundles {
+    final bundles = templateDiseaseBundles;
+    final keyword = templateSearchQuery.trim().toLowerCase();
+    if (keyword.isEmpty) {
+      return bundles;
+    }
+    return bundles.where((bundle) {
+      final name = bundle.diseaseName.toLowerCase();
+      final code = bundle.diseaseCode.toLowerCase();
+      return name.contains(keyword) || code.contains(keyword);
+    }).toList();
+  }
+
+  List<TemplateDiseaseBundle> get templateDiseaseBundles {
+    final map = <String, _TemplateDiseaseBundleDraft>{};
+
+    void absorb(TemplateDisease disease, TemplateCatalogType catalog) {
+      final key = _bundleKeyFromRaw(
+        diseaseName: disease.diseaseName,
+        diseaseCode: disease.diseaseCode,
+      );
+      final draft = map.putIfAbsent(
+        key,
+        () => _TemplateDiseaseBundleDraft(key: key),
+      );
+      draft.absorb(disease, catalog);
+    }
+
+    for (final disease in data.templates) {
+      absorb(disease, TemplateCatalogType.assessment);
+    }
+    for (final disease in data.diagnosisTemplates) {
+      absorb(disease, TemplateCatalogType.diagnosis);
+    }
+
+    final bundles = map.values
+        .map((draft) => draft.toBundle())
+        .where((bundle) => bundle.diseaseName.trim().isNotEmpty)
+        .toList();
+    bundles.sort((a, b) => a.diseaseName.compareTo(b.diseaseName));
+    return bundles;
+  }
+
+  TemplateDiseaseBundle? findTemplateDiseaseBundleByKey(String key) {
+    for (final bundle in templateDiseaseBundles) {
+      if (bundle.key == key) {
+        return bundle;
+      }
+    }
+    return null;
   }
 
   void setTemplateSearchQuery(String value) {
@@ -553,7 +669,150 @@ class HospitalAppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool upsertTemplateDiseaseLinked({
+    String? assessmentEditingId,
+    String? diagnosisEditingId,
+    required Map<String, dynamic> values,
+  }) {
+    _lastErrorMessage = null;
+    final schema =
+        schemaOf('templateDisease').where((field) => !field.computed).toList();
+    final payload = _applySchemaCoercion(values, schema);
+
+    final assessmentRows = List<TemplateDisease>.from(data.templates);
+    final diagnosisRows = List<TemplateDisease>.from(data.diagnosisTemplates);
+    final assessmentIndex = assessmentEditingId == null
+        ? -1
+        : assessmentRows.indexWhere((e) => e.id == assessmentEditingId);
+    final diagnosisIndex = diagnosisEditingId == null
+        ? -1
+        : diagnosisRows.indexWhere((e) => e.id == diagnosisEditingId);
+
+    if (assessmentEditingId != null && assessmentIndex < 0) {
+      _lastErrorMessage = '病情评估模板病种不存在';
+      return false;
+    }
+    if (diagnosisEditingId != null && diagnosisIndex < 0) {
+      _lastErrorMessage = '诊断模板病种不存在';
+      return false;
+    }
+
+    final assessmentCurrent =
+        assessmentIndex >= 0 ? assessmentRows[assessmentIndex] : null;
+    final diagnosisCurrent =
+        diagnosisIndex >= 0 ? diagnosisRows[diagnosisIndex] : null;
+    final current = assessmentCurrent ?? diagnosisCurrent;
+
+    final name = (payload.containsKey('diseaseName')
+            ? payload['diseaseName']
+            : current?.diseaseName) ??
+        '';
+    final normalizedName = name.toString().trim();
+    if (normalizedName.isEmpty) {
+      _lastErrorMessage = '鐥呯鍚嶇О涓嶈兘涓虹┖';
+      return false;
+    }
+
+    var diseaseCode = current?.diseaseCode ?? '';
+    if (payload.containsKey('diseaseCode')) {
+      diseaseCode = (payload['diseaseCode'] ?? '').toString().trim();
+    }
+
+    var description = current?.description ?? '';
+    if (payload.containsKey('description')) {
+      description = (payload['description'] ?? '').toString().trim();
+    }
+
+    final sharedId =
+        assessmentCurrent?.id ?? diagnosisCurrent?.id ?? _createId('tpld');
+    final assessmentExtra = <String, dynamic>{
+      ...?(assessmentCurrent?.extraValues)
+    };
+    final diagnosisExtra = <String, dynamic>{
+      ...?(diagnosisCurrent?.extraValues)
+    };
+    for (final entry in payload.entries) {
+      if (_templateDiseaseBuiltinKeys.contains(entry.key)) continue;
+      assessmentExtra[entry.key] = entry.value;
+      diagnosisExtra[entry.key] = entry.value;
+    }
+
+    final assessmentNext = TemplateDisease(
+      id: assessmentCurrent?.id ?? sharedId,
+      diseaseName: normalizedName,
+      diseaseCode: diseaseCode,
+      description: description,
+      versions: assessmentCurrent?.versions ?? const <TemplateVersion>[],
+      extraValues: assessmentExtra,
+    );
+    final diagnosisNext = TemplateDisease(
+      id: diagnosisCurrent?.id ?? sharedId,
+      diseaseName: normalizedName,
+      diseaseCode: diseaseCode,
+      description: description,
+      versions: diagnosisCurrent?.versions ?? const <TemplateVersion>[],
+      extraValues: diagnosisExtra,
+    );
+
+    if (assessmentIndex >= 0) {
+      assessmentRows[assessmentIndex] = assessmentNext;
+    } else {
+      assessmentRows.insert(0, assessmentNext);
+    }
+    if (diagnosisIndex >= 0) {
+      diagnosisRows[diagnosisIndex] = diagnosisNext;
+    } else {
+      diagnosisRows.insert(0, diagnosisNext);
+    }
+
+    data = data.copyWith(
+      templates: assessmentRows,
+      diagnosisTemplates: diagnosisRows,
+    );
+    _persistDataAndNotify();
+    return true;
+  }
+
+  void deleteTemplateDiseaseLinked({
+    String? assessmentId,
+    String? diagnosisId,
+    required String diseaseName,
+    required String diseaseCode,
+  }) {
+    final key = _bundleKeyFromRaw(
+      diseaseName: diseaseName,
+      diseaseCode: diseaseCode,
+    );
+    final assessmentNext = data.templates.where((row) {
+      if (assessmentId != null && row.id == assessmentId) {
+        return false;
+      }
+      return _bundleKeyFromRaw(
+            diseaseName: row.diseaseName,
+            diseaseCode: row.diseaseCode,
+          ) !=
+          key;
+    }).toList();
+    final diagnosisNext = data.diagnosisTemplates.where((row) {
+      if (diagnosisId != null && row.id == diagnosisId) {
+        return false;
+      }
+      return _bundleKeyFromRaw(
+            diseaseName: row.diseaseName,
+            diseaseCode: row.diseaseCode,
+          ) !=
+          key;
+    }).toList();
+
+    data = data.copyWith(
+      templates: assessmentNext,
+      diagnosisTemplates: diagnosisNext,
+    );
+    _persistDataAndNotify();
+  }
+
   bool upsertTemplateDisease({
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
     String? editingId,
     required Map<String, dynamic> values,
   }) {
@@ -562,7 +821,7 @@ class HospitalAppState extends ChangeNotifier {
         schemaOf('templateDisease').where((field) => !field.computed).toList();
     final payload = _applySchemaCoercion(values, schema);
 
-    final rows = List<TemplateDisease>.from(data.templates);
+    final rows = List<TemplateDisease>.from(templatesOf(catalog));
     final editingIndex =
         editingId == null ? -1 : rows.indexWhere((e) => e.id == editingId);
     if (editingId != null && editingIndex < 0) {
@@ -577,7 +836,7 @@ class HospitalAppState extends ChangeNotifier {
         '';
     final normalizedName = name.toString().trim();
     if (normalizedName.isEmpty) {
-      _lastErrorMessage = '病种名称不能为空';
+      _lastErrorMessage = '鐥呯鍚嶇О涓嶈兘涓虹┖';
       return false;
     }
 
@@ -612,25 +871,31 @@ class HospitalAppState extends ChangeNotifier {
       rows.insert(0, row);
     }
 
-    data = data.copyWith(templates: rows);
+    data = _copyWithTemplatesByCatalog(catalog, rows);
     _persistDataAndNotify();
     return true;
   }
 
-  void deleteTemplateDisease(String diseaseId) {
-    data = data.copyWith(
-      templates: data.templates.where((e) => e.id != diseaseId).toList(),
+  void deleteTemplateDisease(
+    String diseaseId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    data = _copyWithTemplatesByCatalog(
+      catalog,
+      templatesOf(catalog).where((e) => e.id != diseaseId).toList(),
     );
     _persistDataAndNotify();
   }
 
   bool upsertTemplateVersion({
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
     required String diseaseId,
     String? editingId,
     required Map<String, dynamic> values,
   }) {
     _lastErrorMessage = null;
-    final diseaseIdx = data.templates.indexWhere((e) => e.id == diseaseId);
+    final diseasesOfCatalog = templatesOf(catalog);
+    final diseaseIdx = diseasesOfCatalog.indexWhere((e) => e.id == diseaseId);
     if (diseaseIdx < 0) {
       _lastErrorMessage = '病种模板不存在';
       return false;
@@ -639,7 +904,7 @@ class HospitalAppState extends ChangeNotifier {
     final schema =
         schemaOf('templateVersion').where((field) => !field.computed).toList();
     final payload = _applySchemaCoercion(values, schema);
-    final disease = data.templates[diseaseIdx];
+    final disease = diseasesOfCatalog[diseaseIdx];
     final versions = List<TemplateVersion>.from(disease.versions);
     final editingIndex =
         editingId == null ? -1 : versions.indexWhere((e) => e.id == editingId);
@@ -690,7 +955,7 @@ class HospitalAppState extends ChangeNotifier {
       versions.insert(0, row);
     }
 
-    final diseases = List<TemplateDisease>.from(data.templates);
+    final diseases = List<TemplateDisease>.from(diseasesOfCatalog);
     diseases[diseaseIdx] = TemplateDisease(
       id: disease.id,
       diseaseName: disease.diseaseName,
@@ -699,17 +964,22 @@ class HospitalAppState extends ChangeNotifier {
       versions: versions,
       extraValues: disease.extraValues,
     );
-    data = data.copyWith(templates: diseases);
+    data = _copyWithTemplatesByCatalog(catalog, diseases);
     _persistDataAndNotify();
     return true;
   }
 
-  void deleteTemplateVersion(String diseaseId, String versionId) {
-    final diseaseIdx = data.templates.indexWhere((e) => e.id == diseaseId);
+  void deleteTemplateVersion(
+    String diseaseId,
+    String versionId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    final diseasesOfCatalog = templatesOf(catalog);
+    final diseaseIdx = diseasesOfCatalog.indexWhere((e) => e.id == diseaseId);
     if (diseaseIdx < 0) return;
-    final disease = data.templates[diseaseIdx];
+    final disease = diseasesOfCatalog[diseaseIdx];
     final versions = disease.versions.where((e) => e.id != versionId).toList();
-    final diseases = List<TemplateDisease>.from(data.templates);
+    final diseases = List<TemplateDisease>.from(diseasesOfCatalog);
     diseases[diseaseIdx] = TemplateDisease(
       id: disease.id,
       diseaseName: disease.diseaseName,
@@ -718,25 +988,26 @@ class HospitalAppState extends ChangeNotifier {
       versions: versions,
       extraValues: disease.extraValues,
     );
-    data = data.copyWith(templates: diseases);
+    data = _copyWithTemplatesByCatalog(catalog, diseases);
     _persistDataAndNotify();
   }
 
   bool upsertTemplateItem({
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
     required String diseaseId,
     required String versionId,
     String? editingId,
     required String name,
     required List<TemplateOption> options,
   }) {
-    final versionRef = _locateVersion(diseaseId, versionId);
+    final versionRef = _locateVersion(diseaseId, versionId, catalog: catalog);
     if (versionRef == null) return false;
     final items = List<TemplateItem>.from(versionRef.version.items);
     if (editingId == null) {
       items.add(
         TemplateItem(
           id: _createId('tpli'),
-          name: name.trim().isEmpty ? '未命名测评项' : name.trim(),
+          name: name.trim().isEmpty ? '鏈懡鍚嶆祴璇勯」' : name.trim(),
           options: options,
         ),
       );
@@ -751,6 +1022,7 @@ class HospitalAppState extends ChangeNotifier {
     }
     _patchVersion(
       versionRef: versionRef,
+      catalog: catalog,
       version: TemplateVersion(
         id: versionRef.version.id,
         versionName: versionRef.version.versionName,
@@ -764,13 +1036,19 @@ class HospitalAppState extends ChangeNotifier {
     return true;
   }
 
-  void deleteTemplateItem(String diseaseId, String versionId, String itemId) {
-    final versionRef = _locateVersion(diseaseId, versionId);
+  void deleteTemplateItem(
+    String diseaseId,
+    String versionId,
+    String itemId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    final versionRef = _locateVersion(diseaseId, versionId, catalog: catalog);
     if (versionRef == null) return;
     final items =
         versionRef.version.items.where((e) => e.id != itemId).toList();
     _patchVersion(
       versionRef: versionRef,
+      catalog: catalog,
       version: TemplateVersion(
         id: versionRef.version.id,
         versionName: versionRef.version.versionName,
@@ -784,6 +1062,7 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   bool upsertTemplateGradeRule({
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
     required String diseaseId,
     required String versionId,
     String? editingId,
@@ -793,7 +1072,7 @@ class HospitalAppState extends ChangeNotifier {
     required String note,
   }) {
     _lastErrorMessage = null;
-    final versionRef = _locateVersion(diseaseId, versionId);
+    final versionRef = _locateVersion(diseaseId, versionId, catalog: catalog);
     if (versionRef == null) return false;
     if (min > max) {
       _lastErrorMessage = '最小值不能大于最大值';
@@ -840,6 +1119,7 @@ class HospitalAppState extends ChangeNotifier {
     }
     _patchVersion(
       versionRef: versionRef,
+      catalog: catalog,
       version: TemplateVersion(
         id: versionRef.version.id,
         versionName: versionRef.version.versionName,
@@ -854,13 +1134,18 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   void deleteTemplateGradeRule(
-      String diseaseId, String versionId, String ruleId) {
-    final versionRef = _locateVersion(diseaseId, versionId);
+    String diseaseId,
+    String versionId,
+    String ruleId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    final versionRef = _locateVersion(diseaseId, versionId, catalog: catalog);
     if (versionRef == null) return;
     final rules =
         versionRef.version.gradeRules.where((e) => e.id != ruleId).toList();
     _patchVersion(
       versionRef: versionRef,
+      catalog: catalog,
       version: TemplateVersion(
         id: versionRef.version.id,
         versionName: versionRef.version.versionName,
@@ -891,7 +1176,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
     final schema = schemaOf(moduleKey);
     if (schema.any((e) => e.key == field.key)) {
-      _lastErrorMessage = '字段键名重复';
+      _lastErrorMessage = '瀛楁閿悕閲嶅';
       return false;
     }
     final next = <String, List<FieldSchema>>{
@@ -913,7 +1198,7 @@ class HospitalAppState extends ChangeNotifier {
       return false;
     }
     if (oldKey != updated.key && schema.any((e) => e.key == updated.key)) {
-      _lastErrorMessage = '字段键名重复';
+      _lastErrorMessage = '瀛楁閿悕閲嶅';
       return false;
     }
     if (oldKey != updated.key) {
@@ -996,6 +1281,7 @@ class HospitalAppState extends ChangeNotifier {
 
   bool isCoreRequiredField(String moduleKey, String key) {
     return (moduleKey == 'patient' && key == 'admissionNo') ||
+        (moduleKey == 'patient' && key == 'nursingLevel') ||
         (moduleKey == 'admission' && key == 'admitDate');
   }
 
@@ -1080,11 +1366,15 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   void _repairAndNormalizeData() {
-    _enforceCoreFieldRules();
     _repairSchemas();
+    _enforceCoreFieldRules();
     _repairRows();
     _repairRelations();
     _repairTemplatePayload();
+    if (patientNursingLevelFilter.isNotEmpty &&
+        !patientNursingLevels.contains(patientNursingLevelFilter)) {
+      patientNursingLevelFilter = '';
+    }
   }
 
   void _enforceCoreFieldRules() {
@@ -1095,6 +1385,36 @@ class HospitalAppState extends ChangeNotifier {
         required: true,
         locked: true,
         showInList: false,
+      );
+      data = data.copyWith(
+        schemas: <String, List<FieldSchema>>{
+          ...data.schemas,
+          'patient': patientSchema,
+        },
+      );
+    }
+
+    final nursingIdx = patientSchema.indexWhere((e) => e.key == 'nursingLevel');
+    if (nursingIdx >= 0) {
+      final fallback = _buildDefaultNursingLevelField();
+      final nursingField = patientSchema[nursingIdx];
+      final normalizedOptions = nursingField.options.isNotEmpty
+          ? nursingField.options
+          : fallback.options;
+      final normalizedColors = <String, String>{};
+      for (final option in normalizedOptions) {
+        final color =
+            nursingField.optionColors[option] ?? fallback.optionColors[option];
+        if (color != null && color.trim().isNotEmpty) {
+          normalizedColors[option] = color.trim();
+        }
+      }
+      patientSchema[nursingIdx] = nursingField.copyWith(
+        required: true,
+        locked: true,
+        type: FieldType.select,
+        options: normalizedOptions,
+        optionColors: normalizedColors,
       );
       data = data.copyWith(
         schemas: <String, List<FieldSchema>>{
@@ -1133,7 +1453,50 @@ class HospitalAppState extends ChangeNotifier {
       next[module] =
           List<FieldSchema>.from(next[module] ?? const <FieldSchema>[]);
     }
+    _ensureSchemaField(
+      next,
+      moduleKey: 'patient',
+      field: _buildDefaultNursingLevelField(),
+    );
     data = data.copyWith(schemas: next);
+  }
+
+  void _ensureSchemaField(
+    Map<String, List<FieldSchema>> schemas, {
+    required String moduleKey,
+    required FieldSchema field,
+  }) {
+    final rows =
+        List<FieldSchema>.from(schemas[moduleKey] ?? const <FieldSchema>[]);
+    final found = rows.any((element) => element.key == field.key);
+    if (!found) {
+      rows.add(field);
+      schemas[moduleKey] = rows;
+    }
+  }
+
+  FieldSchema _buildDefaultNursingLevelField() {
+    return const FieldSchema(
+      key: 'nursingLevel',
+      label: '\u62A4\u7406\u7B49\u7EA7',
+      type: FieldType.select,
+      required: true,
+      locked: true,
+      showInList: true,
+      computed: false,
+      options: <String>[
+        '\u7279\u7EA7\u62A4\u7406',
+        '\u4E00\u7EA7\u62A4\u7406',
+        '\u4E8C\u7EA7\u62A4\u7406',
+        '\u4E09\u7EA7\u62A4\u7406',
+      ],
+      optionColors: <String, String>{
+        '\u7279\u7EA7\u62A4\u7406': '#F5C3CC',
+        '\u4E00\u7EA7\u62A4\u7406': '#FFD9A6',
+        '\u4E8C\u7EA7\u62A4\u7406': '#FFEFB5',
+        '\u4E09\u7EA7\u62A4\u7406': '#DDF4CC',
+      },
+    );
   }
 
   void _repairRows() {
@@ -1210,7 +1573,29 @@ class HospitalAppState extends ChangeNotifier {
     final diseaseSchema = schemaOf('templateDisease');
     final versionSchema = schemaOf('templateVersion');
 
-    final next = data.templates.map((disease) {
+    final assessment = _repairTemplateList(
+      templates: data.templates,
+      diseaseSchema: diseaseSchema,
+      versionSchema: versionSchema,
+    );
+    final diagnosis = _repairTemplateList(
+      templates: data.diagnosisTemplates,
+      diseaseSchema: diseaseSchema,
+      versionSchema: versionSchema,
+    );
+
+    data = data.copyWith(
+      templates: assessment,
+      diagnosisTemplates: diagnosis,
+    );
+  }
+
+  List<TemplateDisease> _repairTemplateList({
+    required List<TemplateDisease> templates,
+    required List<FieldSchema> diseaseSchema,
+    required List<FieldSchema> versionSchema,
+  }) {
+    return templates.map((disease) {
       final diseaseExtras = <String, dynamic>{...disease.extraValues};
       for (final field in diseaseSchema) {
         if (field.computed || _templateDiseaseBuiltinKeys.contains(field.key)) {
@@ -1265,8 +1650,6 @@ class HospitalAppState extends ChangeNotifier {
         extraValues: diseaseExtras,
       );
     }).toList();
-
-    data = data.copyWith(templates: next);
   }
 
   Map<String, dynamic> _fillDefaults(
@@ -1350,8 +1733,8 @@ class HospitalAppState extends ChangeNotifier {
       return;
     }
     if (moduleKey == 'templateDisease') {
-      data = data.copyWith(
-        templates: data.templates.map((row) {
+      List<TemplateDisease> patch(List<TemplateDisease> rows) {
+        return rows.map((row) {
           final extras = <String, dynamic>{...row.extraValues}..remove(key);
           final diseaseCode = key == 'diseaseCode' ? '' : row.diseaseCode;
           final description = key == 'description' ? '' : row.description;
@@ -1363,13 +1746,18 @@ class HospitalAppState extends ChangeNotifier {
             versions: row.versions,
             extraValues: extras,
           );
-        }).toList(),
+        }).toList();
+      }
+
+      data = data.copyWith(
+        templates: patch(data.templates),
+        diagnosisTemplates: patch(data.diagnosisTemplates),
       );
       return;
     }
     if (moduleKey == 'templateVersion') {
-      data = data.copyWith(
-        templates: data.templates.map((disease) {
+      List<TemplateDisease> patch(List<TemplateDisease> rows) {
+        return rows.map((disease) {
           final versions = disease.versions.map((version) {
             final extras = <String, dynamic>{...version.extraValues}
               ..remove(key);
@@ -1393,7 +1781,12 @@ class HospitalAppState extends ChangeNotifier {
             versions: versions,
             extraValues: disease.extraValues,
           );
-        }).toList(),
+        }).toList();
+      }
+
+      data = data.copyWith(
+        templates: patch(data.templates),
+        diagnosisTemplates: patch(data.diagnosisTemplates),
       );
     }
   }
@@ -1432,8 +1825,8 @@ class HospitalAppState extends ChangeNotifier {
       return;
     }
     if (moduleKey == 'templateDisease') {
-      data = data.copyWith(
-        templates: data.templates.map((row) {
+      List<TemplateDisease> patch(List<TemplateDisease> rows) {
+        return rows.map((row) {
           if (key == 'diseaseCode') {
             return TemplateDisease(
               id: row.id,
@@ -1463,13 +1856,18 @@ class HospitalAppState extends ChangeNotifier {
             versions: row.versions,
             extraValues: extras,
           );
-        }).toList(),
+        }).toList();
+      }
+
+      data = data.copyWith(
+        templates: patch(data.templates),
+        diagnosisTemplates: patch(data.diagnosisTemplates),
       );
       return;
     }
     if (moduleKey == 'templateVersion') {
-      data = data.copyWith(
-        templates: data.templates.map((disease) {
+      List<TemplateDisease> patch(List<TemplateDisease> rows) {
+        return rows.map((disease) {
           final versions = disease.versions.map((version) {
             if (key == 'year') {
               return TemplateVersion(
@@ -1515,15 +1913,47 @@ class HospitalAppState extends ChangeNotifier {
             versions: versions,
             extraValues: disease.extraValues,
           );
-        }).toList(),
+        }).toList();
+      }
+
+      data = data.copyWith(
+        templates: patch(data.templates),
+        diagnosisTemplates: patch(data.diagnosisTemplates),
       );
     }
   }
 
-  _VersionRef? _locateVersion(String diseaseId, String versionId) {
-    final diseaseIndex = data.templates.indexWhere((e) => e.id == diseaseId);
+  String _bundleKeyFromRaw({
+    required String diseaseName,
+    required String diseaseCode,
+  }) {
+    final normalizedCode = diseaseCode.trim().toLowerCase();
+    if (normalizedCode.isNotEmpty) {
+      return 'code:$normalizedCode';
+    }
+    final normalizedName = diseaseName.trim().toLowerCase();
+    return 'name:$normalizedName';
+  }
+
+  AppData _copyWithTemplatesByCatalog(
+    TemplateCatalogType catalog,
+    List<TemplateDisease> templates,
+  ) {
+    if (catalog == TemplateCatalogType.assessment) {
+      return data.copyWith(templates: templates);
+    }
+    return data.copyWith(diagnosisTemplates: templates);
+  }
+
+  _VersionRef? _locateVersion(
+    String diseaseId,
+    String versionId, {
+    TemplateCatalogType catalog = TemplateCatalogType.assessment,
+  }) {
+    final diseasesOfCatalog = templatesOf(catalog);
+    final diseaseIndex = diseasesOfCatalog.indexWhere((e) => e.id == diseaseId);
     if (diseaseIndex < 0) return null;
-    final disease = data.templates[diseaseIndex];
+    final disease = diseasesOfCatalog[diseaseIndex];
     final versionIndex = disease.versions.indexWhere((e) => e.id == versionId);
     if (versionIndex < 0) return null;
     return _VersionRef(
@@ -1536,9 +1966,10 @@ class HospitalAppState extends ChangeNotifier {
 
   void _patchVersion({
     required _VersionRef versionRef,
+    required TemplateCatalogType catalog,
     required TemplateVersion version,
   }) {
-    final diseases = List<TemplateDisease>.from(data.templates);
+    final diseases = List<TemplateDisease>.from(templatesOf(catalog));
     final versions = List<TemplateVersion>.from(versionRef.disease.versions);
     versions[versionRef.versionIndex] = version;
     diseases[versionRef.diseaseIndex] = TemplateDisease(
@@ -1549,7 +1980,7 @@ class HospitalAppState extends ChangeNotifier {
       versions: versions,
       extraValues: versionRef.disease.extraValues,
     );
-    data = data.copyWith(templates: diseases);
+    data = _copyWithTemplatesByCatalog(catalog, diseases);
     _persistDataAndNotify();
   }
 }
@@ -1566,4 +1997,54 @@ class _VersionRef {
   final int versionIndex;
   final TemplateDisease disease;
   final TemplateVersion version;
+}
+
+class TemplateDiseaseBundle {
+  const TemplateDiseaseBundle({
+    required this.key,
+    required this.assessment,
+    required this.diagnosis,
+  });
+
+  final String key;
+  final TemplateDisease? assessment;
+  final TemplateDisease? diagnosis;
+
+  TemplateDisease? get primary => assessment ?? diagnosis;
+
+  String get diseaseName => primary?.diseaseName ?? '';
+
+  String get diseaseCode => primary?.diseaseCode ?? '';
+
+  String get description => primary?.description ?? '';
+
+  int get assessmentVersionCount => assessment?.versions.length ?? 0;
+
+  int get diagnosisVersionCount => diagnosis?.versions.length ?? 0;
+}
+
+class _TemplateDiseaseBundleDraft {
+  _TemplateDiseaseBundleDraft({
+    required this.key,
+  });
+
+  final String key;
+  TemplateDisease? assessment;
+  TemplateDisease? diagnosis;
+
+  void absorb(TemplateDisease disease, TemplateCatalogType catalog) {
+    if (catalog == TemplateCatalogType.assessment) {
+      assessment ??= disease;
+      return;
+    }
+    diagnosis ??= disease;
+  }
+
+  TemplateDiseaseBundle toBundle() {
+    return TemplateDiseaseBundle(
+      key: key,
+      assessment: assessment,
+      diagnosis: diagnosis,
+    );
+  }
 }

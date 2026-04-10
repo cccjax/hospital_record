@@ -13,6 +13,7 @@ import '../widgets/assessment_score_bar.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
 import '../widgets/field_grid.dart';
+import '../widgets/responsive_layout.dart';
 import '../widgets/section_card.dart';
 import 'assessment_edit_page.dart';
 import 'assessment_readonly_page.dart';
@@ -32,6 +33,7 @@ class AdmissionDetailPage extends StatefulWidget {
 
 class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
   final ImagePicker _picker = ImagePicker();
+  TemplateCatalogType _assessmentCatalogView = TemplateCatalogType.assessment;
 
   @override
   Widget build(BuildContext context) {
@@ -56,164 +58,246 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     final dailyList = state.dailyOf(widget.admissionId);
     final assessments = state.assessmentsOf(widget.admissionId);
     final imaging = state.imagingOf(widget.admissionId);
+    final illnessAssessments = assessments
+        .where((record) =>
+            _resolveAssessmentCatalog(state, record) ==
+            TemplateCatalogType.assessment)
+        .toList(growable: false);
+    final diagnosisAssessments = assessments
+        .where((record) =>
+            _resolveAssessmentCatalog(state, record) ==
+            TemplateCatalogType.diagnosis)
+        .toList(growable: false);
+    final activeAssessments = _assessmentCatalogView == TemplateCatalogType.assessment
+        ? illnessAssessments
+        : diagnosisAssessments;
 
     return Scaffold(
       appBar: _buildAppBar(),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        children: [
-          _HeroSummary(
-            patientName:
-                patient == null ? '未命名病人' : '${patient.values['name'] ?? '-'}',
-            admissionNo: admission.admissionNo,
-            subtitle:
-                '${admission.values['admitDate'] ?? '未填写入院日期'} · ${admission.values['diagnosis'] ?? '未填写诊断'}',
-            dailyCount: dailyList.length,
-            imagingCount: imaging.length,
-            assessmentCount: assessments.length,
-          ),
-          const SizedBox(height: 10),
-          SectionCard(
-            title: '入院详情',
-            action: FilledButton.tonal(
-              onPressed: () => _editAdmission(context, admission),
-              child: const Text('编辑'),
-            ),
-            child: FieldGrid(
-              schema: admissionFields,
-              values: admission.values,
-            ),
-          ),
-          SectionCard(
-            title: '影像资料',
-            action: Wrap(
-              spacing: 6,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final layout = ResponsiveLayout.fromWidth(constraints.maxWidth);
+          return ResponsiveBody(
+            layout: layout,
+            child: ListView(
+              padding: layout.listPadding(),
               children: [
-                FilledButton.tonal(
-                  onPressed: () => _pickFromCamera(context),
-                  child: const Text('拍照'),
+                _HeroSummary(
+                  patientName: patient == null
+                      ? '未命名病人'
+                      : '${patient.values['name'] ?? '-'}',
+                  admissionNo: admission.admissionNo,
+                  admitDate: (admission.values['admitDate'] ?? 'Not set').toString(),
                 ),
-                FilledButton.tonal(
-                  onPressed: () => _pickFromAlbum(context),
-                  child: const Text('相册'),
+                const SizedBox(height: 10),
+                SectionCard(
+                  title: '入院详情',
+                  action: FilledButton.tonal(
+                    onPressed: () => _editAdmission(context, admission),
+                    child: const Text('编辑'),
+                  ),
+                  child: FieldGrid(
+                    schema: admissionFields,
+                    values: admission.values,
+                  ),
                 ),
-              ],
-            ),
-            child: imaging.isEmpty
-                ? const Text(
-                    '暂无影像资料，可使用拍照或相册上传',
-                    style: TextStyle(color: Color(0xFF7588A1)),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                SectionCard(
+                  title: '影像资料',
+                  action: Wrap(
+                    spacing: 6,
                     children: [
-                      Row(
-                        children: [
-                          const Text(
-                            '点击缩略图查看原图',
-                            style: TextStyle(
-                              color: Color(0xFF2B3F5E),
-                              fontSize: 13,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              color: const Color(0xFFF5F9FF),
-                              border:
-                                  Border.all(color: const Color(0xFFD9E5F4)),
-                            ),
-                            child: Text(
-                              '共 ${imaging.length} 张',
-                              style: const TextStyle(
-                                color: Color(0xFF4E627D),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ],
+                      FilledButton.tonal(
+                        onPressed: () => _pickFromCamera(context),
+                        child: const Text('拍照'),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final image in imaging)
-                            _ImagingThumb(
-                              image: image,
-                              onPreview: () => _previewImage(context, image),
-                              onDelete: () => _deleteImage(context, image.id),
-                            ),
-                        ],
+                      FilledButton.tonal(
+                        onPressed: () => _pickFromAlbum(context),
+                        child: const Text('相册'),
                       ),
                     ],
                   ),
-          ),
-          SectionCard(
-            title: '住院测评',
-            action: FilledButton.tonal(
-              onPressed: () => _openAssessmentEdit(context),
-              child: const Text('新增测评'),
-            ),
-            child: Column(
-              children: [
-                for (final record in assessments)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _AssessmentCard(
-                      record: record,
-                      state: state,
-                      onOpen: () => _openAssessmentReadOnly(context, record.id),
-                      onEdit: () =>
-                          _openAssessmentEdit(context, editingId: record.id),
-                      onDelete: () => _deleteAssessment(context, record.id),
-                    ),
+                  child: imaging.isEmpty
+                      ? const Text(
+                          '暂无影像资料，可使用拍照或相册上传',
+                          style: TextStyle(color: Color(0xFF7588A1)),
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  '点击缩略图查看原图',
+                                  style: TextStyle(
+                                    color: Color(0xFF2B3F5E),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(999),
+                                    color: const Color(0xFFF5F9FF),
+                                    border: Border.all(
+                                        color: const Color(0xFFD9E5F4)),
+                                  ),
+                                  child: Text(
+                                    '共 ${imaging.length} 张',
+                                    style: const TextStyle(
+                                      color: Color(0xFF4E627D),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final image in imaging)
+                                  _ImagingThumb(
+                                    image: image,
+                                    onPreview: () =>
+                                        _previewImage(context, image),
+                                    onDelete: () =>
+                                        _deleteImage(context, image.id),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                ),
+                SectionCard(
+                  title: '住院测评',
+                  action: Wrap(
+                    spacing: 6,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: () => _openAssessmentEdit(
+                          context,
+                          catalog: TemplateCatalogType.assessment,
+                        ),
+                        child: const Text('新增病情测评'),
+                      ),
+                      FilledButton.tonal(
+                        onPressed: () => _openAssessmentEdit(
+                          context,
+                          catalog: TemplateCatalogType.diagnosis,
+                        ),
+                        child: const Text('新增诊断测评'),
+                      ),
+                    ],
                   ),
-                if (assessments.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      '暂无测评记录',
-                      style: TextStyle(color: Color(0xFF7488A4)),
-                    ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.tonal(
+                              onPressed: () {
+                                setState(() {
+                                  _assessmentCatalogView =
+                                      TemplateCatalogType.assessment;
+                                });
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _assessmentCatalogView ==
+                                        TemplateCatalogType.assessment
+                                    ? const Color(0xFFD8ECFF)
+                                    : null,
+                              ),
+                              child: Text('病情测评 ${illnessAssessments.length}'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: FilledButton.tonal(
+                              onPressed: () {
+                                setState(() {
+                                  _assessmentCatalogView =
+                                      TemplateCatalogType.diagnosis;
+                                });
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: _assessmentCatalogView ==
+                                        TemplateCatalogType.diagnosis
+                                    ? const Color(0xFFD8ECFF)
+                                    : null,
+                              ),
+                              child: Text('诊断测评 ${diagnosisAssessments.length}'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (activeAssessments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            '暂无测评记录',
+                            style: TextStyle(color: Color(0xFF7488A4)),
+                          ),
+                        )
+                      else
+                        for (final record in activeAssessments)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _AssessmentCard(
+                              record: record,
+                              state: state,
+                              onOpen: () =>
+                                  _openAssessmentReadOnly(context, record.id),
+                              onEdit: () => _openAssessmentEdit(
+                                context,
+                                editingId: record.id,
+                                catalog: _resolveAssessmentCatalog(state, record),
+                              ),
+                              onDelete: () =>
+                                  _deleteAssessment(context, record.id),
+                            ),
+                          ),
+                    ],
                   ),
+                ),
+                SectionCard(
+                  title: '日常记录',
+                  action: FilledButton.tonal(
+                    onPressed: () => _openDailyDialog(context),
+                    child: const Text('新增日常'),
+                  ),
+                  child: Column(
+                    children: [
+                      for (final row in dailyList)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _DailyCard(
+                            row: row,
+                            listSchema: dailyListSchema,
+                            onOpen: () => _openDailyDetail(context, row.id),
+                            onEdit: () =>
+                                _openDailyDialog(context, editing: row),
+                            onDelete: () => _deleteDaily(context, row.id),
+                          ),
+                        ),
+                      if (dailyList.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            '暂无日常记录',
+                            style: TextStyle(color: Color(0xFF7488A4)),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          SectionCard(
-            title: '日常记录',
-            action: FilledButton.tonal(
-              onPressed: () => _openDailyDialog(context),
-              child: const Text('新增日常'),
-            ),
-            child: Column(
-              children: [
-                for (final row in dailyList)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _DailyCard(
-                      row: row,
-                      listSchema: dailyListSchema,
-                      onOpen: () => _openDailyDetail(context, row.id),
-                      onEdit: () => _openDailyDialog(context, editing: row),
-                      onDelete: () => _deleteDaily(context, row.id),
-                    ),
-                  ),
-                if (dailyList.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      '暂无日常记录',
-                      style: TextStyle(color: Color(0xFF7488A4)),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -312,12 +396,14 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
   Future<void> _openAssessmentEdit(
     BuildContext context, {
     String? editingId,
+    TemplateCatalogType? catalog,
   }) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => AssessmentEditPage(
           admissionId: widget.admissionId,
           editingAssessmentId: editingId,
+          initialCatalog: catalog,
         ),
       ),
     );
@@ -347,6 +433,34 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
     context
         .read<HospitalAppState>()
         .deleteAssessment(widget.admissionId, assessmentId);
+  }
+
+  TemplateCatalogType _resolveAssessmentCatalog(
+    HospitalAppState state,
+    AssessmentRecord record,
+  ) {
+    final byRecord = state.findVersion(
+      record.diseaseId,
+      record.versionId,
+      catalog: record.catalog,
+    );
+    if (byRecord != null) return record.catalog;
+
+    final byAssessment = state.findVersion(
+      record.diseaseId,
+      record.versionId,
+      catalog: TemplateCatalogType.assessment,
+    );
+    if (byAssessment != null) return TemplateCatalogType.assessment;
+
+    final byDiagnosis = state.findVersion(
+      record.diseaseId,
+      record.versionId,
+      catalog: TemplateCatalogType.diagnosis,
+    );
+    if (byDiagnosis != null) return TemplateCatalogType.diagnosis;
+
+    return record.catalog;
   }
 
   Future<void> _pickFromCamera(BuildContext context) async {
@@ -434,18 +548,12 @@ class _HeroSummary extends StatelessWidget {
   const _HeroSummary({
     required this.patientName,
     required this.admissionNo,
-    required this.subtitle,
-    required this.dailyCount,
-    required this.imagingCount,
-    required this.assessmentCount,
+    required this.admitDate,
   });
 
   final String patientName;
   final String admissionNo;
-  final String subtitle;
-  final int dailyCount;
-  final int imagingCount;
-  final int assessmentCount;
+  final String admitDate;
 
   @override
   Widget build(BuildContext context) {
@@ -479,26 +587,13 @@ class _HeroSummary extends StatelessWidget {
                 color: Color(0xFF1F3149),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '住院号 $admissionNo · $subtitle',
-              style: const TextStyle(
-                color: Color(0xFF5F6F85),
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                Expanded(
-                    child: _SummaryStat(label: '日常记录', value: '$dailyCount')),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _SummaryStat(label: '影像资料', value: '$imagingCount')),
-                const SizedBox(width: 8),
-                Expanded(
-                    child:
-                        _SummaryStat(label: '住院测评', value: '$assessmentCount')),
+                _HeroChip(text: '??? $admissionNo'),
+                _HeroChip(text: '住院日期 $admitDate'),
               ],
             ),
           ],
@@ -508,41 +603,28 @@ class _HeroSummary extends StatelessWidget {
   }
 }
 
-class _SummaryStat extends StatelessWidget {
-  const _SummaryStat({
-    required this.label,
-    required this.value,
-  });
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.text});
 
-  final String label;
-  final String value;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5EEF9)),
+        color: const Color(0xFFF5F9FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD9E5F4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF5A6A7E)),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1F3149),
-              ),
-            ),
-          ],
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF4E627D),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -696,8 +778,32 @@ class _AssessmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final disease = state.findDisease(record.diseaseId);
-    final version = state.findVersion(record.diseaseId, record.versionId);
+    var catalog = record.catalog;
+    var version = state.findVersion(
+      record.diseaseId,
+      record.versionId,
+      catalog: catalog,
+    );
+    if (version == null) {
+      final fallbackAssessment = state.findVersion(
+        record.diseaseId,
+        record.versionId,
+        catalog: TemplateCatalogType.assessment,
+      );
+      final fallbackDiagnosis = state.findVersion(
+        record.diseaseId,
+        record.versionId,
+        catalog: TemplateCatalogType.diagnosis,
+      );
+      if (fallbackAssessment != null) {
+        catalog = TemplateCatalogType.assessment;
+        version = fallbackAssessment;
+      } else if (fallbackDiagnosis != null) {
+        catalog = TemplateCatalogType.diagnosis;
+        version = fallbackDiagnosis;
+      }
+    }
+    final disease = state.findDisease(record.diseaseId, catalog: catalog);
     final score = version == null
         ? 0.0
         : state.calculateAssessmentScore(version, record.selections);

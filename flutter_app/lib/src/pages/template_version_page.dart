@@ -13,19 +13,18 @@ class TemplateVersionPage extends StatelessWidget {
     super.key,
     required this.diseaseId,
     required this.versionId,
+    this.catalog = TemplateCatalogType.assessment,
   });
 
   final String diseaseId;
   final String versionId;
+  final TemplateCatalogType catalog;
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HospitalAppState>();
-    final disease = state.findDisease(diseaseId);
-    final version = state.findVersion(diseaseId, versionId);
-    final optionCount =
-        version?.items.fold<int>(0, (sum, item) => sum + item.options.length) ??
-            0;
+    final disease = state.findDisease(diseaseId, catalog: catalog);
+    final version = state.findVersion(diseaseId, versionId, catalog: catalog);
     if (disease == null || version == null) {
       return Scaffold(
         appBar: _buildAppBar(),
@@ -38,14 +37,6 @@ class TemplateVersionPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          _VersionOverviewCard(
-            diseaseName: disease.diseaseName,
-            versionName: version.versionName,
-            itemCount: version.items.length,
-            optionCount: optionCount,
-            gradeCount: version.gradeRules.length,
-          ),
-          const SizedBox(height: 12),
           SectionCard(
             title: '测评项配置',
             action: FilledButton.tonal(
@@ -195,6 +186,7 @@ class TemplateVersionPage extends StatelessWidget {
                     }
 
                     final ok = state.upsertTemplateItem(
+                      catalog: catalog,
                       diseaseId: diseaseId,
                       versionId: versionId,
                       editingId: editing?.id,
@@ -249,9 +241,6 @@ class TemplateVersionPage extends StatelessWidget {
                                   errorText = '快速录入格式无效，请使用“名称:分数”';
                                 });
                                 return;
-                              }
-                              for (final draft in drafts) {
-                                draft.dispose();
                               }
                               drafts
                                 ..clear()
@@ -309,8 +298,7 @@ class TemplateVersionPage extends StatelessWidget {
                                   onPressed: drafts.length <= 1
                                       ? null
                                       : () {
-                                          final target = drafts.removeAt(i);
-                                          target.dispose();
+                                          drafts.removeAt(i);
                                           setDialogState(() {
                                             errorText = null;
                                           });
@@ -369,11 +357,10 @@ class TemplateVersionPage extends StatelessWidget {
       },
     );
 
-    nameController.dispose();
-    quickController.dispose();
-    for (final draft in drafts) {
-      draft.dispose();
-    }
+    // Controllers are intentionally not disposed here.
+    // Dialog route reverse animation may still be rebuilding TextFields
+    // after showDialog() completes, and early dispose can trigger
+    // "TextEditingController was used after being disposed".
   }
 
   Future<void> _openRuleDialog(
@@ -438,6 +425,7 @@ class TemplateVersionPage extends StatelessWidget {
                       return;
                     }
                     final ok = state.upsertTemplateGradeRule(
+                      catalog: catalog,
                       diseaseId: diseaseId,
                       versionId: versionId,
                       editingId: editing?.id,
@@ -539,10 +527,8 @@ class TemplateVersionPage extends StatelessWidget {
       },
     );
 
-    levelController.dispose();
-    minController.dispose();
-    maxController.dispose();
-    noteController.dispose();
+    // Same reason as _openItemDialog: avoid disposing controllers here
+    // to prevent dispose-race during dialog pop animation.
   }
 
   TemplateGradeRule? _findOverlappingRule({
@@ -551,7 +537,7 @@ class TemplateVersionPage extends StatelessWidget {
     required double max,
     required String? excludeId,
   }) {
-    final version = state.findVersion(diseaseId, versionId);
+    final version = state.findVersion(diseaseId, versionId, catalog: catalog);
     if (version == null) return null;
     for (final rule in version.gradeRules) {
       if (rule.id == excludeId) continue;
@@ -599,9 +585,12 @@ class TemplateVersionPage extends StatelessWidget {
     );
     if (!confirmed) return;
     if (!context.mounted) return;
-    context
-        .read<HospitalAppState>()
-        .deleteTemplateItem(diseaseId, versionId, itemId);
+    context.read<HospitalAppState>().deleteTemplateItem(
+          diseaseId,
+          versionId,
+          itemId,
+          catalog: catalog,
+        );
   }
 
   Future<void> _deleteRule(BuildContext context, String ruleId) async {
@@ -612,127 +601,12 @@ class TemplateVersionPage extends StatelessWidget {
     );
     if (!confirmed) return;
     if (!context.mounted) return;
-    context
-        .read<HospitalAppState>()
-        .deleteTemplateGradeRule(diseaseId, versionId, ruleId);
-  }
-}
-
-class _VersionOverviewCard extends StatelessWidget {
-  const _VersionOverviewCard({
-    required this.diseaseName,
-    required this.versionName,
-    required this.itemCount,
-    required this.optionCount,
-    required this.gradeCount,
-  });
-
-  final String diseaseName;
-  final String versionName;
-  final int itemCount;
-  final int optionCount;
-  final int gradeCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
-        ),
-        border: Border.all(color: const Color(0xFFE7EEF8)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x160F2744),
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              diseaseName,
-              style: const TextStyle(
-                color: Color(0xFF1F3149),
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              versionName,
-              style: const TextStyle(
-                color: Color(0xFF5F6F85),
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _MetricTile(label: '测评项', value: '$itemCount')),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _MetricTile(label: '选项数', value: '$optionCount')),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: _MetricTile(label: '分级区间', value: '$gradeCount')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5EEF9)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF5A6A7E),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF1F3149),
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    context.read<HospitalAppState>().deleteTemplateGradeRule(
+          diseaseId,
+          versionId,
+          ruleId,
+          catalog: catalog,
+        );
   }
 }
 
