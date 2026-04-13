@@ -30,8 +30,12 @@ class PatientDetailPage extends StatelessWidget {
       );
     }
 
-    final patientSchema = state.schemaOf('patient').where((f) => f.key != 'admissionNo').toList();
-    final admissionListSchema = state.listSchemaOf('admission').where((f) => f.key != 'admitDate').toList();
+    final patientSchema =
+        state.schemaOf('patient').where((f) => f.key != 'admissionNo').toList();
+    final admissionListSchema = state
+        .listSchemaOf('admission')
+        .where((f) => f.key != 'admitDate')
+        .toList();
     final admissions = state.admissionsOf(admissionNo);
 
     return Scaffold(
@@ -41,9 +45,12 @@ class PatientDetailPage extends StatelessWidget {
         children: [
           SectionCard(
             title: '基础信息',
-            action: FilledButton.tonal(
-              onPressed: () => _openPatientEditDialog(context, patient),
-              child: const Text('编辑基础信息'),
+            action: Tooltip(
+              message: '编辑基础信息',
+              child: FilledButton.tonal(
+                onPressed: () => _openPatientEditDialog(context, patient),
+                child: const Icon(Icons.edit_rounded),
+              ),
             ),
             child: FieldGrid(
               schema: patientSchema,
@@ -52,9 +59,12 @@ class PatientDetailPage extends StatelessWidget {
           ),
           SectionCard(
             title: '入院记录',
-            action: FilledButton.tonal(
-              onPressed: () => _openCreateAdmissionDialog(context),
-              child: const Text('新增入院'),
+            action: Tooltip(
+              message: '新增入院记录',
+              child: FilledButton.tonal(
+                onPressed: () => _openCreateAdmissionDialog(context),
+                child: const Icon(Icons.add_rounded),
+              ),
             ),
             child: Column(
               children: [
@@ -65,7 +75,8 @@ class PatientDetailPage extends StatelessWidget {
                       row: admission,
                       listSchema: admissionListSchema,
                       onOpen: () => _openAdmissionDetail(context, admission.id),
-                      onEdit: () => _openEditAdmissionDialog(context, admission),
+                      onEdit: () =>
+                          _openEditAdmissionDialog(context, admission),
                       onDelete: () => _deleteAdmission(context, admission.id),
                     ),
                   ),
@@ -100,7 +111,8 @@ class PatientDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _openAdmissionDetail(BuildContext context, String admissionId) async {
+  Future<void> _openAdmissionDetail(
+      BuildContext context, String admissionId) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => AdmissionDetailPage(admissionId: admissionId),
@@ -108,7 +120,8 @@ class PatientDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _openPatientEditDialog(BuildContext context, PatientRecord patient) async {
+  Future<void> _openPatientEditDialog(
+      BuildContext context, PatientRecord patient) async {
     final state = context.read<HospitalAppState>();
     final schema = state.schemaOf('patient');
     await showDialog<bool>(
@@ -169,7 +182,8 @@ class PatientDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _openEditAdmissionDialog(BuildContext context, AdmissionRecord admission) async {
+  Future<void> _openEditAdmissionDialog(
+      BuildContext context, AdmissionRecord admission) async {
     final state = context.read<HospitalAppState>();
     final schema = state.schemaOf('admission');
     await showDialog<bool>(
@@ -192,7 +206,8 @@ class PatientDetailPage extends StatelessWidget {
     );
   }
 
-  Future<void> _deleteAdmission(BuildContext context, String admissionId) async {
+  Future<void> _deleteAdmission(
+      BuildContext context, String admissionId) async {
     final confirmed = await showDeleteConfirmDialog(
       context,
       title: '删除入院记录',
@@ -250,7 +265,8 @@ class _AdmissionCard extends StatelessWidget {
                         ),
                         if (status.isNotEmpty)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: status == '在院'
                                   ? const Color(0xFFE8F7F3)
@@ -274,8 +290,18 @@ class _AdmissionCard extends StatelessWidget {
                             ),
                           ),
                         const SizedBox(width: 5),
-                        _InlineAction(title: '编辑', color: const Color(0xFF2888D8), onTap: onEdit),
-                        _InlineAction(title: '删除', color: const Color(0xFFD34C64), onTap: onDelete),
+                        _InlineAction(
+                          title: '编辑入院记录',
+                          icon: Icons.edit_rounded,
+                          color: const Color(0xFF2888D8),
+                          onTap: onEdit,
+                        ),
+                        _InlineAction(
+                          title: '删除入院记录',
+                          icon: Icons.delete_outline_rounded,
+                          color: const Color(0xFFD34C64),
+                          onTap: onDelete,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -309,32 +335,25 @@ class _AdmissionCard extends StatelessWidget {
 class _InlineAction extends StatelessWidget {
   const _InlineAction({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: color,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }

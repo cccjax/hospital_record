@@ -59,9 +59,12 @@ class _TemplateTabPageState extends State<TemplateTabPage> {
               children: [
                 SectionCard(
                   title: '病种模板中心',
-                  action: FilledButton(
-                    onPressed: () => _openDiseaseDialog(context),
-                    child: const Text('新增病种'),
+                  action: Tooltip(
+                    message: '新增病种',
+                    child: FilledButton(
+                      onPressed: () => _openDiseaseDialog(context),
+                      child: const Icon(Icons.add_rounded),
+                    ),
                   ),
                   child: TextField(
                     controller: _searchController,
@@ -313,12 +316,14 @@ class _BundleCard extends StatelessWidget {
                     ),
                   ),
                   _TinyAction(
-                    title: '编辑',
+                    title: '编辑病种',
+                    icon: Icons.edit_rounded,
                     color: const Color(0xFF2B88D8),
                     onTap: onEdit,
                   ),
                   _TinyAction(
-                    title: '删除',
+                    title: '删除病种',
+                    icon: Icons.delete_outline_rounded,
                     color: const Color(0xFFD34E66),
                     onTap: onDelete,
                   ),
@@ -352,32 +357,25 @@ class _BundleCard extends StatelessWidget {
 class _TinyAction extends StatelessWidget {
   const _TinyAction({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }

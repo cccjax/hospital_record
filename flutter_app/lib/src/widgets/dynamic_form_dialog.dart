@@ -117,6 +117,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
   }
 
   Widget _buildFieldInput(FieldSchema field) {
+    final editable = !field.locked || _canEditLockedField(field);
     if (field.type == FieldType.select) {
       if (field.options.isEmpty) {
         final controller = _controllers.putIfAbsent(
@@ -125,7 +126,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
         );
         return TextFormField(
           controller: controller,
-          enabled: !field.locked,
+          enabled: editable,
           decoration: const InputDecoration(
             hintText: '请输入内容',
           ),
@@ -161,7 +162,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
           }
           return null;
         },
-        onChanged: field.locked
+        onChanged: !editable
             ? null
             : (value) {
                 setState(() {
@@ -174,7 +175,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
     final controller = _controllers[field.key]!;
     return TextFormField(
       controller: controller,
-      enabled: !field.locked,
+      enabled: editable,
       maxLines: field.type == FieldType.textarea ? 4 : 1,
       keyboardType: switch (field.type) {
         FieldType.number => TextInputType.number,
@@ -232,7 +233,12 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
   }
 
   String _fieldDescription(FieldSchema field) {
-    if (field.locked) return '系统字段，当前仅支持查看。';
+    if (field.locked && !_canEditLockedField(field)) {
+      return '系统字段，当前仅支持查看。';
+    }
+    if (field.locked && _canEditLockedField(field)) {
+      return '系统字段，支持录入与修改。';
+    }
     return switch (field.type) {
       FieldType.number => '仅支持数字录入',
       FieldType.date => '建议使用 YYYY-MM-DD 格式',
@@ -241,6 +247,10 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
       FieldType.images => '支持拍照与相册多图上传',
       FieldType.text => '请输入文本内容',
     };
+  }
+
+  bool _canEditLockedField(FieldSchema field) {
+    return field.key == 'nursingLevel';
   }
 
   Future<void> _handleSubmit() async {

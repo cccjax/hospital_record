@@ -6,6 +6,7 @@ import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/editor_dialog.dart';
+import '../widgets/field_grid.dart';
 import '../widgets/section_card.dart';
 
 class TemplateVersionPage extends StatelessWidget {
@@ -25,6 +26,16 @@ class TemplateVersionPage extends StatelessWidget {
     final state = context.watch<HospitalAppState>();
     final disease = state.findDisease(diseaseId, catalog: catalog);
     final version = state.findVersion(diseaseId, versionId, catalog: catalog);
+    final versionListSchema = state
+        .listSchemaOf('templateVersion')
+        .where((field) => field.key != 'versionName')
+        .toList();
+    final versionValues = <String, dynamic>{
+      for (final field in versionListSchema)
+        field.key: version == null
+            ? ''
+            : state.templateVersionFieldValue(version, field.key),
+    };
     if (disease == null || version == null) {
       return Scaffold(
         appBar: _buildAppBar(),
@@ -37,11 +48,24 @@ class TemplateVersionPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          if (versionListSchema.isNotEmpty)
+            SectionCard(
+              title: '版本信息',
+              child: FieldGrid(
+                schema: versionListSchema,
+                values: versionValues,
+                compact: true,
+                columns: 3,
+              ),
+            ),
           SectionCard(
             title: '测评项配置',
-            action: FilledButton.tonal(
-              onPressed: () => _openItemDialog(context),
-              child: const Text('新增测评项'),
+            action: Tooltip(
+              message: '新增测评项',
+              child: FilledButton.tonal(
+                onPressed: () => _openItemDialog(context),
+                child: const Icon(Icons.add_rounded),
+              ),
             ),
             child: Column(
               children: [
@@ -67,9 +91,12 @@ class TemplateVersionPage extends StatelessWidget {
           ),
           SectionCard(
             title: '患病等级区间',
-            action: FilledButton.tonal(
-              onPressed: () => _openRuleDialog(context),
-              child: const Text('新增区间'),
+            action: Tooltip(
+              message: '新增区间',
+              child: FilledButton.tonal(
+                onPressed: () => _openRuleDialog(context),
+                child: const Icon(Icons.add_rounded),
+              ),
             ),
             child: Column(
               children: [
@@ -649,11 +676,17 @@ class _ItemCard extends StatelessWidget {
                   ),
                 ),
                 _ActionText(
-                    title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
+                  title: '编辑测评项',
+                  icon: Icons.edit_rounded,
+                  color: const Color(0xFF2D88D8),
+                  onTap: onEdit,
+                ),
                 _ActionText(
-                    title: '删除',
-                    color: const Color(0xFFD34E66),
-                    onTap: onDelete),
+                  title: '删除测评项',
+                  icon: Icons.delete_outline_rounded,
+                  color: const Color(0xFFD34E66),
+                  onTap: onDelete,
+                ),
               ],
             ),
             const SizedBox(height: 7),
@@ -752,11 +785,17 @@ class _RuleCard extends StatelessWidget {
                   ),
                 ),
                 _ActionText(
-                    title: '编辑', color: const Color(0xFF2D88D8), onTap: onEdit),
+                  title: '编辑区间',
+                  icon: Icons.edit_rounded,
+                  color: const Color(0xFF2D88D8),
+                  onTap: onEdit,
+                ),
                 _ActionText(
-                    title: '删除',
-                    color: const Color(0xFFD34E66),
-                    onTap: onDelete),
+                  title: '删除区间',
+                  icon: Icons.delete_outline_rounded,
+                  color: const Color(0xFFD34E66),
+                  onTap: onDelete,
+                ),
               ],
             ),
             if (rule.note.trim().isNotEmpty) ...[
@@ -780,32 +819,25 @@ class _RuleCard extends StatelessWidget {
 class _ActionText extends StatelessWidget {
   const _ActionText({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }

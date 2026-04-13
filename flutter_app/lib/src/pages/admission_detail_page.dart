@@ -68,9 +68,10 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
             _resolveAssessmentCatalog(state, record) ==
             TemplateCatalogType.diagnosis)
         .toList(growable: false);
-    final activeAssessments = _assessmentCatalogView == TemplateCatalogType.assessment
-        ? illnessAssessments
-        : diagnosisAssessments;
+    final activeAssessments =
+        _assessmentCatalogView == TemplateCatalogType.assessment
+            ? illnessAssessments
+            : diagnosisAssessments;
 
     return Scaffold(
       appBar: _buildAppBar(),
@@ -87,14 +88,18 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                       ? '未命名病人'
                       : '${patient.values['name'] ?? '-'}',
                   admissionNo: admission.admissionNo,
-                  admitDate: (admission.values['admitDate'] ?? 'Not set').toString(),
+                  admitDate:
+                      (admission.values['admitDate'] ?? 'Not set').toString(),
                 ),
                 const SizedBox(height: 10),
                 SectionCard(
                   title: '入院详情',
-                  action: FilledButton.tonal(
-                    onPressed: () => _editAdmission(context, admission),
-                    child: const Text('编辑'),
+                  action: Tooltip(
+                    message: '编辑入院详情',
+                    child: FilledButton.tonal(
+                      onPressed: () => _editAdmission(context, admission),
+                      child: const Icon(Icons.edit_rounded),
+                    ),
                   ),
                   child: FieldGrid(
                     schema: admissionFields,
@@ -176,19 +181,25 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                   action: Wrap(
                     spacing: 6,
                     children: [
-                      FilledButton.tonal(
-                        onPressed: () => _openAssessmentEdit(
-                          context,
-                          catalog: TemplateCatalogType.assessment,
+                      Tooltip(
+                        message: '新增病情测评',
+                        child: FilledButton.tonal(
+                          onPressed: () => _openAssessmentEdit(
+                            context,
+                            catalog: TemplateCatalogType.assessment,
+                          ),
+                          child: const Icon(Icons.add_chart_rounded),
                         ),
-                        child: const Text('新增病情测评'),
                       ),
-                      FilledButton.tonal(
-                        onPressed: () => _openAssessmentEdit(
-                          context,
-                          catalog: TemplateCatalogType.diagnosis,
+                      Tooltip(
+                        message: '新增诊断测评',
+                        child: FilledButton.tonal(
+                          onPressed: () => _openAssessmentEdit(
+                            context,
+                            catalog: TemplateCatalogType.diagnosis,
+                          ),
+                          child: const Icon(Icons.add_task_rounded),
                         ),
-                        child: const Text('新增诊断测评'),
                       ),
                     ],
                   ),
@@ -228,7 +239,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                                     ? const Color(0xFFD8ECFF)
                                     : null,
                               ),
-                              child: Text('诊断测评 ${diagnosisAssessments.length}'),
+                              child:
+                                  Text('诊断测评 ${diagnosisAssessments.length}'),
                             ),
                           ),
                         ],
@@ -254,7 +266,8 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                               onEdit: () => _openAssessmentEdit(
                                 context,
                                 editingId: record.id,
-                                catalog: _resolveAssessmentCatalog(state, record),
+                                catalog:
+                                    _resolveAssessmentCatalog(state, record),
                               ),
                               onDelete: () =>
                                   _deleteAssessment(context, record.id),
@@ -265,9 +278,12 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                 ),
                 SectionCard(
                   title: '日常记录',
-                  action: FilledButton.tonal(
-                    onPressed: () => _openDailyDialog(context),
-                    child: const Text('新增日常'),
+                  action: Tooltip(
+                    message: '新增日常记录',
+                    child: FilledButton.tonal(
+                      onPressed: () => _openDailyDialog(context),
+                      child: const Icon(Icons.add_rounded),
+                    ),
                   ),
                   child: Column(
                     children: [
@@ -592,7 +608,7 @@ class _HeroSummary extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _HeroChip(text: '??? $admissionNo'),
+                _HeroChip(text: '住院号 $admissionNo'),
                 _HeroChip(text: '住院日期 $admitDate'),
               ],
             ),
@@ -725,13 +741,17 @@ class _DailyCard extends StatelessWidget {
                           ),
                         ),
                         _ActionText(
-                            title: '编辑',
-                            color: const Color(0xFF2B88D8),
-                            onTap: onEdit),
+                          title: '编辑日常记录',
+                          icon: Icons.edit_rounded,
+                          color: const Color(0xFF2B88D8),
+                          onTap: onEdit,
+                        ),
                         _ActionText(
-                            title: '删除',
-                            color: const Color(0xFFD35067),
-                            onTap: onDelete),
+                          title: '删除日常记录',
+                          icon: Icons.delete_outline_rounded,
+                          color: const Color(0xFFD35067),
+                          onTap: onDelete,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -836,13 +856,17 @@ class _AssessmentCard extends StatelessWidget {
                           ),
                         ),
                         _ActionText(
-                            title: '编辑',
-                            color: const Color(0xFF2B88D8),
-                            onTap: onEdit),
+                          title: '编辑测评记录',
+                          icon: Icons.edit_rounded,
+                          color: const Color(0xFF2B88D8),
+                          onTap: onEdit,
+                        ),
                         _ActionText(
-                            title: '删除',
-                            color: const Color(0xFFD35067),
-                            onTap: onDelete),
+                          title: '删除测评记录',
+                          icon: Icons.delete_outline_rounded,
+                          color: const Color(0xFFD35067),
+                          onTap: onDelete,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -950,32 +974,25 @@ class _MiniField extends StatelessWidget {
 class _ActionText extends StatelessWidget {
   const _ActionText({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: color,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }

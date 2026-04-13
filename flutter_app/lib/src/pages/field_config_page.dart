@@ -55,10 +55,8 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                 DropdownMenuItem(value: 'patient', child: Text('病人信息')),
                 DropdownMenuItem(value: 'admission', child: Text('入院记录')),
                 DropdownMenuItem(value: 'daily', child: Text('日常记录')),
-                DropdownMenuItem(
-                    value: 'templateDisease', child: Text('病种模板')),
-                DropdownMenuItem(
-                    value: 'templateVersion', child: Text('版本列表')),
+                DropdownMenuItem(value: 'templateDisease', child: Text('病种模板')),
+                DropdownMenuItem(value: 'templateVersion', child: Text('版本列表')),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -79,9 +77,12 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                   },
                   child: Text(_sortMode ? '完成排序' : '调整顺序'),
                 ),
-                FilledButton(
-                  onPressed: () => _openFieldDialog(context, module),
-                  child: const Text('新增字段'),
+                Tooltip(
+                  message: '新增字段',
+                  child: FilledButton(
+                    onPressed: () => _openFieldDialog(context, module),
+                    child: const Icon(Icons.add_rounded),
+                  ),
                 ),
               ],
             ),
@@ -239,42 +240,78 @@ class _FieldEditorDialog extends StatefulWidget {
 }
 
 class _FieldEditorDialogState extends State<_FieldEditorDialog> {
+  static const List<String> _presetColors = <String>[
+    '#F5C3CC',
+    '#FFD9A6',
+    '#FFEFB5',
+    '#DDF4CC',
+    '#CBE8FF',
+    '#DCCFFF',
+    '#BFE7E1',
+    '#FAD2E1',
+    '#FFD6B2',
+    '#E2F0CB',
+    '#C9E4DE',
+    '#E8DFF5',
+  ];
+
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _keyController;
   late final TextEditingController _labelController;
-  late final TextEditingController _optionsController;
-  late final TextEditingController _optionColorsController;
 
   late FieldType _type;
   late bool _required;
   late bool _showInList;
+  late List<_SelectOptionEditorData> _selectOptions;
   String? _errorText;
+
+  bool get _isNursingLevelField {
+    final key = (widget.editing?.key ?? _keyController.text).trim();
+    return key == 'nursingLevel';
+  }
 
   @override
   void initState() {
     super.initState();
     _keyController = TextEditingController(text: widget.editing?.key ?? '');
     _labelController = TextEditingController(text: widget.editing?.label ?? '');
-    _optionsController = TextEditingController(
-      text: (widget.editing?.options ?? const <String>[]).join(','),
-    );
-    _optionColorsController = TextEditingController(
-      text: (widget.editing?.optionColors ?? const <String, String>{})
-          .entries
-          .map((entry) => '${entry.key}:${entry.value}')
-          .join(','),
-    );
     _type = widget.editing?.type ?? FieldType.text;
     _required = widget.editing?.required ?? false;
     _showInList = widget.editing?.showInList ?? true;
+
+    final options = widget.editing?.options ?? const <String>[];
+    final optionColors =
+        widget.editing?.optionColors ?? const <String, String>{};
+    _selectOptions = options
+        .map(
+          (label) => _SelectOptionEditorData(
+            label: label,
+            colorHex: optionColors[label],
+          ),
+        )
+        .toList();
+    if (_selectOptions.isEmpty) {
+      _selectOptions = <_SelectOptionEditorData>[
+        _SelectOptionEditorData(
+          label: '',
+          colorHex: _isNursingLevelField ? _presetColors.first : null,
+        ),
+      ];
+    }
+    if (_isNursingLevelField) {
+      for (var i = 0; i < _selectOptions.length; i += 1) {
+        _selectOptions[i].colorHex ??= _presetColors[i % _presetColors.length];
+      }
+    }
   }
 
   @override
   void dispose() {
     _keyController.dispose();
     _labelController.dispose();
-    _optionsController.dispose();
-    _optionColorsController.dispose();
+    for (final option in _selectOptions) {
+      option.dispose();
+    }
     super.dispose();
   }
 
@@ -372,29 +409,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
             ),
             if (_type == FieldType.select) ...[
               const SizedBox(height: 10),
-              EditorPanel(
-                title: '下拉选项',
-                description: '用英文逗号分隔，例如：在院,出院',
-                child: TextFormField(
-                  controller: _optionsController,
-                  decoration: const InputDecoration(
-                    labelText: '选项内容',
-                    hintText: '例如：特级护理,一级护理,二级护理',
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              EditorPanel(
-                title: '选项颜色（可选）',
-                description: '格式：选项:颜色，用逗号分隔，例如 一级护理:#FFD9A6,二级护理:#FFEFB5',
-                child: TextFormField(
-                  controller: _optionColorsController,
-                  decoration: const InputDecoration(
-                    labelText: '颜色映射',
-                    hintText: '支持 #RRGGBB 或 #AARRGGBB',
-                  ),
-                ),
-              ),
+              _buildSelectOptionEditor(),
             ],
             const SizedBox(height: 10),
             EditorPanel(
@@ -461,33 +476,59 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     final key = widget.editing?.key ?? _keyController.text.trim();
     final label = _labelController.text.trim();
     final fixedType = widget.editing?.type ?? _type;
-    final options = fixedType == FieldType.select
-        ? _optionsController.text
-            .split(',')
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList()
-        : const <String>[];
-    if (fixedType == FieldType.select && options.isEmpty) {
-      setState(() {
-        _errorText = '下拉类型至少配置一个可选项';
-      });
-      return;
-    }
-
+    final options = <String>[];
     var optionColors = <String, String>{};
+
     if (fixedType == FieldType.select) {
-      final parsed = _parseOptionColors(_optionColorsController.text);
-      if (parsed == null) {
+      for (final option in _selectOptions) {
+        final value = option.labelController.text.trim();
+        if (value.isNotEmpty) {
+          options.add(value);
+        }
+      }
+      if (options.isEmpty) {
         setState(() {
-          _errorText = '颜色映射格式不正确，请使用 选项:#RRGGBB';
+          _errorText = '下拉类型至少配置一个可选项';
         });
         return;
       }
-      optionColors = <String, String>{
-        for (final entry in parsed.entries)
-          if (options.contains(entry.key)) entry.key: entry.value,
-      };
+
+      final seen = <String>{};
+      final duplicates = <String>{};
+      for (final option in options) {
+        if (!seen.add(option)) {
+          duplicates.add(option);
+        }
+      }
+      if (duplicates.isNotEmpty) {
+        setState(() {
+          _errorText = '存在重复选项：${duplicates.join('、')}';
+        });
+        return;
+      }
+
+      optionColors = <String, String>{};
+      for (final option in _selectOptions) {
+        final name = option.labelController.text.trim();
+        if (name.isEmpty) continue;
+        final colorHex = option.colorHex?.trim();
+        if (colorHex == null || colorHex.isEmpty) {
+          if (_isNursingLevelField) {
+            setState(() {
+              _errorText = '护理等级的每个选项都需要配置颜色';
+            });
+            return;
+          }
+          continue;
+        }
+        if (!_isValidHexColor(colorHex)) {
+          setState(() {
+            _errorText = '颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB';
+          });
+          return;
+        }
+        optionColors[name] = colorHex.toUpperCase();
+      }
     }
 
     final field = FieldSchema(
@@ -504,27 +545,167 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     Navigator.of(context).pop(field);
   }
 
-  Map<String, String>? _parseOptionColors(String raw) {
-    final text = raw.trim();
-    if (text.isEmpty) return <String, String>{};
-    final map = <String, String>{};
-    final rows = text.split(',');
+  Widget _buildSelectOptionEditor() {
+    final isNursing = _isNursingLevelField;
+    return EditorPanel(
+      title: isNursing ? '护理等级配置' : '下拉选项配置',
+      description: isNursing
+          ? '护理等级是系统字段，不可删除；可配置每个等级对应颜色，首页卡片会自动联动。'
+          : '逐项配置下拉选项，支持直观颜色选择。',
+      child: Column(
+        children: [
+          for (var i = 0; i < _selectOptions.length; i += 1) ...[
+            _buildOptionRow(i),
+            if (i < _selectOptions.length - 1) const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FilledButton.tonalIcon(
+              onPressed: _addOption,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('新增选项'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionRow(int index) {
+    final item = _selectOptions[index];
+    final color = _parseHexColor(item.colorHex) ?? const Color(0xFFDCE7F5);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: item.labelController,
+                  decoration: InputDecoration(
+                    labelText: '选项 ${index + 1}',
+                    hintText: '请输入选项名称',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => _pickOptionColor(index),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFC7D6EA)),
+                  ),
+                  child: const Icon(
+                    Icons.color_lens_rounded,
+                    size: 20,
+                    color: Color(0xFF344A66),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: item.colorHex == null && !_isNursingLevelField
+                    ? null
+                    : () {
+                        setState(() {
+                          item.colorHex = _isNursingLevelField
+                              ? _presetColors[index % _presetColors.length]
+                              : null;
+                        });
+                      },
+                icon: const Icon(Icons.restart_alt_rounded),
+                tooltip: _isNursingLevelField ? '恢复建议色' : '清空颜色',
+                visualDensity: VisualDensity.compact,
+              ),
+              IconButton(
+                onPressed: _selectOptions.length <= 1
+                    ? null
+                    : () => _removeOption(index),
+                icon: const Icon(Icons.delete_outline_rounded),
+                tooltip: '删除选项',
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              item.colorHex == null ? '未设置颜色' : '颜色：${item.colorHex}',
+              style: const TextStyle(
+                color: Color(0xFF6A809D),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addOption() {
+    setState(() {
+      final color = _isNursingLevelField
+          ? _presetColors[_selectOptions.length % _presetColors.length]
+          : null;
+      _selectOptions.add(_SelectOptionEditorData(label: '', colorHex: color));
+    });
+  }
+
+  void _removeOption(int index) {
+    if (_selectOptions.length <= 1) return;
+    setState(() {
+      final target = _selectOptions.removeAt(index);
+      target.dispose();
+    });
+  }
+
+  Future<void> _pickOptionColor(int index) async {
+    final current = _selectOptions[index].colorHex;
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _ColorPickerDialog(
+        initialHex: current,
+        presets: _presetColors,
+      ),
+    );
+    if (!mounted || selected == null) return;
+    setState(() {
+      _selectOptions[index].colorHex = selected;
+    });
+  }
+
+  bool _isValidHexColor(String value) {
     final reg = RegExp(r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$');
-    for (final row in rows) {
-      final part = row.trim();
-      if (part.isEmpty) continue;
-      final idx = part.indexOf(':');
-      if (idx <= 0 || idx >= part.length - 1) {
-        return null;
-      }
-      final name = part.substring(0, idx).trim();
-      final color = part.substring(idx + 1).trim();
-      if (name.isEmpty || !reg.hasMatch(color)) {
-        return null;
-      }
-      map[name] = color.toUpperCase();
+    return reg.hasMatch(value);
+  }
+
+  Color? _parseHexColor(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return null;
+    var hex = value.replaceAll('#', '');
+    if (hex.length == 6) {
+      hex = 'FF$hex';
     }
-    return map;
+    if (hex.length != 8) return null;
+    final parsed = int.tryParse(hex, radix: 16);
+    if (parsed == null) return null;
+    return Color(parsed);
   }
 
   Widget _buildToggleRow({
@@ -575,6 +756,284 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
         ),
       ),
     );
+  }
+}
+
+class _ColorPickerDialog extends StatefulWidget {
+  const _ColorPickerDialog({
+    required this.initialHex,
+    required this.presets,
+  });
+
+  final String? initialHex;
+  final List<String> presets;
+
+  @override
+  State<_ColorPickerDialog> createState() => _ColorPickerDialogState();
+}
+
+class _ColorPickerDialogState extends State<_ColorPickerDialog> {
+  late final TextEditingController _controller;
+  late Color _selectedColor;
+  late double _red;
+  late double _green;
+  late double _blue;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedColor = _hexToColor(
+      widget.initialHex ??
+          (widget.presets.isNotEmpty ? widget.presets.first : '#DCE7F5'),
+    );
+    _red = _to255(_selectedColor.r).toDouble();
+    _green = _to255(_selectedColor.g).toDouble();
+    _blue = _to255(_selectedColor.b).toDouble();
+    _controller = TextEditingController(text: _colorToHex(_selectedColor));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('颜色选色盘'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: _selectedColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFC7D6EA)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '当前颜色：${_colorToHex(_selectedColor)}',
+                    style: const TextStyle(
+                      color: Color(0xFF445A76),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _buildColorSlider(
+              label: 'R',
+              value: _red,
+              activeColor: Colors.red,
+              onChanged: (value) {
+                setState(() {
+                  _red = value;
+                  _syncSelectedColor();
+                });
+              },
+            ),
+            _buildColorSlider(
+              label: 'G',
+              value: _green,
+              activeColor: Colors.green,
+              onChanged: (value) {
+                setState(() {
+                  _green = value;
+                  _syncSelectedColor();
+                });
+              },
+            ),
+            _buildColorSlider(
+              label: 'B',
+              value: _blue,
+              activeColor: Colors.blue,
+              onChanged: (value) {
+                setState(() {
+                  _blue = value;
+                  _syncSelectedColor();
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final hex in widget.presets)
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedColor = _hexToColor(hex);
+                        _red = _to255(_selectedColor.r).toDouble();
+                        _green = _to255(_selectedColor.g).toDouble();
+                        _blue = _to255(_selectedColor.b).toDouble();
+                        _controller.text = _colorToHex(_selectedColor);
+                        _error = null;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: _hexToColor(hex),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFC7D6EA)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _controller,
+              decoration: InputDecoration(
+                labelText: '颜色值',
+                hintText: '#FFD9A6',
+                errorText: _error,
+              ),
+              onChanged: (value) {
+                final reg = RegExp(r'^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$');
+                if (!reg.hasMatch(value.trim())) return;
+                final color = _hexToColor(value.trim());
+                setState(() {
+                  _selectedColor = color;
+                  _red = _to255(color.r).toDouble();
+                  _green = _to255(color.g).toDouble();
+                  _blue = _to255(color.b).toDouble();
+                  _error = null;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final value = _controller.text.trim().toUpperCase();
+            final reg = RegExp(r'^#([0-9A-F]{6}|[0-9A-F]{8})$');
+            if (!reg.hasMatch(value)) {
+              setState(() {
+                _error = '请输入有效的十六进制颜色';
+              });
+              return;
+            }
+            Navigator.of(context).pop(_colorToHex(_hexToColor(value)));
+          },
+          child: const Text('确定'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildColorSlider({
+    required String label,
+    required double value,
+    required Color activeColor,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 20,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF60748E),
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Slider(
+            value: value,
+            max: 255,
+            min: 0,
+            activeColor: activeColor,
+            inactiveColor: const Color(0xFFDCE7F5),
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(
+          width: 34,
+          child: Text(
+            value.round().toString(),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Color(0xFF60748E),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _syncSelectedColor() {
+    _selectedColor = Color.fromRGBO(
+      _red.round().clamp(0, 255),
+      _green.round().clamp(0, 255),
+      _blue.round().clamp(0, 255),
+      1,
+    );
+    _controller.text = _colorToHex(_selectedColor);
+    _error = null;
+  }
+
+  String _colorToHex(Color color) {
+    final red = _to255(color.r).toRadixString(16).padLeft(2, '0').toUpperCase();
+    final green =
+        _to255(color.g).toRadixString(16).padLeft(2, '0').toUpperCase();
+    final blue =
+        _to255(color.b).toRadixString(16).padLeft(2, '0').toUpperCase();
+    return '#$red$green$blue';
+  }
+
+  int _to255(double channel) {
+    return (channel * 255.0).round().clamp(0, 255);
+  }
+
+  Color _hexToColor(String hexValue) {
+    var hex = hexValue.replaceAll('#', '');
+    if (hex.length == 6) {
+      hex = 'FF$hex';
+    }
+    final value = int.tryParse(hex, radix: 16) ?? 0xFFDCE7F5;
+    return Color(value);
+  }
+}
+
+class _SelectOptionEditorData {
+  _SelectOptionEditorData({
+    required String label,
+    this.colorHex,
+  }) : labelController = TextEditingController(text: label);
+
+  final TextEditingController labelController;
+  String? colorHex;
+
+  void dispose() {
+    labelController.dispose();
   }
 }
 
@@ -736,16 +1195,22 @@ class _FieldRow extends StatelessWidget {
                     ),
                   ),
                   _RowAction(
-                      title: '编辑',
-                      color: const Color(0xFF2C88D8),
-                      onTap: onEdit),
+                    title: '编辑字段',
+                    icon: Icons.edit_rounded,
+                    color: const Color(0xFF2C88D8),
+                    onTap: onEdit,
+                  ),
                   _RowAction(
                     title: field.showInList ? '设为隐藏' : '设为显示',
+                    icon: field.showInList
+                        ? Icons.visibility_off_rounded
+                        : Icons.visibility_rounded,
                     color: const Color(0xFF637A97),
                     onTap: onToggleShow,
                   ),
                   _RowAction(
-                    title: '删除',
+                    title: '删除字段',
+                    icon: Icons.delete_outline_rounded,
                     color: const Color(0xFFD45067),
                     onTap: canDelete ? onDelete : null,
                   ),
@@ -820,32 +1285,25 @@ class _FieldRow extends StatelessWidget {
 class _RowAction extends StatelessWidget {
   const _RowAction({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: onTap == null ? const Color(0xFFB2BDCC) : color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: onTap == null ? const Color(0xFFB2BDCC) : color,
       ),
     );
   }

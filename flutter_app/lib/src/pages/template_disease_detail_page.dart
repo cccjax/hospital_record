@@ -6,6 +6,7 @@ import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
+import '../widgets/field_grid.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/section_card.dart';
 import 'template_version_page.dart';
@@ -54,6 +55,10 @@ class _TemplateDiseaseDetailPageState extends State<TemplateDiseaseDetailPage> {
         ? bundle.assessment
         : bundle.diagnosis;
     final versions = disease?.versions ?? const <TemplateVersion>[];
+    final versionListSchema = state
+        .listSchemaOf('templateVersion')
+        .where((field) => field.key != 'versionName')
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -87,8 +92,10 @@ class _TemplateDiseaseDetailPageState extends State<TemplateDiseaseDetailPage> {
                 ),
                 const SizedBox(height: 10),
                 _VersionSection(
+                  state: state,
                   catalog: _catalog,
                   versions: versions,
+                  versionListSchema: versionListSchema,
                   onAddVersion: () =>
                       _addVersionForBundle(context, bundle, _catalog),
                   onOpenVersion: (version) {
@@ -373,16 +380,20 @@ class _SwitchButton extends StatelessWidget {
 
 class _VersionSection extends StatelessWidget {
   const _VersionSection({
+    required this.state,
     required this.catalog,
     required this.versions,
+    required this.versionListSchema,
     required this.onAddVersion,
     required this.onOpenVersion,
     required this.onEditVersion,
     required this.onDeleteVersion,
   });
 
+  final HospitalAppState state;
   final TemplateCatalogType catalog;
   final List<TemplateVersion> versions;
+  final List<FieldSchema> versionListSchema;
   final VoidCallback onAddVersion;
   final ValueChanged<TemplateVersion> onOpenVersion;
   final ValueChanged<TemplateVersion> onEditVersion;
@@ -392,10 +403,12 @@ class _VersionSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: catalog == TemplateCatalogType.assessment ? '病情评估版本' : '诊断模板版本',
-      action: FilledButton(
-        onPressed: onAddVersion,
-        child: Text(
-          catalog == TemplateCatalogType.assessment ? '新增评估版本' : '新增诊断版本',
+      action: Tooltip(
+        message:
+            catalog == TemplateCatalogType.assessment ? '新增评估版本' : '新增诊断版本',
+        child: FilledButton(
+          onPressed: onAddVersion,
+          child: const Icon(Icons.add_rounded),
         ),
       ),
       child: Column(
@@ -414,7 +427,9 @@ class _VersionSection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: _VersionCard(
+                state: state,
                 version: version,
+                schema: versionListSchema,
                 onOpen: () => onOpenVersion(version),
                 onEdit: () => onEditVersion(version),
                 onDelete: () => onDeleteVersion(version),
@@ -428,23 +443,27 @@ class _VersionSection extends StatelessWidget {
 
 class _VersionCard extends StatelessWidget {
   const _VersionCard({
+    required this.state,
     required this.version,
+    required this.schema,
     required this.onOpen,
     required this.onEdit,
     required this.onDelete,
   });
 
+  final HospitalAppState state;
   final TemplateVersion version;
+  final List<FieldSchema> schema;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final optionCount = version.items.fold<int>(
-      0,
-      (sum, item) => sum + item.options.length,
-    );
+    final values = <String, dynamic>{
+      for (final field in schema)
+        field.key: state.templateVersionFieldValue(version, field.key),
+    };
     return DecoratedBox(
       decoration: BoxDecoration(
         color: const Color(0xFFFFFFFF),
@@ -475,12 +494,14 @@ class _VersionCard extends StatelessWidget {
                     ),
                   ),
                   _TinyAction(
-                    title: '编辑',
+                    title: '编辑版本',
+                    icon: Icons.edit_rounded,
                     color: const Color(0xFF2C88D8),
                     onTap: onEdit,
                   ),
                   _TinyAction(
-                    title: '删除',
+                    title: '删除版本',
+                    icon: Icons.delete_outline_rounded,
                     color: const Color(0xFFD34E66),
                     onTap: onDelete,
                   ),
@@ -494,49 +515,17 @@ class _VersionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _MetaChip(label: '测评项', value: '${version.items.length}'),
-                  _MetaChip(label: '选项数', value: '$optionCount'),
-                  _MetaChip(
-                      label: '分级区间', value: '${version.gradeRules.length}'),
-                ],
-              ),
+              if (schema.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                FieldGrid(
+                  schema: schema,
+                  values: values,
+                  compact: true,
+                  columns: 3,
+                ),
+              ],
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FF),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFDCE7F6)),
-      ),
-      child: Text(
-        '$label：$value',
-        style: const TextStyle(
-          color: Color(0xFF61758F),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -546,32 +535,25 @@ class _MetaChip extends StatelessWidget {
 class _TinyAction extends StatelessWidget {
   const _TinyAction({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }

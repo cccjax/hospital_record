@@ -41,6 +41,59 @@ class HospitalAppState extends ChangeNotifier {
     'gradeCount',
   };
 
+  static const Map<String, Map<String, String>> _coreFieldLabels =
+      <String, Map<String, String>>{
+    'patient': <String, String>{
+      'admissionNo': '住院号',
+      'name': '姓名',
+      'gender': '性别',
+      'age': '年龄',
+      'nursingLevel': '护理等级',
+      'phone': '联系电话',
+    },
+    'admission': <String, String>{
+      'admitDate': '入院日期',
+      'department': '科室',
+      'diagnosis': '初步诊断',
+      'attendingDoctor': '主治医生',
+      'status': '状态',
+    },
+    'daily': <String, String>{
+      'recordDate': '记录日期',
+      'temperature': '体温(℃)',
+      'bloodPressure': '血压',
+      'notes': '病情记录',
+    },
+    'templateDisease': <String, String>{
+      'diseaseCode': '病种编码',
+      'versionCount': '版本数',
+      'itemCount': '测评项总数',
+      'description': '说明',
+    },
+    'templateVersion': <String, String>{
+      'year': '年度',
+      'itemCount': '测评项',
+      'optionCount': '选项数',
+      'gradeCount': '分级区间',
+      'description': '说明',
+    },
+  };
+
+  static const Map<String, List<String>> _coreSelectFieldOptions =
+      <String, List<String>>{
+    'patient:gender': <String>['男', '女'],
+    'patient:nursingLevel': <String>['特级护理', '一级护理', '二级护理', '三级护理'],
+    'admission:status': <String>['在院', '出院'],
+  };
+
+  static const Map<String, String> _defaultNursingLevelOptionColors =
+      <String, String>{
+    '特级护理': '#F5C3CC',
+    '一级护理': '#FFD9A6',
+    '二级护理': '#FFEFB5',
+    '三级护理': '#DDF4CC',
+  };
+
   AppData data = AppData.empty();
   SecuritySettings security = const SecuritySettings(
     passwordEnabled: false,
@@ -60,6 +113,7 @@ class HospitalAppState extends ChangeNotifier {
 
   Future<void> initialize() async {
     final snapshot = await repository.load();
+    String? originalDataJson;
     if (snapshot == null) {
       data = buildDefaultAppData(_createId);
       security = const SecuritySettings(
@@ -70,8 +124,13 @@ class HospitalAppState extends ChangeNotifier {
     } else {
       data = snapshot.data;
       security = snapshot.security;
+      originalDataJson = jsonEncode(data.toJson());
     }
     _repairAndNormalizeData();
+    if (originalDataJson != null &&
+        originalDataJson != jsonEncode(data.toJson())) {
+      await repository.saveData(data);
+    }
     sessionUnlocked = !isPasswordEnabled;
     initialized = true;
     notifyListeners();
@@ -1398,18 +1457,30 @@ class HospitalAppState extends ChangeNotifier {
     if (nursingIdx >= 0) {
       final fallback = _buildDefaultNursingLevelField();
       final nursingField = patientSchema[nursingIdx];
-      final normalizedOptions = nursingField.options.isNotEmpty
-          ? nursingField.options
+      final customOptions = nursingField.options
+          .map((option) => _tryRepairMojibake(option.trim()))
+          .where((option) => option.isNotEmpty)
+          .toList();
+      final hasCorruptedOption =
+          customOptions.any((option) => _looksCorruptedText(option));
+      final normalizedOptions = customOptions.isNotEmpty && !hasCorruptedOption
+          ? customOptions
           : fallback.options;
       final normalizedColors = <String, String>{};
       for (final option in normalizedOptions) {
         final color =
             nursingField.optionColors[option] ?? fallback.optionColors[option];
-        if (color != null && color.trim().isNotEmpty) {
-          normalizedColors[option] = color.trim();
+        final normalizedColor = _normalizeColorHex(color);
+        if (normalizedColor != null) {
+          normalizedColors[option] = normalizedColor;
         }
       }
       patientSchema[nursingIdx] = nursingField.copyWith(
+        label: _normalizeFieldLabel(
+          'patient',
+          'nursingLevel',
+          nursingField.label,
+        ),
         required: true,
         locked: true,
         type: FieldType.select,
@@ -1458,7 +1529,7 @@ class HospitalAppState extends ChangeNotifier {
       moduleKey: 'patient',
       field: _buildDefaultNursingLevelField(),
     );
-    data = data.copyWith(schemas: next);
+    data = data.copyWith(schemas: _normalizeSchemaFields(next));
   }
 
   void _ensureSchemaField(
@@ -1497,6 +1568,144 @@ class HospitalAppState extends ChangeNotifier {
         '\u4E09\u7EA7\u62A4\u7406': '#DDF4CC',
       },
     );
+  }
+
+  Map<String, List<FieldSchema>> _normalizeSchemaFields(
+    Map<String, List<FieldSchema>> schemas,
+  ) {
+    final next = <String, List<FieldSchema>>{};
+    for (final entry in schemas.entries) {
+      next[entry.key] = entry.value
+          .map((field) => _normalizeSchemaField(entry.key, field))
+          .toList();
+    }
+    return next;
+  }
+
+  FieldSchema _normalizeSchemaField(String moduleKey, FieldSchema field) {
+    final normalizedLabel =
+        _normalizeFieldLabel(moduleKey, field.key, field.label);
+
+    if (field.type != FieldType.select) {
+      return field.copyWith(
+        label: normalizedLabel,
+        options: const <String>[],
+        optionColors: const <String, String>{},
+      );
+    }
+
+    final defaults = _coreOptionDefaultsForField(moduleKey, field.key);
+    var options = field.options
+        .map((option) => _tryRepairMojibake(option.trim()))
+        .where((option) => option.isNotEmpty)
+        .toList();
+    final hasCorruptedOption = options.any(_looksCorruptedText);
+    if ((options.isEmpty || hasCorruptedOption) && defaults.isNotEmpty) {
+      options = List<String>.from(defaults);
+    }
+    final deduplicated = <String>[];
+    final seen = <String>{};
+    for (final option in options) {
+      if (seen.add(option)) {
+        deduplicated.add(option);
+      }
+    }
+    options = deduplicated;
+
+    final optionColors = <String, String>{};
+    for (final option in options) {
+      final normalized = _normalizeColorHex(field.optionColors[option]);
+      if (normalized != null) {
+        optionColors[option] = normalized;
+        continue;
+      }
+      if (moduleKey == 'patient' && field.key == 'nursingLevel') {
+        final fallbackColor = _defaultNursingLevelOptionColors[option];
+        if (fallbackColor != null) {
+          optionColors[option] = fallbackColor;
+        }
+      }
+    }
+
+    return field.copyWith(
+      label: normalizedLabel,
+      options: options,
+      optionColors: optionColors,
+    );
+  }
+
+  String _normalizeFieldLabel(
+    String moduleKey,
+    String fieldKey,
+    String rawLabel,
+  ) {
+    final label = _tryRepairMojibake(rawLabel.trim());
+    final defaultLabel = _coreFieldLabels[moduleKey]?[fieldKey];
+    if (label.isEmpty || _looksCorruptedText(label)) {
+      return defaultLabel ?? fieldKey;
+    }
+    return label;
+  }
+
+  List<String> _coreOptionDefaultsForField(String moduleKey, String fieldKey) {
+    return _coreSelectFieldOptions['$moduleKey:$fieldKey'] ?? const <String>[];
+  }
+
+  String _normalizeText(String raw) {
+    final text = _tryRepairMojibake(raw.trim());
+    return _looksCorruptedText(text) ? '' : text;
+  }
+
+  String _tryRepairMojibake(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return text;
+    if (!RegExp(r'[ÃÂÐÑØÞßà-ÿ]').hasMatch(text)) {
+      return text;
+    }
+    try {
+      final decoded = utf8.decode(latin1.encode(text));
+      final currentScore = _readabilityScore(text);
+      final decodedScore = _readabilityScore(decoded);
+      if (decodedScore > currentScore) {
+        return decoded.trim();
+      }
+    } catch (_) {
+      // Skip broken legacy values and keep original when it cannot be decoded.
+    }
+    return text;
+  }
+
+  int _readabilityScore(String text) {
+    final cjk = RegExp(r'[\u4E00-\u9FFF]').allMatches(text).length;
+    final question = '?'.allMatches(text).length;
+    final mojibake =
+        RegExp(r'(?:Ã.|Â.|Ð.|Ñ.|Ø.|Þ.|ß.)').allMatches(text).length;
+    return cjk * 3 - question * 2 - mojibake * 2;
+  }
+
+  bool _looksCorruptedText(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return false;
+    if (text.contains('�')) return true;
+    final questionMarks = '?'.allMatches(text).length;
+    if (questionMarks >= 2 && questionMarks * 2 >= text.length) {
+      return true;
+    }
+    final hasMojibakeChars =
+        RegExp(r'(?:Ã.|Â.|Ð.|Ñ.|Ø.|Þ.|ß.|æ.|ç.|å.)').hasMatch(text);
+    final hasCjk = RegExp(r'[\u4E00-\u9FFF]').hasMatch(text);
+    if (hasMojibakeChars && !hasCjk) {
+      return true;
+    }
+    return false;
+  }
+
+  String? _normalizeColorHex(String? rawValue) {
+    final value = (rawValue ?? '').trim().toUpperCase();
+    if (value.isEmpty) return null;
+    final matcher = RegExp(r'^#([0-9A-F]{6}|[0-9A-F]{8})$');
+    if (!matcher.hasMatch(value)) return null;
+    return value;
   }
 
   void _repairRows() {
@@ -1603,6 +1812,9 @@ class HospitalAppState extends ChangeNotifier {
         }
         if (!diseaseExtras.containsKey(field.key)) {
           diseaseExtras[field.key] = _defaultValueForField(field);
+        } else {
+          diseaseExtras[field.key] =
+              _normalizeValueByField(diseaseExtras[field.key], field);
         }
       }
 
@@ -1615,6 +1827,9 @@ class HospitalAppState extends ChangeNotifier {
           }
           if (!versionExtras.containsKey(field.key)) {
             versionExtras[field.key] = _defaultValueForField(field);
+          } else {
+            versionExtras[field.key] =
+                _normalizeValueByField(versionExtras[field.key], field);
           }
         }
 
@@ -1623,18 +1838,33 @@ class HospitalAppState extends ChangeNotifier {
               item.options.where((opt) => opt.id.trim().isNotEmpty).toList();
           return TemplateItem(
             id: item.id,
-            name: item.name,
-            options: options,
+            name: _normalizeText(item.name),
+            options: options
+                .map((option) => TemplateOption(
+                      id: option.id,
+                      label: _normalizeText(option.label),
+                      score: option.score,
+                    ))
+                .toList(),
           );
         }).toList();
         final rules = version.gradeRules
             .where((rule) => rule.id.trim().isNotEmpty)
+            .map(
+              (rule) => TemplateGradeRule(
+                id: rule.id,
+                min: rule.min,
+                max: rule.max,
+                level: _normalizeText(rule.level),
+                note: _normalizeText(rule.note),
+              ),
+            )
             .toList();
         return TemplateVersion(
           id: version.id,
-          versionName: version.versionName,
-          year: version.year,
-          description: version.description,
+          versionName: _normalizeText(version.versionName),
+          year: _normalizeText(version.year),
+          description: _normalizeText(version.description),
           items: items,
           gradeRules: rules,
           extraValues: versionExtras,
@@ -1643,9 +1873,9 @@ class HospitalAppState extends ChangeNotifier {
 
       return TemplateDisease(
         id: disease.id,
-        diseaseName: disease.diseaseName,
-        diseaseCode: disease.diseaseCode,
-        description: disease.description,
+        diseaseName: _normalizeText(disease.diseaseName),
+        diseaseCode: _normalizeText(disease.diseaseCode),
+        description: _normalizeText(disease.description),
         versions: versions,
         extraValues: diseaseExtras,
       );
@@ -1660,6 +1890,8 @@ class HospitalAppState extends ChangeNotifier {
     for (final field in schema) {
       if (!next.containsKey(field.key)) {
         next[field.key] = _defaultValueForField(field);
+      } else {
+        next[field.key] = _normalizeValueByField(next[field.key], field);
       }
     }
     return next;
@@ -1700,6 +1932,28 @@ class HospitalAppState extends ChangeNotifier {
       default:
         return '';
     }
+  }
+
+  dynamic _normalizeValueByField(dynamic value, FieldSchema field) {
+    if (field.type == FieldType.images) {
+      if (value is List) return value;
+      return <dynamic>[];
+    }
+    if (field.type == FieldType.number) {
+      final parsed = num.tryParse((value ?? '').toString());
+      return parsed?.toString() ?? '';
+    }
+    final text = _normalizeText((value ?? '').toString());
+    if (field.type == FieldType.select) {
+      if (text.isEmpty) {
+        return _defaultValueForField(field);
+      }
+      if (field.options.isNotEmpty && !field.options.contains(text)) {
+        return _defaultValueForField(field);
+      }
+      return text;
+    }
+    return text;
   }
 
   void _dropFieldFromRows(String moduleKey, String key) {

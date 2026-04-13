@@ -83,17 +83,21 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       child: TextField(
                         controller: _searchController,
                         decoration: const InputDecoration(
-                          hintText: '杈撳叆浣忛櫌鍙?姓名搜索',
+                          hintText: '输入住院号/姓名搜索',
                           prefixIcon: Icon(Icons.search_rounded),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    SizedBox(
-                      width: layout.isTablet ? 112 : null,
-                      child: FilledButton(
+                    Tooltip(
+                      message: '新增病人',
+                      child: IconButton.filled(
                         onPressed: () => _openPatientDialog(context),
-                        child: const Text('新增'),
+                        icon: const Icon(Icons.add_rounded),
+                        iconSize: 20,
+                        visualDensity: layout.isTablet
+                            ? VisualDensity.standard
+                            : VisualDensity.compact,
                       ),
                     ),
                   ],
@@ -183,7 +187,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       context: context,
       builder: (dialogContext) {
         return DynamicFormDialog(
-          title: editing == null ? '新增病人' : '编辑鐥呬汉',
+          title: editing == null ? '新增病人' : '编辑病人',
           schema: schema,
           initialValues: initial,
           onSubmit: (values) async {
@@ -202,7 +206,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
     final confirmed = await showDeleteConfirmDialog(
       context,
       title: '删除病人',
-      content: '删除鍚庡皢鍚屾删除璇ョ梾浜虹殑鍏ラ櫌璁板綍銆佹棩甯歌褰曘€佹祴璇勫拰褰卞儚璧勬枡锛屾槸鍚︾户缁紵',
+      content: '删除后将同步删除该病人的入院记录、日常记录、测评和影像资料，是否继续？',
     );
     if (!confirmed) return;
     if (!context.mounted) return;
@@ -532,17 +536,11 @@ class _PatientCard extends StatelessWidget {
     final nursingLevel =
         (patient.values['nursingLevel'] ?? '').toString().trim();
     final nursingColor = _parseHexColor(nursingLevelColors[nursingLevel]);
-    final background = nursingColor == null
-        ? Colors.white
-        : Color.alphaBlend(nursingColor.withValues(alpha: 0.14), Colors.white);
-    final borderColor = nursingColor == null
-        ? const Color(0xFFDCE7F5)
-        : nursingColor.withValues(alpha: 0.42);
     return Card(
-      color: background,
+      color: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: borderColor),
+        side: const BorderSide(color: Color(0xFFDCE7F5)),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -603,7 +601,7 @@ class _PatientCard extends StatelessWidget {
                       border: Border.all(color: const Color(0xFFD9E5F4)),
                     ),
                     child: Text(
-                      '浣忛櫌鍙?${patient.admissionNo}',
+                      '住院号 ${patient.admissionNo}',
                       style: const TextStyle(
                         color: Color(0xFF4E627D),
                         fontSize: 12,
@@ -612,12 +610,14 @@ class _PatientCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   _ActionText(
-                    title: '编辑',
+                    title: '编辑病人',
+                    icon: Icons.edit_rounded,
                     color: const Color(0xFF2C89D8),
                     onTap: onEdit,
                   ),
                   _ActionText(
-                    title: '删除',
+                    title: '删除病人',
+                    icon: Icons.delete_outline_rounded,
                     color: const Color(0xFFD54E67),
                     onTap: onDelete,
                   ),
@@ -658,32 +658,25 @@ Color? _parseHexColor(String? raw) {
 class _ActionText extends StatelessWidget {
   const _ActionText({
     required this.title,
+    required this.icon,
     required this.color,
     required this.onTap,
   });
 
   final String title;
+  final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ),
+    return Tooltip(
+      message: title,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 18),
+        visualDensity: VisualDensity.compact,
+        color: color,
       ),
     );
   }
