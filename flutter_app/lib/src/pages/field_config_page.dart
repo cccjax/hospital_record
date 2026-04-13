@@ -23,7 +23,6 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     final state = context.watch<HospitalAppState>();
     final module = state.fieldConfigModule;
     final schema = state.schemaOf(module);
-    final visibleCount = schema.where((field) => field.showInList).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -41,12 +40,6 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
-          _FieldStatsCard(
-            moduleName: _moduleLabel(module),
-            visibleCount: visibleCount,
-            totalCount: schema.length,
-          ),
-          const SizedBox(height: 10),
           SectionCard(
             title: '配置模块',
             child: DropdownButtonFormField<String>(
@@ -117,14 +110,11 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                             : null,
                         onEdit: () =>
                             _openFieldDialog(context, module, editing: field),
-                        onToggleShow:
-                            field.key == 'admissionNo' && module == 'patient'
-                                ? null
-                                : () => state.toggleFieldVisibility(
-                                      module,
-                                      field.key,
-                                      !field.showInList,
-                                    ),
+                        onToggleShow: () => state.toggleFieldVisibility(
+                          module,
+                          field.key,
+                          !field.showInList,
+                        ),
                         onDelete: state.isCoreRequiredField(module, field.key)
                             ? null
                             : () => _deleteField(context, module, field.key),
@@ -141,14 +131,11 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                               !state.isCoreRequiredField(module, field.key),
                           onEdit: () =>
                               _openFieldDialog(context, module, editing: field),
-                          onToggleShow:
-                              field.key == 'admissionNo' && module == 'patient'
-                                  ? null
-                                  : () => state.toggleFieldVisibility(
-                                        module,
-                                        field.key,
-                                        !field.showInList,
-                                      ),
+                          onToggleShow: () => state.toggleFieldVisibility(
+                            module,
+                            field.key,
+                            !field.showInList,
+                          ),
                           onDelete: state.isCoreRequiredField(module, field.key)
                               ? null
                               : () => _deleteField(context, module, field.key),
@@ -159,23 +146,6 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
         ],
       ),
     );
-  }
-
-  String _moduleLabel(String moduleKey) {
-    switch (moduleKey) {
-      case 'patient':
-        return '病人信息';
-      case 'admission':
-        return '入院记录';
-      case 'daily':
-        return '日常记录';
-      case 'templateDisease':
-        return '病种模板';
-      case 'templateVersion':
-        return '版本列表';
-      default:
-        return moduleKey;
-    }
   }
 
   Future<void> _openFieldDialog(
@@ -1034,104 +1004,6 @@ class _SelectOptionEditorData {
 
   void dispose() {
     labelController.dispose();
-  }
-}
-
-class _FieldStatsCard extends StatelessWidget {
-  const _FieldStatsCard({
-    required this.moduleName,
-    required this.visibleCount,
-    required this.totalCount,
-  });
-
-  final String moduleName;
-  final int visibleCount;
-  final int totalCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
-        ),
-        border: Border.all(color: const Color(0xFFE7EEF8)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x160F2744),
-            blurRadius: 12,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: _StatCell(
-                label: '当前模块',
-                value: moduleName,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _StatCell(
-                label: '列表显示',
-                value: '$visibleCount/$totalCount',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  const _StatCell({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5EEF9)),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF5A6A7E),
-              fontWeight: FontWeight.w500,
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF1F3149),
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

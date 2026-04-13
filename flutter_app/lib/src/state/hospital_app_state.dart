@@ -1309,9 +1309,7 @@ class HospitalAppState extends ChangeNotifier {
     final idx = schema.indexWhere((e) => e.key == key);
     if (idx < 0) return;
     final target = schema[idx];
-    final safeVisible =
-        moduleKey == 'patient' && key == 'admissionNo' ? false : visible;
-    schema[idx] = target.copyWith(showInList: safeVisible);
+    schema[idx] = target.copyWith(showInList: visible);
     final next = <String, List<FieldSchema>>{
       ...data.schemas,
       moduleKey: schema,
@@ -1340,6 +1338,7 @@ class HospitalAppState extends ChangeNotifier {
 
   bool isCoreRequiredField(String moduleKey, String key) {
     return (moduleKey == 'patient' && key == 'admissionNo') ||
+        (moduleKey == 'patient' && key == 'name') ||
         (moduleKey == 'patient' && key == 'nursingLevel') ||
         (moduleKey == 'admission' && key == 'admitDate');
   }
@@ -1443,7 +1442,20 @@ class HospitalAppState extends ChangeNotifier {
       patientSchema[pIdx] = patientSchema[pIdx].copyWith(
         required: true,
         locked: true,
-        showInList: false,
+      );
+      data = data.copyWith(
+        schemas: <String, List<FieldSchema>>{
+          ...data.schemas,
+          'patient': patientSchema,
+        },
+      );
+    }
+
+    final nameIdx = patientSchema.indexWhere((e) => e.key == 'name');
+    if (nameIdx >= 0) {
+      patientSchema[nameIdx] = patientSchema[nameIdx].copyWith(
+        required: true,
+        locked: true,
       );
       data = data.copyWith(
         schemas: <String, List<FieldSchema>>{

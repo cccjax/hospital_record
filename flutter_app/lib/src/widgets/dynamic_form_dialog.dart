@@ -250,7 +250,14 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
   }
 
   bool _canEditLockedField(FieldSchema field) {
-    return field.key == 'nursingLevel';
+    if (field.key == 'nursingLevel' || field.key == 'name') {
+      return true;
+    }
+    if (field.key == 'admissionNo') {
+      final current = (widget.initialValues[field.key] ?? '').toString().trim();
+      return current.isEmpty;
+    }
+    return false;
   }
 
   Future<void> _handleSubmit() async {

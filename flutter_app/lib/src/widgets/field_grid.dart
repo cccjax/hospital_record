@@ -22,16 +22,18 @@ class FieldGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visible = schema.where((field) => !hiddenKeys.contains(field.key)).toList();
+    final visible =
+        schema.where((field) => !hiddenKeys.contains(field.key)).toList();
     if (visible.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 8.0;
+        const gap = 10.0;
         final col = math.max(1, columns);
-        final hasBoundedWidth = constraints.hasBoundedWidth && constraints.maxWidth.isFinite;
+        final hasBoundedWidth =
+            constraints.hasBoundedWidth && constraints.maxWidth.isFinite;
         final itemWidth = hasBoundedWidth
             ? (constraints.maxWidth - gap * (col - 1)) / col
             : 180.0;
@@ -45,7 +47,9 @@ class FieldGrid extends StatelessWidget {
               SizedBox(
                 width: !hasBoundedWidth
                     ? null
-                    : (field.type == FieldType.textarea ? constraints.maxWidth : itemWidth),
+                    : (field.type == FieldType.textarea
+                        ? constraints.maxWidth
+                        : itemWidth),
                 child: _FieldCell(
                   label: field.label,
                   value: _displayValue(field, values[field.key]),
@@ -93,14 +97,21 @@ class _FieldCell extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FBFF),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFEBF1FA)),
+        color: const Color(0xFFF3F8FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDCE7F5)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0E1A3B5D),
+            blurRadius: 6,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: 8,
-          vertical: compact ? 7 : 8,
+          horizontal: compact ? 9 : 10,
+          vertical: compact ? 8 : 10,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,17 +119,17 @@ class _FieldCell extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: compact ? 11.5 : 12,
-                color: const Color(0xFF66778F),
+                fontSize: compact ? 12 : 12.5,
+                color: const Color(0xFF5F738D),
                 height: 1.2,
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               value,
               style: TextStyle(
-                fontSize: compact ? 13 : 13.5,
-                color: const Color(0xFF1F3149),
+                fontSize: compact ? 14 : 15,
+                color: const Color(0xFF213750),
                 fontWeight: FontWeight.w600,
                 height: 1.25,
               ),

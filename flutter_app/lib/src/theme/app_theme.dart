@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 ThemeData buildAppTheme() {
   const primary = Color(0xFF0D766E);
-  const card = Color(0xFFF8FBFF);
+  const card = Color(0xFFFCFEFF);
   const buttonTextStyle = TextStyle(fontWeight: FontWeight.w700, fontSize: 13);
-  final buttonShape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
+  final buttonShape =
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(12));
 
   final scheme = ColorScheme.fromSeed(
     seedColor: primary,
@@ -15,7 +16,7 @@ ThemeData buildAppTheme() {
 
   return ThemeData(
     colorScheme: scheme,
-    scaffoldBackgroundColor: const Color(0xFFECF3FF),
+    scaffoldBackgroundColor: const Color(0xFFE7EEF8),
     useMaterial3: true,
     appBarTheme: const AppBarTheme(
       backgroundColor: primary,
@@ -36,11 +37,12 @@ ThemeData buildAppTheme() {
     ),
     cardTheme: CardThemeData(
       color: card,
-      elevation: 0,
+      elevation: 1.2,
+      shadowColor: const Color(0x2A173454),
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFE7EEF9)),
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFD6E2F0)),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(

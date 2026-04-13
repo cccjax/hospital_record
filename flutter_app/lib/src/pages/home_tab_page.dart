@@ -5,7 +5,6 @@ import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
-import '../widgets/field_grid.dart';
 import '../widgets/responsive_layout.dart';
 import 'patient_detail_page.dart';
 
@@ -16,8 +15,79 @@ class HomeTabPage extends StatefulWidget {
   State<HomeTabPage> createState() => _HomeTabPageState();
 }
 
+enum _HomeCardDensity {
+  standard,
+  compact,
+}
+
+class _CardDensitySpec {
+  const _CardDensitySpec({
+    required this.baseExtentPhone,
+    required this.baseExtentTablet,
+    required this.extentPerField,
+    required this.cardVerticalPadding,
+    required this.dividerTopGap,
+    required this.contentTopGap,
+    required this.rowSpacing,
+    required this.rowLineHeight,
+    required this.labelWidth,
+    required this.nameFontSize,
+    required this.chipVerticalPadding,
+  });
+
+  final double baseExtentPhone;
+  final double baseExtentTablet;
+  final double extentPerField;
+  final double cardVerticalPadding;
+  final double dividerTopGap;
+  final double contentTopGap;
+  final double rowSpacing;
+  final double rowLineHeight;
+  final double labelWidth;
+  final double nameFontSize;
+  final double chipVerticalPadding;
+
+  static const standard = _CardDensitySpec(
+    baseExtentPhone: 136,
+    baseExtentTablet: 150,
+    extentPerField: 6.5,
+    cardVerticalPadding: 12,
+    dividerTopGap: 8,
+    contentTopGap: 7,
+    rowSpacing: 5.5,
+    rowLineHeight: 1.28,
+    labelWidth: 64,
+    nameFontSize: 16,
+    chipVerticalPadding: 5,
+  );
+
+  static const compact = _CardDensitySpec(
+    baseExtentPhone: 152,
+    baseExtentTablet: 166,
+    extentPerField: 8.0,
+    cardVerticalPadding: 10,
+    dividerTopGap: 6,
+    contentTopGap: 4,
+    rowSpacing: 2.0,
+    rowLineHeight: 1.16,
+    labelWidth: 56,
+    nameFontSize: 15,
+    chipVerticalPadding: 4,
+  );
+
+  static _CardDensitySpec of(_HomeCardDensity density) {
+    switch (density) {
+      case _HomeCardDensity.compact:
+        return compact;
+      case _HomeCardDensity.standard:
+        return standard;
+    }
+  }
+}
+
 class _HomeTabPageState extends State<HomeTabPage> {
   late final TextEditingController _searchController;
+  _HomeCardDensity _cardDensity = _HomeCardDensity.standard;
 
   @override
   void initState() {
@@ -35,13 +105,23 @@ class _HomeTabPageState extends State<HomeTabPage> {
     super.dispose();
   }
 
+  void _setCardDensity(_HomeCardDensity density) {
+    if (_cardDensity == density) return;
+    setState(() => _cardDensity = density);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HospitalAppState>();
+    final density = _CardDensitySpec.of(_cardDensity);
     final listSchema = state
         .listSchemaOf('patient')
-        .where((field) => field.key != 'name' && field.key != 'admissionNo')
+        .where((field) => field.key != 'name')
         .toList();
+    final visibleFieldCount = listSchema
+        .where((field) => field.key != 'nursingLevel')
+        .length
+        .clamp(3, 10);
     final patients = state.filteredPatients;
     final nursingLevels = state.patientNursingLevels;
     final nursingLevelFilter = state.patientNursingLevelFilter;
@@ -91,16 +171,49 @@ class _HomeTabPageState extends State<HomeTabPage> {
                     const SizedBox(width: 8),
                     Tooltip(
                       message: '新增病人',
-                      child: IconButton.filled(
+                      child: FilledButton.tonal(
                         onPressed: () => _openPatientDialog(context),
-                        icon: const Icon(Icons.add_rounded),
-                        iconSize: 20,
-                        visualDensity: layout.isTablet
-                            ? VisualDensity.standard
-                            : VisualDensity.compact,
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size(44, 44),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: const Icon(Icons.add_rounded),
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SegmentedButton<_HomeCardDensity>(
+                    showSelectedIcon: false,
+                    style: SegmentedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      textStyle: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    segments: const [
+                      ButtonSegment<_HomeCardDensity>(
+                        value: _HomeCardDensity.standard,
+                        icon: Icon(Icons.view_agenda_outlined, size: 16),
+                        label: Text('标准'),
+                      ),
+                      ButtonSegment<_HomeCardDensity>(
+                        value: _HomeCardDensity.compact,
+                        icon: Icon(Icons.density_small, size: 16),
+                        label: Text('紧凑'),
+                      ),
+                    ],
+                    selected: <_HomeCardDensity>{_cardDensity},
+                    onSelectionChanged: (selection) {
+                      if (selection.isEmpty) return;
+                      _setCardDensity(selection.first);
+                    },
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (patients.isEmpty)
@@ -113,21 +226,33 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       ),
                     ),
                   )
-                else if (layout.useTwoPane)
+                else
                   LayoutBuilder(
                     builder: (context, box) {
                       const gap = 10.0;
-                      final itemWidth = (box.maxWidth - gap) / 2;
+                      final baseExtent = (layout.isTablet
+                              ? density.baseExtentTablet
+                              : density.baseExtentPhone) +
+                          visibleFieldCount * density.extentPerField;
+                      final maxColumns = layout.isTablet ? 5 : 3;
+                      final crossAxisCount =
+                          ((box.maxWidth + gap) / (baseExtent + gap))
+                              .floor()
+                              .clamp(1, maxColumns);
+                      final cardWidth =
+                          (box.maxWidth - gap * (crossAxisCount - 1)) /
+                              crossAxisCount;
                       return Wrap(
                         spacing: gap,
-                        runSpacing: 10,
+                        runSpacing: gap,
                         children: [
                           for (final patient in patients)
                             SizedBox(
-                              width: itemWidth,
+                              width: cardWidth,
                               child: _PatientCard(
                                 patient: patient,
                                 listSchema: listSchema,
+                                density: density,
                                 nursingLevelColors: nursingLevelColors,
                                 onOpen: () => _openPatientDetail(
                                     context, patient.admissionNo),
@@ -141,22 +266,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       );
                     },
                   )
-                else
-                  for (final patient in patients)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _PatientCard(
-                        patient: patient,
-                        listSchema: listSchema,
-                        nursingLevelColors: nursingLevelColors,
-                        onOpen: () =>
-                            _openPatientDetail(context, patient.admissionNo),
-                        onEdit: () =>
-                            _openPatientDialog(context, editing: patient),
-                        onDelete: () =>
-                            _deletePatient(context, patient.admissionNo),
-                      ),
-                    ),
               ],
             ),
           );
@@ -518,6 +627,7 @@ class _PatientCard extends StatelessWidget {
   const _PatientCard({
     required this.patient,
     required this.listSchema,
+    required this.density,
     required this.nursingLevelColors,
     required this.onOpen,
     required this.onEdit,
@@ -526,6 +636,7 @@ class _PatientCard extends StatelessWidget {
 
   final PatientRecord patient;
   final List<FieldSchema> listSchema;
+  final _CardDensitySpec density;
   final Map<String, String> nursingLevelColors;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
@@ -536,6 +647,7 @@ class _PatientCard extends StatelessWidget {
     final nursingLevel =
         (patient.values['nursingLevel'] ?? '').toString().trim();
     final nursingColor = _parseHexColor(nursingLevelColors[nursingLevel]);
+    final infoRows = _buildInfoRows();
     return Card(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -545,101 +657,194 @@ class _PatientCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-          child: Column(
-            children: [
-              Row(
+        child: Stack(
+          children: [
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                12,
+                density.cardVerticalPadding,
+                24,
+                density.cardVerticalPadding,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      (patient.values['name'] ?? '-').toString(),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F3149),
-                      ),
-                    ),
-                  ),
-                  if (nursingLevel.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        color: nursingColor == null
-                            ? const Color(0xFFF5F9FF)
-                            : Color.alphaBlend(
-                                nursingColor.withValues(alpha: 0.20),
-                                const Color(0xFFF5F9FF),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                (patient.values['name'] ?? '-').toString(),
+                                style: TextStyle(
+                                  fontSize: density.nameFontSize,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF1F3149),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                        border: Border.all(
-                          color: nursingColor == null
-                              ? const Color(0xFFD9E5F4)
-                              : nursingColor.withValues(alpha: 0.58),
+                            ),
+                            if (nursingLevel.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: density.chipVerticalPadding,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: nursingColor == null
+                                      ? const Color(0xFFF5F9FF)
+                                      : Color.alphaBlend(
+                                          nursingColor.withValues(alpha: 0.20),
+                                          const Color(0xFFF5F9FF),
+                                        ),
+                                  border: Border.all(
+                                    color: nursingColor == null
+                                        ? const Color(0xFFD9E5F4)
+                                        : nursingColor.withValues(alpha: 0.58),
+                                  ),
+                                ),
+                                child: Text(
+                                  nursingLevel,
+                                  style: TextStyle(
+                                    color: nursingColor == null
+                                        ? const Color(0xFF4E627D)
+                                        : const Color(0xFF314560),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      child: Text(
-                        nursingLevel,
-                        style: TextStyle(
-                          color: nursingColor == null
-                              ? const Color(0xFF4E627D)
-                              : const Color(0xFF314560),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                      const SizedBox(width: 6),
+                      _ActionText(
+                        title: '编辑病人',
+                        icon: Icons.edit_rounded,
+                        color: const Color(0xFF2C89D8),
+                        onTap: onEdit,
+                      ),
+                      _ActionText(
+                        title: '删除病人',
+                        icon: Icons.delete_outline_rounded,
+                        color: const Color(0xFFD54E67),
+                        onTap: onDelete,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: density.dividerTopGap),
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0xFFE4EBF6),
+                  ),
+                  SizedBox(height: density.contentTopGap),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < infoRows.length; i++)
+                        Padding(
+                          padding: EdgeInsets.only(
+                              bottom: i == infoRows.length - 1
+                                  ? 0
+                                  : density.rowSpacing),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: density.labelWidth,
+                                child: Text(
+                                  infoRows[i].label,
+                                  style: TextStyle(
+                                    color: const Color(0xFF6D829E),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    height: density.rowLineHeight,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  infoRows[i].value,
+                                  style: TextStyle(
+                                    color: const Color(0xFF20364F),
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: density.rowLineHeight,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      color: const Color(0xFFF5F9FF),
-                      border: Border.all(color: const Color(0xFFD9E5F4)),
-                    ),
-                    child: Text(
-                      '住院号 ${patient.admissionNo}',
-                      style: const TextStyle(
-                        color: Color(0xFF4E627D),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  _ActionText(
-                    title: '编辑病人',
-                    icon: Icons.edit_rounded,
-                    color: const Color(0xFF2C89D8),
-                    onTap: onEdit,
-                  ),
-                  _ActionText(
-                    title: '删除病人',
-                    icon: Icons.delete_outline_rounded,
-                    color: const Color(0xFFD54E67),
-                    onTap: onDelete,
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: Color(0xFF7E95B3),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              FieldGrid(
-                schema: listSchema,
-                values: patient.values,
-                compact: true,
+            ),
+            const Positioned(
+              right: 2,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFF7E95B3),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  List<_InfoRow> _buildInfoRows() {
+    final rows = <_InfoRow>[];
+    for (final field in listSchema) {
+      if (field.key == 'nursingLevel') continue;
+      final raw = field.key == 'admissionNo'
+          ? patient.admissionNo
+          : patient.values[field.key];
+      final text = (raw ?? '-').toString().trim();
+      rows.add(
+        _InfoRow(
+          label: field.label,
+          value: text.isEmpty ? '-' : text,
+        ),
+      );
+    }
+    if (rows.isEmpty) {
+      return const <_InfoRow>[
+        _InfoRow(label: '字段', value: '暂无可视字段'),
+      ];
+    }
+    return rows;
+  }
+}
+
+class _InfoRow {
+  const _InfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
 }
 
 Color? _parseHexColor(String? raw) {
@@ -672,11 +877,17 @@ class _ActionText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: title,
-      child: IconButton(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        visualDensity: VisualDensity.compact,
-        color: color,
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, size: 17),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+          color: color,
+        ),
       ),
     );
   }
