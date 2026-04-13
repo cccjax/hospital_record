@@ -161,7 +161,7 @@ class HospitalAppState extends ChangeNotifier {
 
   Set<String> getInHospitalPatientNoSet() {
     return data.admissions
-        .where((row) => (row.values['status'] ?? '').toString() == '鍦ㄩ櫌')
+        .where((row) => (row.values['status'] ?? '').toString() == '在院')
         .map((e) => e.admissionNo)
         .toSet();
   }
@@ -244,7 +244,7 @@ class HospitalAppState extends ChangeNotifier {
     return data.admissions.any(
       (row) =>
           row.admissionNo == admissionNo &&
-          (row.values['status'] ?? '').toString() == '鍦ㄩ櫌',
+          (row.values['status'] ?? '').toString() == '在院',
     );
   }
 
@@ -265,7 +265,7 @@ class HospitalAppState extends ChangeNotifier {
           row.admissionNo != editingAdmissionNo,
     );
     if (duplicated) {
-      _lastErrorMessage = '浣忛櫌鍙峰凡瀛樺湪';
+      _lastErrorMessage = '住院号已存在';
       return false;
     }
 
@@ -326,7 +326,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
 
     if (editingId == null && hasInHospitalAdmission(admissionNo)) {
-      _lastErrorMessage = '璇ョ梾浜哄凡鏈夊湪闄㈣褰曪紝涓嶈兘閲嶅鏂板鍏ラ櫌';
+      _lastErrorMessage = '该病人已有在院记录，不能重复新增入院';
       return false;
     }
 
@@ -335,7 +335,7 @@ class HospitalAppState extends ChangeNotifier {
     payload['admitDate'] = (payload['admitDate'] ?? '').toString();
 
     if ((payload['admitDate'] ?? '').toString().isEmpty) {
-      _lastErrorMessage = '鍏ラ櫌鏃ユ湡涓嶈兘涓虹┖';
+      _lastErrorMessage = '入院日期不能为空';
       return false;
     }
 
@@ -405,7 +405,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
     final payload = _applySchemaCoercion(values, schemaOf('daily'));
     if ((payload['recordDate'] ?? '').toString().isEmpty) {
-      _lastErrorMessage = '璁板綍鏃ユ湡涓嶈兘涓虹┖';
+      _lastErrorMessage = '记录日期不能为空';
       return false;
     }
 
@@ -709,7 +709,7 @@ class HospitalAppState extends ChangeNotifier {
         '';
     final normalizedName = name.toString().trim();
     if (normalizedName.isEmpty) {
-      _lastErrorMessage = '鐥呯鍚嶇О涓嶈兘涓虹┖';
+      _lastErrorMessage = '病种名称不能为空';
       return false;
     }
 
@@ -836,7 +836,7 @@ class HospitalAppState extends ChangeNotifier {
         '';
     final normalizedName = name.toString().trim();
     if (normalizedName.isEmpty) {
-      _lastErrorMessage = '鐥呯鍚嶇О涓嶈兘涓虹┖';
+      _lastErrorMessage = '病种名称不能为空';
       return false;
     }
 
@@ -1007,7 +1007,7 @@ class HospitalAppState extends ChangeNotifier {
       items.add(
         TemplateItem(
           id: _createId('tpli'),
-          name: name.trim().isEmpty ? '鏈懡鍚嶆祴璇勯」' : name.trim(),
+          name: name.trim().isEmpty ? '未命名测评项' : name.trim(),
           options: options,
         ),
       );
@@ -1176,7 +1176,7 @@ class HospitalAppState extends ChangeNotifier {
     _lastErrorMessage = null;
     final schema = schemaOf(moduleKey);
     if (schema.any((e) => e.key == field.key)) {
-      _lastErrorMessage = '瀛楁閿悕閲嶅';
+      _lastErrorMessage = '字段键名重复';
       return false;
     }
     final next = <String, List<FieldSchema>>{
@@ -1198,7 +1198,7 @@ class HospitalAppState extends ChangeNotifier {
       return false;
     }
     if (oldKey != updated.key && schema.any((e) => e.key == updated.key)) {
-      _lastErrorMessage = '瀛楁閿悕閲嶅';
+      _lastErrorMessage = '字段键名重复';
       return false;
     }
     if (oldKey != updated.key) {

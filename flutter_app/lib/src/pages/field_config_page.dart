@@ -34,7 +34,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
           child: AppBackButton(),
         ),
         title: const Text(
-          '瀛楁閰嶇疆',
+          '字段配置',
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
@@ -48,17 +48,17 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
           ),
           const SizedBox(height: 10),
           SectionCard(
-            title: '閰嶇疆妯″潡',
+            title: '配置模块',
             child: DropdownButtonFormField<String>(
               initialValue: module,
               items: const [
-                DropdownMenuItem(value: 'patient', child: Text('鐥呬汉淇℃伅')),
-                DropdownMenuItem(value: 'admission', child: Text('鍏ラ櫌璁板綍')),
-                DropdownMenuItem(value: 'daily', child: Text('鏃ュ父璁板綍')),
+                DropdownMenuItem(value: 'patient', child: Text('病人信息')),
+                DropdownMenuItem(value: 'admission', child: Text('入院记录')),
+                DropdownMenuItem(value: 'daily', child: Text('日常记录')),
                 DropdownMenuItem(
-                    value: 'templateDisease', child: Text('鐥呯妯℃澘')),
+                    value: 'templateDisease', child: Text('病种模板')),
                 DropdownMenuItem(
-                    value: 'templateVersion', child: Text('鐗堟湰鍒楄〃')),
+                    value: 'templateVersion', child: Text('版本列表')),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -67,7 +67,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
             ),
           ),
           SectionCard(
-            title: '瀛楁鍒楄〃',
+            title: '字段列表',
             action: Wrap(
               spacing: 8,
               children: [
@@ -77,11 +77,11 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
                       _sortMode = !_sortMode;
                     });
                   },
-                  child: Text(_sortMode ? '瀹屾垚鎺掑簭' : '璋冩暣椤哄簭'),
+                  child: Text(_sortMode ? '完成排序' : '调整顺序'),
                 ),
                 FilledButton(
                   onPressed: () => _openFieldDialog(context, module),
-                  child: const Text('鏂板瀛楁'),
+                  child: const Text('新增字段'),
                 ),
               ],
             ),
@@ -163,15 +163,15 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
   String _moduleLabel(String moduleKey) {
     switch (moduleKey) {
       case 'patient':
-        return '鐥呬汉淇℃伅';
+        return '病人信息';
       case 'admission':
-        return '鍏ラ櫌璁板綍';
+        return '入院记录';
       case 'daily':
-        return '鏃ュ父璁板綍';
+        return '日常记录';
       case 'templateDisease':
-        return '鐥呯妯℃澘';
+        return '病种模板';
       case 'templateVersion':
-        return '鐗堟湰鍒楄〃';
+        return '版本列表';
       default:
         return moduleKey;
     }
@@ -197,7 +197,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
           ? latestState.addCustomField(module, result)
           : latestState.updateField(module, editing.key, result);
       if (!ok && mounted) {
-        final message = latestState.takeLastErrorMessage() ?? '淇濆瓨澶辫触';
+        final message = latestState.takeLastErrorMessage() ?? '保存失败';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
@@ -220,7 +220,7 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
     final state = context.read<HospitalAppState>();
     final ok = state.deleteField(module, key);
     if (!ok && context.mounted) {
-      final message = state.takeLastErrorMessage() ?? '鍒犻櫎澶辫触';
+      final message = state.takeLastErrorMessage() ?? '删除失败';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
     }
@@ -286,19 +286,19 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     final canToggleRequired = !(editing?.locked == true);
 
     return EditorDialog(
-      title: editing == null ? '鏂板瀛楁' : '缂栬緫瀛楁',
-      subtitle: '缁熶竴閰嶇疆瀛楁鐨勫綍鍏ヨ鍒欎笌鍒楄〃灞曠ず鏂瑰紡',
+      title: editing == null ? '新增字段' : '编辑字段',
+      subtitle: '统一配置字段的录入规则与列表展示方式',
       icon: Icons.tune_rounded,
       maxWidth: 560,
       actions: [
         OutlinedButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('鍙栨秷'),
+          child: const Text('取消'),
         ),
         FilledButton.icon(
           onPressed: _onSubmit,
           icon: const Icon(Icons.check_rounded),
-          label: const Text('淇濆瓨'),
+          label: const Text('保存'),
         ),
       ],
       child: Form(
@@ -307,15 +307,15 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             EditorPanel(
-              title: '鍩烘湰淇℃伅',
+              title: '基本信息',
               child: Column(
                 children: [
                   TextFormField(
                     controller: _keyController,
                     enabled: !keyLocked,
                     decoration: const InputDecoration(
-                      labelText: '瀛楁閿悕 *',
-                      hintText: '渚嬪: bloodSugar',
+                      labelText: '字段键名 *',
+                      hintText: '例如: bloodSugar',
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -328,7 +328,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                   TextFormField(
                     controller: _labelController,
                     decoration: const InputDecoration(
-                      labelText: '瀛楁鍚嶇О *',
+                      labelText: '字段名称 *',
                       hintText: '例如: 血型',
                     ),
                     validator: (value) {
@@ -347,17 +347,17 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
               description: typeLocked ? '系统字段类型不可修改' : '不同类型会影响录入控件样式',
               child: DropdownButtonFormField<FieldType>(
                 initialValue: _type,
-                decoration: const InputDecoration(labelText: '閫夋嫨瀛楁绫诲瀷'),
+                decoration: const InputDecoration(labelText: '选择字段类型'),
                 items: const [
-                  DropdownMenuItem(value: FieldType.text, child: Text('鏂囨湰')),
-                  DropdownMenuItem(value: FieldType.number, child: Text('鏁板瓧')),
-                  DropdownMenuItem(value: FieldType.date, child: Text('鏃ユ湡')),
+                  DropdownMenuItem(value: FieldType.text, child: Text('文本')),
+                  DropdownMenuItem(value: FieldType.number, child: Text('数字')),
+                  DropdownMenuItem(value: FieldType.date, child: Text('日期')),
                   DropdownMenuItem(
-                      value: FieldType.textarea, child: Text('澶氳鏂囨湰')),
+                      value: FieldType.textarea, child: Text('多行文本')),
                   DropdownMenuItem(
-                      value: FieldType.select, child: Text('涓嬫媺閫夐」')),
+                      value: FieldType.select, child: Text('下拉选项')),
                   DropdownMenuItem(
-                      value: FieldType.images, child: Text('鍥剧墖涓婁紶')),
+                      value: FieldType.images, child: Text('图片上传')),
                 ],
                 onChanged: typeLocked
                     ? null
@@ -402,7 +402,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
               child: Column(
                 children: [
                   _buildToggleRow(
-                    title: '鏄惁蹇呭～',
+                    title: '是否必填',
                     subtitle: canToggleRequired ? '开启后录入时必须填写' : '系统字段，不可修改',
                     value: _required,
                     onChanged: canToggleRequired
@@ -415,8 +415,8 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                   ),
                   const SizedBox(height: 8),
                   _buildToggleRow(
-                    title: '鏄惁鍒楄〃灞曠ず',
-                    subtitle: '鍏抽棴鍚庝粎鍦ㄨ鎯呴〉鏄剧ず',
+                    title: '是否列表展示',
+                    subtitle: '关闭后仅在详情页显示',
                     value: _showInList,
                     onChanged: (value) {
                       setState(() {
@@ -614,14 +614,14 @@ class _FieldStatsCard extends StatelessWidget {
           children: [
             Expanded(
               child: _StatCell(
-                label: '褰撳墠妯″潡',
+                label: '当前模块',
                 value: moduleName,
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: _StatCell(
-                label: '鍒楄〃鏄剧ず',
+                label: '列表显示',
                 value: '$visibleCount/$totalCount',
               ),
             ),
@@ -704,10 +704,10 @@ class _FieldRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tags = <String>[
       _fieldTypeLabel(field.type),
-      if (field.required) '蹇呭～',
-      if (field.locked) '绯荤粺瀛楁',
-      if (field.computed) '璁＄畻瀛楁',
-      if (field.showInList) '鍒楄〃鏄剧ず',
+      if (field.required) '必填',
+      if (field.locked) '系统字段',
+      if (field.computed) '计算字段',
+      if (field.showInList) '列表显示',
     ];
 
     return Padding(
@@ -736,16 +736,16 @@ class _FieldRow extends StatelessWidget {
                     ),
                   ),
                   _RowAction(
-                      title: '缂栬緫',
+                      title: '编辑',
                       color: const Color(0xFF2C88D8),
                       onTap: onEdit),
                   _RowAction(
-                    title: field.showInList ? '璁句负闅愯棌' : '璁句负鏄剧ず',
+                    title: field.showInList ? '设为隐藏' : '设为显示',
                     color: const Color(0xFF637A97),
                     onTap: onToggleShow,
                   ),
                   _RowAction(
-                    title: '鍒犻櫎',
+                    title: '删除',
                     color: const Color(0xFFD45067),
                     onTap: canDelete ? onDelete : null,
                   ),
@@ -802,17 +802,17 @@ class _FieldRow extends StatelessWidget {
   String _fieldTypeLabel(FieldType type) {
     switch (type) {
       case FieldType.text:
-        return '鏂囨湰';
+        return '文本';
       case FieldType.number:
-        return '鏁板瓧';
+        return '数字';
       case FieldType.date:
-        return '鏃ユ湡';
+        return '日期';
       case FieldType.textarea:
-        return '澶氳';
+        return '多行';
       case FieldType.select:
-        return '涓嬫媺';
+        return '下拉';
       case FieldType.images:
-        return '鍥剧墖涓婁紶';
+        return '图片上传';
     }
   }
 }

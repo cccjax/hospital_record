@@ -52,7 +52,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(
-          '棣栭〉',
+          '首页',
           style: TextStyle(fontWeight: FontWeight.w700),
         ),
       ),
@@ -83,7 +83,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       child: TextField(
                         controller: _searchController,
                         decoration: const InputDecoration(
-                          hintText: '杈撳叆浣忛櫌鍙?濮撳悕鎼滅储',
+                          hintText: '杈撳叆浣忛櫌鍙?姓名搜索',
                           prefixIcon: Icon(Icons.search_rounded),
                         ),
                       ),
@@ -93,7 +93,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                       width: layout.isTablet ? 112 : null,
                       child: FilledButton(
                         onPressed: () => _openPatientDialog(context),
-                        child: const Text('鏂板'),
+                        child: const Text('新增'),
                       ),
                     ),
                   ],
@@ -104,7 +104,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                     padding: EdgeInsets.only(top: 20),
                     child: Center(
                       child: Text(
-                        '鏆傛棤鐥呬汉璁板綍',
+                        '暂无病人记录',
                         style: TextStyle(color: Color(0xFF7488A4)),
                       ),
                     ),
@@ -183,7 +183,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       context: context,
       builder: (dialogContext) {
         return DynamicFormDialog(
-          title: editing == null ? '鏂板鐥呬汉' : '缂栬緫鐥呬汉',
+          title: editing == null ? '新增病人' : '编辑鐥呬汉',
           schema: schema,
           initialValues: initial,
           onSubmit: (values) async {
@@ -191,7 +191,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
               values: values,
               editingAdmissionNo: editing?.admissionNo,
             );
-            return ok ? null : (state.takeLastErrorMessage() ?? '淇濆瓨澶辫触');
+            return ok ? null : (state.takeLastErrorMessage() ?? '保存失败');
           },
         );
       },
@@ -201,8 +201,8 @@ class _HomeTabPageState extends State<HomeTabPage> {
   Future<void> _deletePatient(BuildContext context, String admissionNo) async {
     final confirmed = await showDeleteConfirmDialog(
       context,
-      title: '鍒犻櫎鐥呬汉',
-      content: '鍒犻櫎鍚庡皢鍚屾鍒犻櫎璇ョ梾浜虹殑鍏ラ櫌璁板綍銆佹棩甯歌褰曘€佹祴璇勫拰褰卞儚璧勬枡锛屾槸鍚︾户缁紵',
+      title: '删除病人',
+      content: '删除鍚庡皢鍚屾删除璇ョ梾浜虹殑鍏ラ櫌璁板綍銆佹棩甯歌褰曘€佹祴璇勫拰褰卞儚璧勬枡锛屾槸鍚︾户缁紵',
     );
     if (!confirmed) return;
     if (!context.mounted) return;
@@ -276,7 +276,7 @@ class _HeroCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              '姒傝',
+              '概览',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -289,7 +289,7 @@ class _HeroCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: _HeroMetric(
-                    label: '鐥呬汉鎬绘暟',
+                    label: '病人总数',
                     value: '$patientCount',
                   ),
                 ),
@@ -309,7 +309,7 @@ class _HeroCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _NursingFilterChip(
-                  text: '鍏ㄩ儴 $patientCount',
+                  text: '全部 $patientCount',
                   active: activeNursingLevel.isEmpty,
                   color: null,
                   onTap: () => onSelectNursingLevel(''),
@@ -469,7 +469,7 @@ class _FilterStatCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '鍦ㄩ櫌鐥呬汉',
+                      '在院病人',
                       style: TextStyle(
                         color: active
                             ? const Color(0xFF2F5F96)
@@ -612,12 +612,12 @@ class _PatientCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 5),
                   _ActionText(
-                    title: '缂栬緫',
+                    title: '编辑',
                     color: const Color(0xFF2C89D8),
                     onTap: onEdit,
                   ),
                   _ActionText(
-                    title: '鍒犻櫎',
+                    title: '删除',
                     color: const Color(0xFFD54E67),
                     onTap: onDelete,
                   ),
