@@ -139,6 +139,113 @@ class _HomeTabPageState extends State<HomeTabPage> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final layout = ResponsiveLayout.fromWidth(constraints.maxWidth);
+          final isCompactToolbar = constraints.maxWidth < 560;
+          Widget buildDensitySwitch() {
+            Widget buildOption({
+              required _HomeCardDensity value,
+              required IconData icon,
+              required String label,
+            }) {
+              final selected = _cardDensity == value;
+              final foreground =
+                  selected ? const Color(0xFF2E5F92) : const Color(0xFF5F738D);
+              return Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(9),
+                    onTap: () => _setCardDensity(value),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 160),
+                      curve: Curves.easeOut,
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(9),
+                        color: selected
+                            ? const Color(0xFFDDEEFF)
+                            : Colors.transparent,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icon, size: 16, color: foreground),
+                          const SizedBox(width: 6),
+                          Text(
+                            label,
+                            style: TextStyle(
+                              color: foreground,
+                              fontSize: 13,
+                              fontWeight:
+                                  selected ? FontWeight.w700 : FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return SizedBox(
+              height: 44,
+              width: 178,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFD3E0F1)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    buildOption(
+                      value: _HomeCardDensity.standard,
+                      icon: Icons.view_agenda_outlined,
+                      label: '标准',
+                    ),
+                    const SizedBox(width: 3),
+                    buildOption(
+                      value: _HomeCardDensity.compact,
+                      icon: Icons.density_small,
+                      label: '紧凑',
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          Widget buildSearchField() {
+            return SizedBox(
+              height: 44,
+              child: TextField(
+                controller: _searchController,
+                textAlignVertical: TextAlignVertical.center,
+                decoration: const InputDecoration(
+                  hintText: '输入住院号/姓名搜索',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+            );
+          }
+
+          Widget buildAddButton() {
+            return Tooltip(
+              message: '新增病人',
+              child: FilledButton.tonal(
+                onPressed: () => _openPatientDialog(context),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(44, 44),
+                  padding: EdgeInsets.zero,
+                ),
+                child: const Icon(Icons.add_rounded),
+              ),
+            );
+          }
+
           return ResponsiveBody(
             layout: layout,
             child: ListView(
@@ -156,65 +263,27 @@ class _HomeTabPageState extends State<HomeTabPage> {
                   onSelectNursingLevel: state.setPatientNursingLevelFilter,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _searchController,
-                        decoration: const InputDecoration(
-                          hintText: '输入住院号/姓名搜索',
-                          prefixIcon: Icon(Icons.search_rounded),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Tooltip(
-                      message: '新增病人',
-                      child: FilledButton.tonal(
-                        onPressed: () => _openPatientDialog(context),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(44, 44),
-                          padding: EdgeInsets.zero,
-                        ),
-                        child: const Icon(Icons.add_rounded),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: SegmentedButton<_HomeCardDensity>(
-                    showSelectedIcon: false,
-                    style: SegmentedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      textStyle: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    segments: const [
-                      ButtonSegment<_HomeCardDensity>(
-                        value: _HomeCardDensity.standard,
-                        icon: Icon(Icons.view_agenda_outlined, size: 16),
-                        label: Text('标准'),
-                      ),
-                      ButtonSegment<_HomeCardDensity>(
-                        value: _HomeCardDensity.compact,
-                        icon: Icon(Icons.density_small, size: 16),
-                        label: Text('紧凑'),
-                      ),
+                if (isCompactToolbar) ...[
+                  Row(
+                    children: [
+                      buildDensitySwitch(),
+                      const Spacer(),
+                      buildAddButton(),
                     ],
-                    selected: <_HomeCardDensity>{_cardDensity},
-                    onSelectionChanged: (selection) {
-                      if (selection.isEmpty) return;
-                      _setCardDensity(selection.first);
-                    },
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  buildSearchField(),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      buildDensitySwitch(),
+                      const SizedBox(width: 8),
+                      Expanded(child: buildSearchField()),
+                      const SizedBox(width: 8),
+                      buildAddButton(),
+                    ],
+                  ),
                 const SizedBox(height: 12),
                 if (patients.isEmpty)
                   const Padding(
@@ -366,57 +435,78 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void setInHospitalFilter(bool active) {
+      if (filterActive != active) {
+        onToggleFilter();
+      }
+    }
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
-        ),
+        color: const Color(0xFFF8FBFF),
         border: Border.all(color: const Color(0xFFE7EEF8)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x160F2744),
-            blurRadius: 12,
-            offset: Offset(0, 6),
+            color: Color(0x120F2744),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '概览',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1F3149),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            const Row(
               children: [
-                Expanded(
-                  child: _HeroMetric(
-                    label: '病人总数',
-                    value: '$patientCount',
-                  ),
+                Icon(
+                  Icons.flash_on_rounded,
+                  size: 18,
+                  color: Color(0xFF2F74B8),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _FilterStatCard(
-                    value: '$inHospitalCount',
-                    active: filterActive,
-                    onTap: onToggleFilter,
+                SizedBox(width: 6),
+                Text(
+                  '快捷筛选',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F3149),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            const _FilterSectionLabel(
+              icon: Icons.apartment_rounded,
+              text: '在院状态',
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _QuickFilterChoice(
+                  text: '全部 $patientCount',
+                  active: !filterActive,
+                  icon: Icons.people_alt_outlined,
+                  onTap: () => setInHospitalFilter(false),
+                ),
+                _QuickFilterChoice(
+                  text: '仅在院 $inHospitalCount',
+                  active: filterActive,
+                  icon: Icons.local_hospital_rounded,
+                  onTap: () => setInHospitalFilter(true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const _FilterSectionLabel(
+              icon: Icons.bookmark_border_rounded,
+              text: '护理等级',
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -461,74 +551,40 @@ class _NursingFilterChip extends StatelessWidget {
     final toneColor = color ?? const Color(0xFF8FA6C2);
     final background = active
         ? Color.alphaBlend(
-            toneColor.withValues(alpha: 0.26), const Color(0xFFF5F9FF))
-        : const Color(0xFFF7FBFF);
+            toneColor.withValues(alpha: 0.20), const Color(0xFFF5F9FF))
+        : const Color(0xFFFFFFFF);
     final border =
         active ? toneColor.withValues(alpha: 0.55) : const Color(0xFFDCE7F5);
     final textColor =
-        active ? const Color(0xFF1F3149) : const Color(0xFF5A6A7E);
+        active ? const Color(0xFF243B57) : const Color(0xFF5A6A7E);
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: background,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: border),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: textColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HeroMetric extends StatelessWidget {
-  const _HeroMetric({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 66,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFFF7FBFF),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5EEF9)),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF5A6A7E),
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: toneColor.withValues(alpha: active ? 1 : 0.7),
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(width: 6),
             Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF1F3149),
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
+              text,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -538,85 +594,82 @@ class _HeroMetric extends StatelessWidget {
   }
 }
 
-class _FilterStatCard extends StatelessWidget {
-  const _FilterStatCard({
-    required this.value,
+class _FilterSectionLabel extends StatelessWidget {
+  const _FilterSectionLabel({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 14,
+          color: const Color(0xFF6A819E),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF6A819E),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickFilterChoice extends StatelessWidget {
+  const _QuickFilterChoice({
+    required this.text,
     required this.active,
+    required this.icon,
     required this.onTap,
   });
 
-  final String value;
+  final String text;
   final bool active;
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: SizedBox(
-          height: 66,
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: active
-                  ? const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: <Color>[Color(0xFFE9F4FF), Color(0xFFF0F9FF)],
-                    )
-                  : null,
-              color: active ? null : const Color(0xFFF7FBFF),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color:
-                    active ? const Color(0xFF84B8F2) : const Color(0xFFE5EEF9),
+    final background =
+        active ? const Color(0xFFE8F3FF) : const Color(0xFFFFFFFF);
+    final border = active ? const Color(0xFF7FB1EA) : const Color(0xFFDCE7F5);
+    final foreground =
+        active ? const Color(0xFF2D5F95) : const Color(0xFF5A6A7E);
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: foreground),
+            const SizedBox(width: 6),
+            Text(
+              text,
+              style: TextStyle(
+                color: foreground,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8.5),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '在院病人',
-                      style: TextStyle(
-                        color: active
-                            ? const Color(0xFF2F5F96)
-                            : const Color(0xFF5A6A7E),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      active
-                          ? Icons.filter_alt_rounded
-                          : Icons.filter_alt_outlined,
-                      size: 14,
-                      color: active
-                          ? const Color(0xFF2F5F96)
-                          : const Color(0xFF8AA0BC),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: active
-                        ? const Color(0xFF2F5F96)
-                        : const Color(0xFF1F3149),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          ],
         ),
       ),
     );
