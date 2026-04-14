@@ -310,70 +310,63 @@ class TemplateVersionPage extends StatelessWidget {
                                     },
                             ),
                             const SizedBox(width: 6),
-                            Tooltip(
-                              message: deletePicking
+                            AppToneIconButton(
+                              icon: deletePicking
+                                  ? Icons.delete_forever_rounded
+                                  : Icons.delete_outline_rounded,
+                              tooltip: deletePicking
                                   ? (selectedDraftIds.isEmpty
                                       ? '取消删除'
                                       : '确认删除已选')
                                   : '删除选项',
-                              child: SizedBox(
-                                width: 32,
-                                height: 32,
-                                child: IconButton(
-                                  onPressed: () async {
-                                    if (!deletePicking) {
-                                      setDialogState(() {
-                                        deletePicking = true;
-                                        selectedDraftIds.clear();
-                                        errorText = null;
-                                      });
-                                      return;
-                                    }
-                                    if (selectedDraftIds.isEmpty) {
-                                      setDialogState(() {
-                                        deletePicking = false;
-                                        errorText = null;
-                                      });
-                                      return;
-                                    }
-                                    final confirmed =
-                                        await showDeleteConfirmDialog(
-                                      dialogContext,
-                                      title: '删除选项',
-                                      content:
-                                          '确认删除已选中的 ${selectedDraftIds.length} 个选项吗？',
-                                    );
-                                    if (!confirmed) return;
-                                    setDialogState(() {
-                                      drafts.removeWhere((d) =>
-                                          selectedDraftIds.contains(d.id));
-                                      if (drafts.isEmpty) {
-                                        drafts.add(_OptionDraft.empty(
-                                            state.createRuntimeId('tplo')));
-                                      }
-                                      selectedDraftIds.clear();
-                                      deletePicking = false;
-                                      errorText = null;
-                                    });
-                                  },
-                                  icon: Icon(
-                                    deletePicking
-                                        ? Icons.delete_forever_rounded
-                                        : Icons.delete_outline_rounded,
-                                    size: 18,
-                                  ),
-                                  style: IconButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                    backgroundColor: const Color(0xFFFFF2F4),
-                                    foregroundColor: const Color(0xFFD34E66),
-                                    side: const BorderSide(
-                                        color: Color(0xFFF2CAD1)),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              size: 32,
+                              iconSize: 18,
+                              borderRadius: 10,
+                              backgroundColor: const Color(0xFFFFF2F4),
+                              backgroundPressedColor: const Color(0xFFFFE6EA),
+                              backgroundDisabledColor: const Color(0xFFF8F2F3),
+                              foregroundColor: const Color(0xFFD34E66),
+                              foregroundDisabledColor: const Color(0xFFB7A1A8),
+                              borderColor: const Color(0xFFF2CAD1),
+                              borderPressedColor: const Color(0xFFEAB4BF),
+                              shadowColor: const Color(0x22C36A79),
+                              overlayPressedColor: const Color(0x12B74757),
+                              overlayHoverColor: const Color(0x0DB74757),
+                              onPressed: () async {
+                                if (!deletePicking) {
+                                  setDialogState(() {
+                                    deletePicking = true;
+                                    selectedDraftIds.clear();
+                                    errorText = null;
+                                  });
+                                  return;
+                                }
+                                if (selectedDraftIds.isEmpty) {
+                                  setDialogState(() {
+                                    deletePicking = false;
+                                    errorText = null;
+                                  });
+                                  return;
+                                }
+                                final confirmed = await showDeleteConfirmDialog(
+                                  dialogContext,
+                                  title: '删除选项',
+                                  content:
+                                      '确认删除已选中的 ${selectedDraftIds.length} 个选项吗？',
+                                );
+                                if (!confirmed) return;
+                                setDialogState(() {
+                                  drafts.removeWhere(
+                                      (d) => selectedDraftIds.contains(d.id));
+                                  if (drafts.isEmpty) {
+                                    drafts.add(_OptionDraft.empty(
+                                        state.createRuntimeId('tplo')));
+                                  }
+                                  selectedDraftIds.clear();
+                                  deletePicking = false;
+                                  errorText = null;
+                                });
+                              },
                             ),
                           ],
                         ),

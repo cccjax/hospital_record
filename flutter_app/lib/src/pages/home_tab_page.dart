@@ -1001,30 +1001,22 @@ class _PatientCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                name,
-                                style: TextStyle(
-                                  fontSize: density.nameFontSize,
-                                  fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF1F3149),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (nursingLevel.isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: buildNursingChip(),
-                              ),
-                            ],
-                          ],
+                        child: Text(
+                          name,
+                          style: TextStyle(
+                            fontSize: density.nameFontSize,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1F3149),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      if (nursingLevel.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        buildNursingChip(),
+                      ],
+                      const SizedBox(width: 4),
                       buildLeadingAction(),
                     ],
                   ),

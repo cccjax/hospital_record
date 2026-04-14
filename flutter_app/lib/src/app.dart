@@ -14,7 +14,7 @@ class HospitalApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '住院管理系统',
+      title: '牛了个马',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
       locale: const Locale('zh', 'CN'),
