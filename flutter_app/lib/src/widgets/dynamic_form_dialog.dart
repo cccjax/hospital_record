@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/app_models.dart';
+import 'app_add_button.dart';
 import 'app_dropdown_form_field.dart';
 import 'editor_dialog.dart';
 
@@ -76,16 +77,15 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
       icon: Icons.edit_note_rounded,
       maxWidth: 620,
       actions: [
-        OutlinedButton(
+        AppCancelButton(
+          label: '取消',
           onPressed:
               _submitting ? null : () => Navigator.of(context).pop(false),
-          child: const Text('取消'),
         ),
-        FilledButton.icon(
+        AppSaveButton(
           onPressed: _submitting ? null : _handleSubmit,
-          icon: Icon(
-              _submitting ? Icons.hourglass_top_rounded : Icons.check_rounded),
-          label: Text(_submitting ? '保存中...' : widget.submitLabel),
+          icon: _submitting ? Icons.hourglass_top_rounded : Icons.check_rounded,
+          label: _submitting ? '保存中...' : widget.submitLabel,
         ),
       ],
       child: Form(

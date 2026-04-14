@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/app_dropdown_form_field.dart';
 import '../widgets/assessment_score_bar.dart';
@@ -175,11 +176,11 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
                 const SizedBox(height: 4),
                 SizedBox(
                   width: double.infinity,
-                  child: FilledButton.icon(
+                  child: AppSaveButton(
                     onPressed:
                         version == null ? null : () => _save(context, version),
-                    icon: const Icon(Icons.check_rounded),
-                    label: const Text('保存测评'),
+                    label: '保存测评',
+                    expand: true,
                   ),
                 ),
               ],

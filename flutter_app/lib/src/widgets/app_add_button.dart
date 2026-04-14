@@ -239,3 +239,197 @@ class AppAddTextButton extends StatelessWidget {
     );
   }
 }
+
+class AppToneTextButton extends StatelessWidget {
+  const AppToneTextButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.height = 40,
+    this.borderRadius = 12,
+    this.minWidth = 92,
+    this.iconSize = 16,
+    this.fontSize = 12.5,
+    this.fontWeight = FontWeight.w700,
+    this.expand = false,
+    this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    this.backgroundColor,
+    this.backgroundPressedColor,
+    this.backgroundDisabledColor,
+    this.foregroundColor,
+    this.foregroundDisabledColor,
+    this.borderColor,
+    this.borderPressedColor,
+    this.shadowColor,
+    this.overlayPressedColor,
+    this.overlayHoverColor,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final double height;
+  final double borderRadius;
+  final double minWidth;
+  final double iconSize;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final bool expand;
+  final EdgeInsetsGeometry padding;
+  final Color? backgroundColor;
+  final Color? backgroundPressedColor;
+  final Color? backgroundDisabledColor;
+  final Color? foregroundColor;
+  final Color? foregroundDisabledColor;
+  final Color? borderColor;
+  final Color? borderPressedColor;
+  final Color? shadowColor;
+  final Color? overlayPressedColor;
+  final Color? overlayHoverColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final button = icon == null
+        ? FilledButton(
+            onPressed: onPressed,
+            style: _buildAddButtonStyle(
+              borderRadius: borderRadius,
+              minSize: Size(expand ? double.infinity : minWidth, height),
+              padding: padding,
+              backgroundColor: backgroundColor,
+              backgroundPressedColor: backgroundPressedColor,
+              backgroundDisabledColor: backgroundDisabledColor,
+              foregroundColor: foregroundColor,
+              foregroundDisabledColor: foregroundDisabledColor,
+              borderColor: borderColor,
+              borderPressedColor: borderPressedColor,
+              shadowColor: shadowColor,
+              overlayPressedColor: overlayPressedColor,
+              overlayHoverColor: overlayHoverColor,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: fontWeight,
+                fontSize: fontSize,
+              ),
+            ),
+          )
+        : FilledButton.icon(
+            onPressed: onPressed,
+            style: _buildAddButtonStyle(
+              borderRadius: borderRadius,
+              minSize: Size(expand ? double.infinity : minWidth, height),
+              padding: padding,
+              backgroundColor: backgroundColor,
+              backgroundPressedColor: backgroundPressedColor,
+              backgroundDisabledColor: backgroundDisabledColor,
+              foregroundColor: foregroundColor,
+              foregroundDisabledColor: foregroundDisabledColor,
+              borderColor: borderColor,
+              borderPressedColor: borderPressedColor,
+              shadowColor: shadowColor,
+              overlayPressedColor: overlayPressedColor,
+              overlayHoverColor: overlayHoverColor,
+            ),
+            icon: Icon(icon, size: iconSize),
+            label: Text(
+              label,
+              style: TextStyle(
+                fontWeight: fontWeight,
+                fontSize: fontSize,
+              ),
+            ),
+          );
+
+    if (expand) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+    return button;
+  }
+}
+
+class AppSaveButton extends StatelessWidget {
+  const AppSaveButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.expand = false,
+    this.height = 40,
+    this.borderRadius = 12,
+    this.minWidth = 98,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool expand;
+  final double height;
+  final double borderRadius;
+  final double minWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppToneTextButton(
+      label: label,
+      onPressed: onPressed,
+      icon: icon ?? Icons.check_rounded,
+      expand: expand,
+      height: height,
+      borderRadius: borderRadius,
+      minWidth: minWidth,
+      iconSize: 17,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    );
+  }
+}
+
+class AppCancelButton extends StatelessWidget {
+  const AppCancelButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.expand = false,
+    this.height = 40,
+    this.borderRadius = 12,
+    this.minWidth = 90,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool expand;
+  final double height;
+  final double borderRadius;
+  final double minWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppToneTextButton(
+      label: label,
+      onPressed: onPressed,
+      expand: expand,
+      height: height,
+      borderRadius: borderRadius,
+      minWidth: minWidth,
+      icon: Icons.close_rounded,
+      iconSize: 16,
+      fontSize: 12.5,
+      fontWeight: FontWeight.w700,
+      backgroundColor: const Color(0xFFF4F8FC),
+      backgroundPressedColor: const Color(0xFFEAF0F8),
+      backgroundDisabledColor: const Color(0xFFF3F6F9),
+      foregroundColor: const Color(0xFF60758F),
+      foregroundDisabledColor: const Color(0xFF9AA7B6),
+      borderColor: const Color(0xFFD4E0EE),
+      borderPressedColor: const Color(0xFFC6D6E8),
+      shadowColor: const Color(0x1A4B6F96),
+      overlayPressedColor: const Color(0x1060758F),
+      overlayHoverColor: const Color(0x0A60758F),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+    );
+  }
+}

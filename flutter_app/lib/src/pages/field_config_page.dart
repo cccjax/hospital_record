@@ -306,14 +306,13 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
       icon: Icons.tune_rounded,
       maxWidth: 560,
       actions: [
-        OutlinedButton(
+        AppCancelButton(
+          label: '取消',
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
         ),
-        FilledButton.icon(
+        AppSaveButton(
           onPressed: _onSubmit,
-          icon: const Icon(Icons.check_rounded),
-          label: const Text('保存'),
+          label: '保存',
         ),
       ],
       child: Form(

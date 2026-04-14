@@ -183,11 +183,11 @@ class TemplateVersionPage extends StatelessWidget {
               icon: Icons.rule_rounded,
               maxWidth: 640,
               actions: [
-                OutlinedButton(
+                AppCancelButton(
+                  label: '取消',
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('取消'),
                 ),
-                FilledButton.icon(
+                AppSaveButton(
                   onPressed: () {
                     setDialogState(() {
                       errorText = null;
@@ -238,8 +238,7 @@ class TemplateVersionPage extends StatelessWidget {
                       errorText = state.takeLastErrorMessage() ?? '保存失败，请稍后重试';
                     });
                   },
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('保存'),
+                  label: '保存',
                 ),
               ],
               child: Column(
@@ -609,11 +608,11 @@ class TemplateVersionPage extends StatelessWidget {
               icon: Icons.ssid_chart_rounded,
               maxWidth: 540,
               actions: [
-                OutlinedButton(
+                AppCancelButton(
+                  label: '取消',
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('取消'),
                 ),
-                FilledButton.icon(
+                AppSaveButton(
                   onPressed: () {
                     setDialogState(() {
                       errorText = null;
@@ -664,8 +663,7 @@ class TemplateVersionPage extends StatelessWidget {
                       errorText = state.takeLastErrorMessage() ?? '保存失败，请稍后重试';
                     });
                   },
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('保存'),
+                  label: '保存',
                 ),
               ],
               child: Column(
