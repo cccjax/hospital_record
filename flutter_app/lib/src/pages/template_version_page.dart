@@ -54,8 +54,8 @@ class TemplateVersionPage extends StatelessWidget {
               child: FieldGrid(
                 schema: versionListSchema,
                 values: versionValues,
-                compact: true,
-                columns: 3,
+                variant: FieldGridVariant.table,
+                showColumnDivider: false,
               ),
             ),
           SectionCard(
@@ -239,19 +239,23 @@ class TemplateVersionPage extends StatelessWidget {
                     title: '基础信息',
                     child: Column(
                       children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            labelText: '测评项名称 *',
-                            hintText: '例如：疼痛程度',
+                        _DialogInlineRow(
+                          label: '测评项名称 *',
+                          child: TextField(
+                            controller: nameController,
+                            decoration: const InputDecoration(
+                              hintText: '例如：疼痛程度',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
-                        TextField(
-                          controller: quickController,
-                          decoration: const InputDecoration(
-                            labelText: '快速录入（可选）',
-                            hintText: '示例：无症状:0,轻度:2,重度:5',
+                        _DialogInlineRow(
+                          label: '快速录入',
+                          child: TextField(
+                            controller: quickController,
+                            decoration: const InputDecoration(
+                              hintText: '示例：无症状:0,轻度:2,重度:5',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -287,7 +291,6 @@ class TemplateVersionPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   EditorPanel(
                     title: '选项与分值',
-                    description: '每个选项都将参与评分计算',
                     child: Column(
                       children: [
                         for (var i = 0; i < drafts.length; i++) ...[
@@ -301,22 +304,34 @@ class TemplateVersionPage extends StatelessWidget {
                             padding: const EdgeInsets.fromLTRB(10, 9, 8, 9),
                             child: Row(
                               children: [
+                                SizedBox(
+                                  width: 54,
+                                  child: Text(
+                                    '选项${i + 1}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF244161),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
                                 Expanded(
                                   child: TextField(
                                     controller: drafts[i].labelController,
-                                    decoration: InputDecoration(
-                                      labelText: '选项 ${i + 1}',
-                                      hintText: '请输入选项名称',
+                                    decoration: const InputDecoration(
+                                      hintText: '选项名称',
                                     ),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 SizedBox(
-                                  width: 110,
+                                  width: 98,
                                   child: TextField(
                                     controller: drafts[i].scoreController,
-                                    decoration:
-                                        const InputDecoration(labelText: '分数'),
+                                    decoration: const InputDecoration(
+                                      hintText: '分数',
+                                    ),
                                     keyboardType: TextInputType.number,
                                   ),
                                 ),
@@ -480,34 +495,36 @@ class TemplateVersionPage extends StatelessWidget {
                     title: '区间配置',
                     child: Column(
                       children: [
-                        TextField(
-                          controller: levelController,
-                          decoration: const InputDecoration(
-                            labelText: '区间名称 *',
-                            hintText: '例如：中度风险',
+                        _DialogInlineRow(
+                          label: '区间名称 *',
+                          child: TextField(
+                            controller: levelController,
+                            decoration: const InputDecoration(
+                              hintText: '例如：中度风险',
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: minController,
-                                decoration:
-                                    const InputDecoration(labelText: '最小值'),
-                                keyboardType: TextInputType.number,
-                              ),
+                        _DialogInlineRow(
+                          label: '最小值',
+                          child: TextField(
+                            controller: minController,
+                            decoration: const InputDecoration(
+                              hintText: '请输入',
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: maxController,
-                                decoration:
-                                    const InputDecoration(labelText: '最大值'),
-                                keyboardType: TextInputType.number,
-                              ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _DialogInlineRow(
+                          label: '最大值',
+                          child: TextField(
+                            controller: maxController,
+                            decoration: const InputDecoration(
+                              hintText: '请输入',
                             ),
-                          ],
+                            keyboardType: TextInputType.number,
+                          ),
                         ),
                       ],
                     ),
@@ -515,15 +532,17 @@ class TemplateVersionPage extends StatelessWidget {
                   const SizedBox(height: 10),
                   EditorPanel(
                     title: '区间说明',
-                    description: '可选，用于解释该评分区间的临床含义',
-                    child: TextField(
-                      controller: noteController,
-                      decoration: const InputDecoration(
-                        labelText: '说明',
-                        hintText: '例如：建议48小时内复评并重点观察',
+                    child: _DialogInlineRow(
+                      label: '说明',
+                      alignTop: true,
+                      child: TextField(
+                        controller: noteController,
+                        decoration: const InputDecoration(
+                          hintText: '例如：建议48小时内复评并重点观察',
+                        ),
+                        minLines: 2,
+                        maxLines: 3,
                       ),
-                      minLines: 2,
-                      maxLines: 3,
                     ),
                   ),
                   if (errorText != null) ...[
@@ -839,6 +858,49 @@ class _ActionText extends StatelessWidget {
         visualDensity: VisualDensity.compact,
         color: color,
       ),
+    );
+  }
+}
+
+class _DialogInlineRow extends StatelessWidget {
+  const _DialogInlineRow({
+    required this.label,
+    required this.child,
+    this.alignTop = false,
+  });
+
+  final String label;
+  final Widget child;
+  final bool alignTop;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final labelWidth = constraints.maxWidth < 430 ? 86.0 : 104.0;
+        return Row(
+          crossAxisAlignment:
+              alignTop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: labelWidth,
+              child: Padding(
+                padding: EdgeInsets.only(top: alignTop ? 8 : 0),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF244161),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: child),
+          ],
+        );
+      },
     );
   }
 }

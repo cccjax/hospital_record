@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:provider/provider.dart';
 
@@ -16,6 +17,16 @@ class HospitalApp extends StatelessWidget {
       title: '住院管理系统',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      locale: const Locale('zh', 'CN'),
+      supportedLocales: const [
+        Locale('zh', 'CN'),
+        Locale('en', 'US'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: Consumer<HospitalAppState>(
         builder: (context, state, _) {
           if (!state.initialized) {
@@ -165,7 +176,8 @@ class _UnlockPageState extends State<_UnlockPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.lock_outline_rounded, size: 34, color: Color(0xFF3A648D)),
+                    const Icon(Icons.lock_outline_rounded,
+                        size: 34, color: Color(0xFF3A648D)),
                     const SizedBox(height: 8),
                     const Text(
                       '请输入访问密码',
@@ -239,7 +251,9 @@ class _UnlockPageState extends State<_UnlockPage> {
   }
 
   void _submit(BuildContext context) {
-    final ok = context.read<HospitalAppState>().verifyPassword(_controller.text.trim());
+    final ok = context
+        .read<HospitalAppState>()
+        .verifyPassword(_controller.text.trim());
     if (ok) return;
     setState(() {
       _errorText = '密码错误，请重试';

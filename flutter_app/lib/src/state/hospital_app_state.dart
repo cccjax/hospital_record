@@ -41,6 +41,34 @@ class HospitalAppState extends ChangeNotifier {
     'gradeCount',
   };
 
+  static const Map<String, Set<String>> _systemFieldKeys =
+      <String, Set<String>>{
+    'patient': <String>{
+      'admissionNo',
+      'name',
+      'nursingLevel',
+    },
+    'admission': <String>{
+      'admitDate',
+      'status',
+    },
+    'daily': <String>{
+      'recordDate',
+    },
+    'templateDisease': <String>{
+      'diseaseName',
+      'diseaseCode',
+      'versionCount',
+      'itemCount',
+    },
+    'templateVersion': <String>{
+      'versionName',
+      'itemCount',
+      'optionCount',
+      'gradeCount',
+    },
+  };
+
   static const Map<String, Map<String, String>> _coreFieldLabels =
       <String, Map<String, String>>{
     'patient': <String, String>{
@@ -65,12 +93,14 @@ class HospitalAppState extends ChangeNotifier {
       'notes': '病情记录',
     },
     'templateDisease': <String, String>{
+      'diseaseName': '病种名称',
       'diseaseCode': '病种编码',
       'versionCount': '版本数',
       'itemCount': '测评项总数',
       'description': '说明',
     },
     'templateVersion': <String, String>{
+      'versionName': '版本名称',
       'year': '年度',
       'itemCount': '测评项',
       'optionCount': '选项数',
@@ -1284,7 +1314,7 @@ class HospitalAppState extends ChangeNotifier {
   bool deleteField(String moduleKey, String key) {
     _lastErrorMessage = null;
     if (isCoreRequiredField(moduleKey, key)) {
-      _lastErrorMessage = '核心字段不允许删除';
+      _lastErrorMessage = '系统字段不允许删除';
       return false;
     }
     final schema = schemaOf(moduleKey);
@@ -1337,10 +1367,7 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   bool isCoreRequiredField(String moduleKey, String key) {
-    return (moduleKey == 'patient' && key == 'admissionNo') ||
-        (moduleKey == 'patient' && key == 'name') ||
-        (moduleKey == 'patient' && key == 'nursingLevel') ||
-        (moduleKey == 'admission' && key == 'admitDate');
+    return _systemFieldKeys[moduleKey]?.contains(key) ?? false;
   }
 
   String exportDataJson() {
@@ -1436,35 +1463,10 @@ class HospitalAppState extends ChangeNotifier {
   }
 
   void _enforceCoreFieldRules() {
+    _enforceSystemFieldRule('patient', 'admissionNo', forceRequired: true);
+    _enforceSystemFieldRule('patient', 'name', forceRequired: true);
+
     final patientSchema = schemaOf('patient');
-    final pIdx = patientSchema.indexWhere((e) => e.key == 'admissionNo');
-    if (pIdx >= 0) {
-      patientSchema[pIdx] = patientSchema[pIdx].copyWith(
-        required: true,
-        locked: true,
-      );
-      data = data.copyWith(
-        schemas: <String, List<FieldSchema>>{
-          ...data.schemas,
-          'patient': patientSchema,
-        },
-      );
-    }
-
-    final nameIdx = patientSchema.indexWhere((e) => e.key == 'name');
-    if (nameIdx >= 0) {
-      patientSchema[nameIdx] = patientSchema[nameIdx].copyWith(
-        required: true,
-        locked: true,
-      );
-      data = data.copyWith(
-        schemas: <String, List<FieldSchema>>{
-          ...data.schemas,
-          'patient': patientSchema,
-        },
-      );
-    }
-
     final nursingIdx = patientSchema.indexWhere((e) => e.key == 'nursingLevel');
     if (nursingIdx >= 0) {
       final fallback = _buildDefaultNursingLevelField();
@@ -1507,20 +1509,63 @@ class HospitalAppState extends ChangeNotifier {
       );
     }
 
-    final admissionSchema = schemaOf('admission');
-    final aIdx = admissionSchema.indexWhere((e) => e.key == 'admitDate');
-    if (aIdx >= 0) {
-      admissionSchema[aIdx] = admissionSchema[aIdx].copyWith(
-        required: true,
-        locked: true,
-      );
-      data = data.copyWith(
-        schemas: <String, List<FieldSchema>>{
-          ...data.schemas,
-          'admission': admissionSchema,
-        },
-      );
-    }
+    _enforceSystemFieldRule('admission', 'admitDate', forceRequired: true);
+    _enforceSystemFieldRule('admission', 'status', forceRequired: true);
+    _enforceSystemFieldRule('daily', 'recordDate', forceRequired: true);
+
+    _enforceSystemFieldRule('templateDisease', 'diseaseName');
+    _enforceSystemFieldRule('templateDisease', 'diseaseCode');
+    _enforceSystemFieldRule(
+      'templateDisease',
+      'versionCount',
+      forceComputed: true,
+    );
+    _enforceSystemFieldRule(
+      'templateDisease',
+      'itemCount',
+      forceComputed: true,
+    );
+
+    _enforceSystemFieldRule('templateVersion', 'versionName');
+    _enforceSystemFieldRule(
+      'templateVersion',
+      'itemCount',
+      forceComputed: true,
+    );
+    _enforceSystemFieldRule(
+      'templateVersion',
+      'optionCount',
+      forceComputed: true,
+    );
+    _enforceSystemFieldRule(
+      'templateVersion',
+      'gradeCount',
+      forceComputed: true,
+    );
+  }
+
+  void _enforceSystemFieldRule(
+    String moduleKey,
+    String key, {
+    bool forceRequired = false,
+    bool forceComputed = false,
+  }) {
+    final schema = schemaOf(moduleKey);
+    final index = schema.indexWhere((field) => field.key == key);
+    if (index < 0) return;
+
+    final current = schema[index];
+    schema[index] = current.copyWith(
+      required: forceRequired ? true : current.required,
+      locked: true,
+      computed: forceComputed ? true : current.computed,
+    );
+    data = data.copyWith(
+      schemas: <String, List<FieldSchema>>{
+        ...data.schemas,
+        moduleKey: schema,
+      },
+    );
   }
 
   void _repairSchemas() {

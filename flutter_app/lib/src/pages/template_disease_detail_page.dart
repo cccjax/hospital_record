@@ -6,7 +6,6 @@ import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
-import '../widgets/field_grid.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/section_card.dart';
 import 'template_version_page.dart';
@@ -411,10 +410,8 @@ class _VersionSection extends StatelessWidget {
           child: const Icon(Icons.add_rounded),
         ),
       ),
-      child: Column(
-        children: [
-          if (versions.isEmpty)
-            Padding(
+      child: versions.isEmpty
+          ? Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 catalog == TemplateCatalogType.assessment
@@ -422,21 +419,69 @@ class _VersionSection extends StatelessWidget {
                     : '暂无诊断模板版本，请先新增',
                 style: const TextStyle(color: Color(0xFF7588A1)),
               ),
+            )
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 10.0;
+                final width = constraints.maxWidth;
+                final minCardWidth = width >= 1200
+                    ? 300.0
+                    : width >= 900
+                        ? 260.0
+                        : width >= 640
+                            ? 220.0
+                            : 190.0;
+                final maxColumns = width >= 1400
+                    ? 4
+                    : width >= 1000
+                        ? 3
+                        : width >= 640
+                            ? 2
+                            : 1;
+                final crossAxisCount = ((width + gap) / (minCardWidth + gap))
+                    .floor()
+                    .clamp(1, maxColumns);
+                final cardWidth =
+                    (width - gap * (crossAxisCount - 1)) / crossAxisCount;
+                final baseAspectRatio = cardWidth >= 420
+                    ? 2.30
+                    : cardWidth >= 340
+                        ? 2.05
+                        : cardWidth >= 280
+                            ? 1.85
+                            : cardWidth >= 230
+                                ? 1.70
+                                : 1.55;
+                final extraRowPenalty =
+                    (versionListSchema.length - 4).clamp(0, 10).toDouble() *
+                        0.15;
+                final cardAspectRatio =
+                    (baseAspectRatio - extraRowPenalty).clamp(1.16, 2.3);
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final version in versions)
+                      SizedBox(
+                        width: cardWidth,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: cardWidth / cardAspectRatio,
+                          ),
+                          child: _VersionCard(
+                            state: state,
+                            version: version,
+                            schema: versionListSchema,
+                            onOpen: () => onOpenVersion(version),
+                            onEdit: () => onEditVersion(version),
+                            onDelete: () => onDeleteVersion(version),
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
-          for (final version in versions)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _VersionCard(
-                state: state,
-                version: version,
-                schema: versionListSchema,
-                onOpen: () => onOpenVersion(version),
-                onEdit: () => onEditVersion(version),
-                onDelete: () => onDeleteVersion(version),
-              ),
-            ),
-        ],
-      ),
     );
   }
 }
@@ -464,72 +509,183 @@ class _VersionCard extends StatelessWidget {
       for (final field in schema)
         field.key: state.templateVersionFieldValue(version, field.key),
     };
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE8F6)),
+    final infoRows = _buildInfoRows(schema, values);
+
+    return Card(
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFDCE7F5)),
       ),
       child: InkWell(
         onTap: onOpen,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 24, 10),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      version.versionName.isEmpty
-                          ? '未命名版本'
-                          : version.versionName,
-                      style: const TextStyle(
-                        color: Color(0xFF1F3149),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          version.versionName.isEmpty
+                              ? '未命名版本'
+                              : version.versionName,
+                          style: const TextStyle(
+                            color: Color(0xFF1F3149),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 6),
+                      _TinyAction(
+                        title: '编辑版本',
+                        icon: Icons.edit_rounded,
+                        color: const Color(0xFF2C88D8),
+                        onTap: onEdit,
+                      ),
+                      _TinyAction(
+                        title: '删除版本',
+                        icon: Icons.delete_outline_rounded,
+                        color: const Color(0xFFD34E66),
+                        onTap: onDelete,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  const Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Color(0xFFE4EBF6),
+                  ),
+                  const SizedBox(height: 6),
+                  for (var i = 0; i < infoRows.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == infoRows.length - 1 ? 0 : 5,
+                      ),
+                      child: infoRows[i].multiLine
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  infoRows[i].label,
+                                  style: const TextStyle(
+                                    color: Color(0xFF6D829E),
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  infoRows[i].value,
+                                  style: const TextStyle(
+                                    color: Color(0xFF20364F),
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.2,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            )
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 68,
+                                  child: Text(
+                                    infoRows[i].label,
+                                    style: const TextStyle(
+                                      color: Color(0xFF6D829E),
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    infoRows[i].value,
+                                    style: const TextStyle(
+                                      color: Color(0xFF20364F),
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w600,
+                                      height: 1.2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
-                  ),
-                  _TinyAction(
-                    title: '编辑版本',
-                    icon: Icons.edit_rounded,
-                    color: const Color(0xFF2C88D8),
-                    onTap: onEdit,
-                  ),
-                  _TinyAction(
-                    title: '删除版本',
-                    icon: Icons.delete_outline_rounded,
-                    color: const Color(0xFFD34E66),
-                    onTap: onDelete,
-                  ),
-                  const SizedBox(
-                    width: 20,
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: Color(0xFF7E95B3),
-                    ),
-                  ),
                 ],
               ),
-              if (schema.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                FieldGrid(
-                  schema: schema,
-                  values: values,
-                  compact: true,
-                  columns: 3,
+            ),
+            const Positioned(
+              right: 2,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFF7E95B3),
                 ),
-              ],
-            ],
-          ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  List<_VersionInfoRow> _buildInfoRows(
+    List<FieldSchema> schema,
+    Map<String, dynamic> values,
+  ) {
+    final rows = <_VersionInfoRow>[];
+    for (final field in schema) {
+      final text = (values[field.key] ?? '-').toString().trim();
+      rows.add(
+        _VersionInfoRow(
+          label: field.label,
+          value: text.isEmpty ? '-' : text,
+          multiLine: field.type == FieldType.textarea,
+        ),
+      );
+    }
+    if (rows.isEmpty) {
+      return const <_VersionInfoRow>[
+        _VersionInfoRow(label: '字段', value: '暂无可视字段'),
+      ];
+    }
+    return rows;
+  }
+}
+
+class _VersionInfoRow {
+  const _VersionInfoRow({
+    required this.label,
+    required this.value,
+    this.multiLine = false,
+  });
+
+  final String label;
+  final String value;
+  final bool multiLine;
 }
 
 class _TinyAction extends StatelessWidget {

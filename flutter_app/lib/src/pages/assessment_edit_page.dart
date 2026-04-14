@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
+import '../widgets/app_dropdown_form_field.dart';
 import '../widgets/assessment_score_bar.dart';
 import '../widgets/responsive_layout.dart';
 import '../widgets/section_card.dart';
@@ -83,11 +84,6 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
     final score = version == null
         ? 0.0
         : state.calculateAssessmentScore(version, _selections);
-    final selectedCount = version == null
-        ? 0
-        : version.items
-            .where((item) => (_selections[item.id] ?? '').isNotEmpty)
-            .length;
     final templateSection = _TemplatePickerCard(
       diseaseId: _diseaseId,
       versionId: _versionId,
@@ -96,15 +92,16 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
       templates: templates,
       score: score,
       version: version,
+      catalogLocked: widget.editingAssessmentId != null,
       onCatalogChanged: (value) {
         if (value == _catalog) return;
         final nextTemplates = state.templatesOf(value);
         final nextDiseaseId =
             nextTemplates.isNotEmpty ? nextTemplates.first.id : '';
-        final nextVersionId = nextTemplates.isNotEmpty &&
-                nextTemplates.first.versions.isNotEmpty
-            ? nextTemplates.first.versions.first.id
-            : '';
+        final nextVersionId =
+            nextTemplates.isNotEmpty && nextTemplates.first.versions.isNotEmpty
+                ? nextTemplates.first.versions.first.id
+                : '';
         setState(() {
           _catalog = value;
           _diseaseId = nextDiseaseId;
@@ -153,32 +150,7 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
             child: ListView(
               padding: layout.listPadding(),
               children: [
-                if (layout.useTwoPane) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _AssessmentHeaderCard(
-                          selectedCount: selectedCount,
-                          totalCount: version?.items.length ?? 0,
-                          score: score,
-                          hasVersion: version != null,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(child: templateSection),
-                    ],
-                  ),
-                ] else ...[
-                  _AssessmentHeaderCard(
-                    selectedCount: selectedCount,
-                    totalCount: version?.items.length ?? 0,
-                    score: score,
-                    hasVersion: version != null,
-                  ),
-                  const SizedBox(height: 10),
-                  templateSection,
-                ],
+                templateSection,
                 if (version != null)
                   SectionCard(
                     title: '评分选项（均为必填）',
@@ -255,6 +227,7 @@ class _AssessmentEditPageState extends State<AssessmentEditPage> {
 class _TemplatePickerCard extends StatelessWidget {
   const _TemplatePickerCard({
     required this.catalog,
+    required this.catalogLocked,
     required this.diseaseId,
     required this.versionId,
     required this.disease,
@@ -267,6 +240,7 @@ class _TemplatePickerCard extends StatelessWidget {
   });
 
   final TemplateCatalogType catalog;
+  final bool catalogLocked;
   final String diseaseId;
   final String versionId;
   final TemplateDisease? disease;
@@ -283,58 +257,81 @@ class _TemplatePickerCard extends StatelessWidget {
       title: '模板选择',
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: FilledButton.tonal(
-                  onPressed: () =>
-                      onCatalogChanged(TemplateCatalogType.assessment),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: catalog == TemplateCatalogType.assessment
-                        ? const Color(0xFFD8ECFF)
-                        : null,
+          if (!catalogLocked) ...[
+            SizedBox(
+              height: 42,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFD3E0F1)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _CatalogTabButton(
+                          label: '病情测评',
+                          icon: Icons.monitor_heart_outlined,
+                          selected: catalog == TemplateCatalogType.assessment,
+                          onTap: () =>
+                              onCatalogChanged(TemplateCatalogType.assessment),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: _CatalogTabButton(
+                          label: '诊断测评',
+                          icon: Icons.fact_check_outlined,
+                          selected: catalog == TemplateCatalogType.diagnosis,
+                          onTap: () =>
+                              onCatalogChanged(TemplateCatalogType.diagnosis),
+                        ),
+                      ),
+                    ],
                   ),
-                  child: const Text('病情测评'),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton.tonal(
-                  onPressed: () =>
-                      onCatalogChanged(TemplateCatalogType.diagnosis),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: catalog == TemplateCatalogType.diagnosis
-                        ? const Color(0xFFD8ECFF)
-                        : null,
-                  ),
-                  child: const Text('诊断测评'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            initialValue: diseaseId.isEmpty ? null : diseaseId,
-            decoration: const InputDecoration(labelText: '病种模板'),
+            ),
+            const SizedBox(height: 10),
+          ],
+          AppDropdownFormField<String>(
+            selectedValue: diseaseId.isEmpty ? null : diseaseId,
+            hintText: '病种模板（可搜索）',
+            searchable: true,
+            searchHintText: '输入病种名称或编码',
+            emptySearchText: '未找到匹配病种',
+            isEnabled: templates.isNotEmpty,
             items: templates
                 .map(
-                  (diseaseItem) => DropdownMenuItem<String>(
+                  (diseaseItem) => AppDropdownOption<String>(
                     value: diseaseItem.id,
-                    child: Text(diseaseItem.diseaseName),
+                    label: diseaseItem.diseaseName,
+                    subtitle: diseaseItem.diseaseCode.trim().isEmpty
+                        ? null
+                        : '编码 ${diseaseItem.diseaseCode}',
+                    searchKeywords: <String>[
+                      diseaseItem.diseaseName,
+                      diseaseItem.diseaseCode,
+                    ],
                   ),
                 )
                 .toList(),
             onChanged: onDiseaseChanged,
           ),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            initialValue: versionId.isEmpty ? null : versionId,
-            decoration: const InputDecoration(labelText: '模板版本'),
+          AppDropdownFormField<String>(
+            selectedValue: versionId.isEmpty ? null : versionId,
+            hintText: '模板版本',
+            isEnabled:
+                (disease?.versions ?? const <TemplateVersion>[]).isNotEmpty,
             items: (disease?.versions ?? const <TemplateVersion>[])
                 .map(
-                  (versionItem) => DropdownMenuItem<String>(
+                  (versionItem) => AppDropdownOption<String>(
                     value: versionItem.id,
-                    child: Text(versionItem.versionName),
+                    label: versionItem.versionName,
                   ),
                 )
                 .toList(),
@@ -357,135 +354,6 @@ class _TemplatePickerCard extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _AssessmentHeaderCard extends StatelessWidget {
-  const _AssessmentHeaderCard({
-    required this.selectedCount,
-    required this.totalCount,
-    required this.score,
-    required this.hasVersion,
-  });
-
-  final int selectedCount;
-  final int totalCount;
-  final double score;
-  final bool hasVersion;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF0F8FF)],
-        ),
-        border: Border.all(color: const Color(0xFFE4EDF9)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x180F2744),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '住院测评录入',
-              style: TextStyle(
-                color: Color(0xFF1F3149),
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              '选择模板后勾选评分选项，系统会自动计算分值与区间',
-              style: TextStyle(
-                color: Color(0xFF627892),
-                fontSize: 12.5,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeaderMetric(
-                    label: '完成项',
-                    value: hasVersion ? '$selectedCount/$totalCount' : '--',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _HeaderMetric(
-                    label: '当前得分',
-                    value: hasVersion ? _formatScore(score) : '--',
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static String _formatScore(double value) {
-    if (value == value.toInt()) return value.toInt().toString();
-    return value.toStringAsFixed(1);
-  }
-}
-
-class _HeaderMetric extends StatelessWidget {
-  const _HeaderMetric({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDCE7F6)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: Color(0xFF60758F),
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF1D3149),
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -577,6 +445,58 @@ class _ItemOptionsCard extends StatelessWidget {
   String _formatScore(double score) {
     if (score == score.toInt()) return score.toInt().toString();
     return score.toStringAsFixed(1);
+  }
+}
+
+class _CatalogTabButton extends StatelessWidget {
+  const _CatalogTabButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground =
+        selected ? const Color(0xFF2E5F92) : const Color(0xFF5F738D);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(9),
+            color: selected ? const Color(0xFFDDEEFF) : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: foreground),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12.5,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

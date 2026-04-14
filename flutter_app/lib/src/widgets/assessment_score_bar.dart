@@ -46,6 +46,9 @@ class AssessmentScoreBar extends StatelessWidget {
             .clamp(0.0, math.max(0.0, width - scoreBubbleWidth))
             .toDouble();
         final boundaries = _buildBoundaries(segmentFlexes, width);
+        final scoreMarks =
+            _buildScoreMarks(sorted, boundaries, width, maxScore);
+        final boundaryLabelWidth = compact ? 34.0 : 40.0;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,6 +96,10 @@ class AssessmentScoreBar extends StatelessWidget {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(999),
                         color: const Color(0xFFEAF0F8),
+                        border: Border.all(
+                          color: const Color(0xFFAFC1D6),
+                          width: 1.1,
+                        ),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(999),
@@ -110,12 +117,12 @@ class AssessmentScoreBar extends StatelessWidget {
                   ),
                   for (final offset in boundaries)
                     Positioned(
-                      left: offset - 0.5,
-                      top: 1,
-                      bottom: 1,
+                      left: offset - 1,
+                      top: 0,
+                      bottom: 0,
                       child: Container(
-                        width: 1,
-                        color: Colors.white.withValues(alpha: 0.94),
+                        width: 2,
+                        color: const Color(0xFF4E657F).withValues(alpha: 0.65),
                       ),
                     ),
                   Positioned(
@@ -141,34 +148,63 @@ class AssessmentScoreBar extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: compact ? 6 : 8),
-            if (compact)
-              _CompactSummary(
-                rule: markerRuleIndex >= 0 ? sorted[markerRuleIndex] : null,
-                color: markerColor,
-              )
-            else
-              Row(
+            SizedBox(height: compact ? 5 : 7),
+            SizedBox(
+              height: compact ? 16 : 18,
+              child: Stack(
                 children: [
-                  for (var i = 0; i < sorted.length; i++)
-                    Expanded(
-                      flex: segmentFlexes[i],
-                      child: Align(
-                        alignment: Alignment.center,
+                  for (final mark in scoreMarks)
+                    Positioned(
+                      left: (width * mark.factor - (boundaryLabelWidth / 2))
+                          .clamp(
+                            0.0,
+                            math.max(0.0, width - boundaryLabelWidth),
+                          )
+                          .toDouble(),
+                      child: SizedBox(
+                        width: boundaryLabelWidth,
                         child: Text(
-                          '${sorted[i].level} ${_formatNumber(sorted[i].min)}-${_formatNumber(sorted[i].max)}',
+                          mark.text,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.15,
+                            color: const Color(0xFF5F7591),
+                            fontSize: compact ? 10 : 10.5,
                             fontWeight: FontWeight.w700,
-                            color: _segmentColor(i).withValues(alpha: 0.95),
+                            height: 1.1,
                           ),
                         ),
                       ),
                     ),
                 ],
               ),
+            ),
+            SizedBox(height: compact ? 4 : 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < sorted.length; i++)
+                  Expanded(
+                    flex: segmentFlexes[i],
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        compact
+                            ? '${sorted[i].level}\n${_formatNumber(sorted[i].min)}-${_formatNumber(sorted[i].max)}'
+                            : '${sorted[i].level} ${_formatNumber(sorted[i].min)}-${_formatNumber(sorted[i].max)}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: compact ? 10.5 : 12.5,
+                          height: compact ? 1.15 : 1.15,
+                          fontWeight: FontWeight.w700,
+                          color: i == markerRuleIndex
+                              ? _segmentColor(i).withValues(alpha: 0.96)
+                              : _segmentColor(i).withValues(alpha: 0.86),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ],
         );
       },
@@ -204,6 +240,39 @@ class AssessmentScoreBar extends StatelessWidget {
     return offsets;
   }
 
+  List<_ScoreMark> _buildScoreMarks(
+    List<TemplateGradeRule> sorted,
+    List<double> boundaries,
+    double width,
+    double maxScore,
+  ) {
+    final marks = <_ScoreMark>[
+      _ScoreMark(factor: 0.0, text: _formatNumber(sorted.first.min))
+    ];
+    for (var i = 0; i < boundaries.length; i++) {
+      final factor =
+          width <= 0 ? 0.0 : (boundaries[i] / width).clamp(0.0, 1.0).toDouble();
+      marks.add(
+        _ScoreMark(
+          factor: factor,
+          text: _formatNumber(sorted[i].max),
+        ),
+      );
+    }
+    marks.add(_ScoreMark(factor: 1.0, text: _formatNumber(maxScore)));
+
+    final deduped = <_ScoreMark>[];
+    for (final mark in marks) {
+      if (deduped.isNotEmpty &&
+          (mark.factor - deduped.last.factor).abs() < 0.001 &&
+          mark.text == deduped.last.text) {
+        continue;
+      }
+      deduped.add(mark);
+    }
+    return deduped;
+  }
+
   String _formatNumber(double value) {
     if (value == value.toInt()) {
       return value.toInt().toString();
@@ -223,47 +292,12 @@ class AssessmentScoreBar extends StatelessWidget {
   }
 }
 
-class _CompactSummary extends StatelessWidget {
-  const _CompactSummary({
-    required this.rule,
-    required this.color,
+class _ScoreMark {
+  const _ScoreMark({
+    required this.factor,
+    required this.text,
   });
 
-  final TemplateGradeRule? rule;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    if (rule == null) {
-      return const SizedBox.shrink();
-    }
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color,
-          ),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            '${rule!.level}  ${_formatNumber(rule!.min)}-${_formatNumber(rule!.max)} 分',
-            style: const TextStyle(
-              color: Color(0xFF4D647F),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _formatNumber(double value) {
-    if (value == value.toInt()) return value.toInt().toString();
-    return value.toStringAsFixed(1);
-  }
+  final double factor;
+  final String text;
 }

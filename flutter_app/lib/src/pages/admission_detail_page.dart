@@ -72,6 +72,9 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
         _assessmentCatalogView == TemplateCatalogType.assessment
             ? illnessAssessments
             : diagnosisAssessments;
+    final dailyCount = dailyList.length;
+    final imagingCount = imaging.length;
+    final assessmentCount = assessments.length;
 
     return Scaffold(
       appBar: _buildAppBar(),
@@ -94,37 +97,43 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                 const SizedBox(height: 10),
                 SectionCard(
                   title: '入院详情',
-                  action: Tooltip(
-                    message: '编辑入院详情',
-                    child: FilledButton.tonal(
-                      onPressed: () => _editAdmission(context, admission),
-                      child: const Icon(Icons.edit_rounded),
-                    ),
+                  action: _HeaderIconAction(
+                    title: '编辑入院详情',
+                    icon: Icons.edit_rounded,
+                    onTap: () => _editAdmission(context, admission),
                   ),
                   child: FieldGrid(
                     schema: admissionFields,
                     values: admission.values,
+                    variant: FieldGridVariant.table,
+                    compact: true,
+                    showColumnDivider: false,
                   ),
                 ),
                 SectionCard(
                   title: '影像资料',
-                  action: Wrap(
-                    spacing: 6,
+                  action: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      FilledButton.tonal(
-                        onPressed: () => _pickFromCamera(context),
-                        child: const Text('拍照'),
+                      _CountPill(text: '$imagingCount 张'),
+                      const SizedBox(width: 6),
+                      _HeaderIconAction(
+                        title: '拍照上传',
+                        icon: Icons.photo_camera_rounded,
+                        onTap: () => _pickFromCamera(context),
                       ),
-                      FilledButton.tonal(
-                        onPressed: () => _pickFromAlbum(context),
-                        child: const Text('相册'),
+                      const SizedBox(width: 6),
+                      _HeaderIconAction(
+                        title: '从相册选择',
+                        icon: Icons.photo_library_rounded,
+                        onTap: () => _pickFromAlbum(context),
                       ),
                     ],
                   ),
                   child: imaging.isEmpty
-                      ? const Text(
-                          '暂无影像资料，可使用拍照或相册上传',
-                          style: TextStyle(color: Color(0xFF7588A1)),
+                      ? const _EmptySectionHint(
+                          text: '暂无影像资料，可拍照或从相册上传',
+                          icon: Icons.image_not_supported_rounded,
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,81 +187,42 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                 ),
                 SectionCard(
                   title: '住院测评',
-                  action: Wrap(
-                    spacing: 6,
+                  action: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Tooltip(
-                        message: '新增病情测评',
-                        child: FilledButton.tonal(
-                          onPressed: () => _openAssessmentEdit(
-                            context,
-                            catalog: TemplateCatalogType.assessment,
-                          ),
-                          child: const Icon(Icons.add_chart_rounded),
-                        ),
-                      ),
-                      Tooltip(
-                        message: '新增诊断测评',
-                        child: FilledButton.tonal(
-                          onPressed: () => _openAssessmentEdit(
-                            context,
-                            catalog: TemplateCatalogType.diagnosis,
-                          ),
-                          child: const Icon(Icons.add_task_rounded),
+                      _CountPill(text: '$assessmentCount 条'),
+                      const SizedBox(width: 6),
+                      _AddAssessmentMenuButton(
+                        onSelected: (catalog) => _openAssessmentEdit(
+                          context,
+                          catalog: catalog,
                         ),
                       ),
                     ],
                   ),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () {
-                                setState(() {
-                                  _assessmentCatalogView =
-                                      TemplateCatalogType.assessment;
-                                });
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _assessmentCatalogView ==
-                                        TemplateCatalogType.assessment
-                                    ? const Color(0xFFD8ECFF)
-                                    : null,
-                              ),
-                              child: Text('病情测评 ${illnessAssessments.length}'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () {
-                                setState(() {
-                                  _assessmentCatalogView =
-                                      TemplateCatalogType.diagnosis;
-                                });
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: _assessmentCatalogView ==
-                                        TemplateCatalogType.diagnosis
-                                    ? const Color(0xFFD8ECFF)
-                                    : null,
-                              ),
-                              child:
-                                  Text('诊断测评 ${diagnosisAssessments.length}'),
-                            ),
-                          ),
-                        ],
+                      _AssessmentCatalogSwitcher(
+                        view: _assessmentCatalogView,
+                        illnessCount: illnessAssessments.length,
+                        diagnosisCount: diagnosisAssessments.length,
+                        onChange: (catalog) {
+                          setState(() {
+                            _assessmentCatalogView = catalog;
+                          });
+                        },
                       ),
                       const SizedBox(height: 10),
                       if (activeAssessments.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            '暂无测评记录',
-                            style: TextStyle(color: Color(0xFF7488A4)),
-                          ),
+                        _EmptySectionHint(
+                          text: _assessmentCatalogView ==
+                                  TemplateCatalogType.assessment
+                              ? '暂无病情测评记录'
+                              : '暂无诊断测评记录',
+                          icon: _assessmentCatalogView ==
+                                  TemplateCatalogType.assessment
+                              ? Icons.monitor_heart_outlined
+                              : Icons.fact_check_outlined,
                         )
                       else
                         for (final record in activeAssessments)
@@ -278,37 +248,56 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
                 ),
                 SectionCard(
                   title: '日常记录',
-                  action: Tooltip(
-                    message: '新增日常记录',
-                    child: FilledButton.tonal(
-                      onPressed: () => _openDailyDialog(context),
-                      child: const Icon(Icons.add_rounded),
-                    ),
-                  ),
-                  child: Column(
+                  action: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (final row in dailyList)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: _DailyCard(
-                            row: row,
-                            listSchema: dailyListSchema,
-                            onOpen: () => _openDailyDetail(context, row.id),
-                            onEdit: () =>
-                                _openDailyDialog(context, editing: row),
-                            onDelete: () => _deleteDaily(context, row.id),
-                          ),
-                        ),
-                      if (dailyList.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            '暂无日常记录',
-                            style: TextStyle(color: Color(0xFF7488A4)),
-                          ),
-                        ),
+                      _CountPill(text: '$dailyCount 条'),
+                      const SizedBox(width: 6),
+                      _HeaderIconAction(
+                        title: '新增日常记录',
+                        icon: Icons.add_rounded,
+                        onTap: () => _openDailyDialog(context),
+                      ),
                     ],
                   ),
+                  child: dailyList.isEmpty
+                      ? const _EmptySectionHint(
+                          text: '暂无日常记录',
+                          icon: Icons.event_note_rounded,
+                        )
+                      : LayoutBuilder(
+                          builder: (context, box) {
+                            const gap = 10.0;
+                            const minCardWidth = 248.0;
+                            final crossAxisCount =
+                                ((box.maxWidth + gap) / (minCardWidth + gap))
+                                    .floor()
+                                    .clamp(1, 3);
+                            final cardWidth =
+                                (box.maxWidth - gap * (crossAxisCount - 1)) /
+                                    crossAxisCount;
+                            return Wrap(
+                              spacing: gap,
+                              runSpacing: gap,
+                              children: [
+                                for (final row in dailyList)
+                                  SizedBox(
+                                    width: cardWidth,
+                                    child: _DailyCard(
+                                      row: row,
+                                      listSchema: dailyListSchema,
+                                      onOpen: () =>
+                                          _openDailyDetail(context, row.id),
+                                      onEdit: () => _openDailyDialog(context,
+                                          editing: row),
+                                      onDelete: () =>
+                                          _deleteDaily(context, row.id),
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -576,41 +565,53 @@ class _HeroSummary extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF4F8FF)],
-        ),
+        color: const Color(0xFFF8FBFF),
         border: Border.all(color: const Color(0xFFE7EEF8)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x160F2744),
-            blurRadius: 12,
-            offset: Offset(0, 6),
+            color: Color(0x120F2744),
+            blurRadius: 10,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              patientName,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1F3149),
-              ),
+            const Icon(
+              Icons.person_rounded,
+              size: 18,
+              color: Color(0xFF3F6E9F),
             ),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _HeroChip(text: '住院号 $admissionNo'),
-                _HeroChip(text: '住院日期 $admitDate'),
-              ],
+            const SizedBox(width: 6),
+            Expanded(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    patientName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1F3149),
+                    ),
+                  ),
+                  _HeroChip(
+                    icon: Icons.badge_outlined,
+                    text: '住院号 $admissionNo',
+                  ),
+                  _HeroChip(
+                    icon: Icons.calendar_month_outlined,
+                    text: '住院日期 $admitDate',
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -620,8 +621,12 @@ class _HeroSummary extends StatelessWidget {
 }
 
 class _HeroChip extends StatelessWidget {
-  const _HeroChip({required this.text});
+  const _HeroChip({
+    required this.icon,
+    required this.text,
+  });
 
+  final IconData icon;
   final String text;
 
   @override
@@ -634,14 +639,384 @@ class _HeroChip extends StatelessWidget {
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: const Color(0xFF5A7091)),
+            const SizedBox(width: 5),
+            Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFF4E627D),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AssessmentCatalogSwitcher extends StatelessWidget {
+  const _AssessmentCatalogSwitcher({
+    required this.view,
+    required this.illnessCount,
+    required this.diagnosisCount,
+    required this.onChange,
+  });
+
+  final TemplateCatalogType view;
+  final int illnessCount;
+  final int diagnosisCount;
+  final ValueChanged<TemplateCatalogType> onChange;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget buildOption({
+      required TemplateCatalogType catalog,
+      required IconData icon,
+      required String label,
+      required int count,
+    }) {
+      final selected = view == catalog;
+      final foreground =
+          selected ? const Color(0xFF2E5F92) : const Color(0xFF5F738D);
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(9),
+            onTap: () => onChange(catalog),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 160),
+              curve: Curves.easeOut,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(9),
+                color: selected ? const Color(0xFFDDEEFF) : Colors.transparent,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: foreground),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$label $count',
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 12.5,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 42,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD3E0F1)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              buildOption(
+                catalog: TemplateCatalogType.assessment,
+                icon: Icons.monitor_heart_outlined,
+                label: '病情测评',
+                count: illnessCount,
+              ),
+              const SizedBox(width: 3),
+              buildOption(
+                catalog: TemplateCatalogType.diagnosis,
+                icon: Icons.fact_check_outlined,
+                label: '诊断测评',
+                count: diagnosisCount,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconAction extends StatelessWidget {
+  const _HeaderIconAction({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: title,
+      child: FilledButton.tonal(
+        onPressed: onTap,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(38, 38),
+          maximumSize: const Size(38, 38),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(11),
+          ),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Icon(icon, size: 20),
+      ),
+    );
+  }
+}
+
+class _AddAssessmentMenuButton extends StatefulWidget {
+  const _AddAssessmentMenuButton({
+    required this.onSelected,
+  });
+
+  final ValueChanged<TemplateCatalogType> onSelected;
+
+  @override
+  State<_AddAssessmentMenuButton> createState() =>
+      _AddAssessmentMenuButtonState();
+}
+
+class _AddAssessmentMenuButtonState extends State<_AddAssessmentMenuButton> {
+  final GlobalKey _anchorKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '新增测评',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: _anchorKey,
+          borderRadius: BorderRadius.circular(11),
+          onTap: _openMenu,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(11),
+              border: Border.all(color: const Color(0xFFD6E4F5)),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.add_rounded,
+                    size: 18,
+                    color: Color(0xFF305F90),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    '新增测评',
+                    style: TextStyle(
+                      color: Color(0xFF305F90),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                  SizedBox(width: 2),
+                  Icon(
+                    Icons.arrow_drop_down_rounded,
+                    size: 20,
+                    color: Color(0xFF305F90),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openMenu() async {
+    final anchorContext = _anchorKey.currentContext;
+    if (anchorContext == null) {
+      return;
+    }
+    final box = anchorContext.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) {
+      return;
+    }
+
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final bottomRight = box.localToGlobal(
+      box.size.bottomRight(Offset.zero),
+      ancestor: overlay,
+    );
+    final menuTop = topLeft.dy + box.size.height + 6;
+    final position = RelativeRect.fromLTRB(
+      topLeft.dx,
+      menuTop,
+      overlay.size.width - bottomRight.dx,
+      overlay.size.height - menuTop,
+    );
+
+    final selected = await showMenu<TemplateCatalogType>(
+      context: context,
+      position: position,
+      color: const Color(0xFFF8FBFF),
+      surfaceTintColor: Colors.transparent,
+      elevation: 10,
+      constraints:
+          const BoxConstraints(minWidth: 180, maxWidth: 200, maxHeight: 220),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFD6E3F3)),
+      ),
+      items: const [
+        PopupMenuItem<TemplateCatalogType>(
+          value: TemplateCatalogType.assessment,
+          padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          height: 42,
+          child: _MenuOptionRow(
+            icon: Icons.monitor_heart_outlined,
+            text: '新增病情测评',
+          ),
+        ),
+        PopupMenuItem<TemplateCatalogType>(
+          value: TemplateCatalogType.diagnosis,
+          padding: EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+          height: 42,
+          child: _MenuOptionRow(
+            icon: Icons.fact_check_outlined,
+            text: '新增诊断测评',
+          ),
+        ),
+      ],
+    );
+    if (selected != null) {
+      widget.onSelected(selected);
+    }
+  }
+}
+
+class _MenuOptionRow extends StatelessWidget {
+  const _MenuOptionRow({
+    required this.icon,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF557292)),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF334A64),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD7E4F3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         child: Text(
           text,
           style: const TextStyle(
-            color: Color(0xFF4E627D),
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
+            color: Color(0xFF57708D),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _EmptySectionHint extends StatelessWidget {
+  const _EmptySectionHint({
+    required this.text,
+    required this.icon,
+  });
+
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDDE8F6)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF768CA8)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF7A8CA4),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -716,36 +1091,69 @@ class _DailyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final title = (row.values['recordDate'] ?? '-').toString().trim();
+    final infoRows = _buildInfoRows();
+
     return Card(
       child: InkWell(
         onTap: onOpen,
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-          child: Row(
-            children: [
-              Expanded(
+        child: Stack(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 152),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 24, 10),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: Text(
-                            (row.values['recordDate'] ?? '-').toString(),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F3149),
-                            ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFD4E3F7),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.event_note_rounded,
+                                  size: 14,
+                                  color: Color(0xFF3E6A9D),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              Flexible(
+                                child: Text(
+                                  title.isEmpty ? '-' : title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1F3149),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(width: 6),
                         _ActionText(
                           title: '编辑日常记录',
                           icon: Icons.edit_rounded,
                           color: const Color(0xFF2B88D8),
                           onTap: onEdit,
                         ),
+                        const SizedBox(width: 4),
                         _ActionText(
                           title: '删除日常记录',
                           icon: Icons.delete_outline_rounded,
@@ -754,31 +1162,111 @@ class _DailyCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    FieldGrid(
-                      schema: listSchema,
-                      values: row.values,
-                      compact: true,
+                    const SizedBox(height: 7),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE4EBF6),
                     ),
+                    const SizedBox(height: 6),
+                    for (var i = 0; i < infoRows.length; i++)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: i == infoRows.length - 1 ? 0 : 5,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 66,
+                              child: Text(
+                                infoRows[i].label,
+                                style: const TextStyle(
+                                  color: Color(0xFF6D829E),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                infoRows[i].value,
+                                style: const TextStyle(
+                                  color: Color(0xFF20364F),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(
-                width: 18,
-                child: Center(
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: Color(0xFF7E95B3),
-                  ),
+            ),
+            const Positioned(
+              right: 2,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFF7E95B3),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  List<_DailyInfoRow> _buildInfoRows() {
+    final rows = <_DailyInfoRow>[];
+    for (final field in listSchema) {
+      if (field.key == 'recordDate') continue;
+      final raw = row.values[field.key];
+      String text;
+      if (field.type == FieldType.images && raw is List) {
+        text = '共 ${raw.length} 张';
+      } else {
+        text = (raw ?? '-').toString().trim();
+      }
+      rows.add(
+        _DailyInfoRow(
+          label: field.label,
+          value: text.isEmpty ? '-' : text,
+        ),
+      );
+      if (rows.length >= 4) break;
+    }
+    if (rows.isEmpty) {
+      return const <_DailyInfoRow>[
+        _DailyInfoRow(label: '字段', value: '暂无可视字段'),
+      ];
+    }
+    return rows;
+  }
+}
+
+class _DailyInfoRow {
+  const _DailyInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
 }
 
 class _AssessmentCard extends StatelessWidget {
@@ -836,23 +1324,55 @@ class _AssessmentCard extends StatelessWidget {
         onTap: onOpen,
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+          padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
           child: Row(
             children: [
               Expanded(
                 child: Column(
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F3149),
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: const Color(0xFFD4E3F7),
                             ),
+                          ),
+                          child: const Icon(
+                            Icons.analytics_outlined,
+                            size: 14,
+                            color: Color(0xFF3E6A9D),
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 5,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1F3149),
+                                ),
+                              ),
+                              _MetaChip(
+                                icon: Icons.layers_outlined,
+                                text: '模板 $versionText',
+                              ),
+                              _MetaChip(
+                                icon: Icons.schedule_rounded,
+                                text: timeText,
+                              ),
+                            ],
                           ),
                         ),
                         _ActionText(
@@ -869,26 +1389,8 @@ class _AssessmentCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _MiniField(
-                            label: '模板版本',
-                            value: versionText,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _MiniField(
-                            label: '测评时间',
-                            value: timeText,
-                          ),
-                        ),
-                      ],
-                    ),
                     if (version != null && version.gradeRules.isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 7),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           color: const Color(0xFFF7FBFF),
@@ -926,41 +1428,35 @@ class _AssessmentCard extends StatelessWidget {
   }
 }
 
-class _MiniField extends StatelessWidget {
-  const _MiniField({
-    required this.label,
-    required this.value,
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({
+    required this.icon,
+    required this.text,
   });
 
-  final String label;
-  final String value;
+  final IconData icon;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FBFF),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5EEF9)),
+        color: const Color(0xFFF5F9FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD9E5F4)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(icon, size: 13, color: const Color(0xFF5A7091)),
+            const SizedBox(width: 4),
             Text(
-              label,
+              text,
               style: const TextStyle(
-                color: Color(0xFF6F829B),
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Color(0xFF1F334B),
-                fontSize: 13,
+                color: Color(0xFF4E627D),
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -988,11 +1484,24 @@ class _ActionText extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: title,
-      child: IconButton(
-        onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        visualDensity: VisualDensity.compact,
-        color: color,
+      child: SizedBox(
+        width: 34,
+        height: 34,
+        child: IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, size: 18),
+          visualDensity: VisualDensity.compact,
+          style: IconButton.styleFrom(
+            backgroundColor: color.withValues(alpha: 0.12),
+            foregroundColor: color,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(34, 34),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
       ),
     );
   }

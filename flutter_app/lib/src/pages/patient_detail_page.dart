@@ -37,6 +37,7 @@ class PatientDetailPage extends StatelessWidget {
         .where((f) => f.key != 'admitDate')
         .toList();
     final admissions = state.admissionsOf(admissionNo);
+    final admissionCount = admissions.length;
 
     return Scaffold(
       appBar: _buildAppBar(),
@@ -45,51 +46,70 @@ class PatientDetailPage extends StatelessWidget {
         children: [
           SectionCard(
             title: '基础信息',
-            action: Tooltip(
-              message: '编辑基础信息',
-              child: FilledButton.tonal(
-                onPressed: () => _openPatientEditDialog(context, patient),
-                child: const Icon(Icons.edit_rounded),
-              ),
+            action: _HeaderIconAction(
+              title: '编辑基础信息',
+              icon: Icons.edit_rounded,
+              onTap: () => _openPatientEditDialog(context, patient),
             ),
             child: FieldGrid(
               schema: patientSchema,
               values: patient.values,
+              variant: FieldGridVariant.table,
+              showColumnDivider: false,
             ),
           ),
           SectionCard(
             title: '入院记录',
-            action: Tooltip(
-              message: '新增入院记录',
-              child: FilledButton.tonal(
-                onPressed: () => _openCreateAdmissionDialog(context),
-                child: const Icon(Icons.add_rounded),
-              ),
-            ),
-            child: Column(
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (final admission in admissions)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _AdmissionCard(
-                      row: admission,
-                      listSchema: admissionListSchema,
-                      onOpen: () => _openAdmissionDetail(context, admission.id),
-                      onEdit: () =>
-                          _openEditAdmissionDialog(context, admission),
-                      onDelete: () => _deleteAdmission(context, admission.id),
-                    ),
-                  ),
-                if (admissions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      '暂无入院记录',
-                      style: TextStyle(color: Color(0xFF7A8CA4)),
-                    ),
-                  ),
+                _CountPill(text: '$admissionCount 条'),
+                const SizedBox(width: 6),
+                _HeaderIconAction(
+                  title: '新增入院记录',
+                  icon: Icons.add_rounded,
+                  onTap: () => _openCreateAdmissionDialog(context),
+                ),
               ],
             ),
+            child: admissions.isEmpty
+                ? const _EmptySectionHint(
+                    text: '暂无入院记录',
+                    icon: Icons.event_note_rounded,
+                  )
+                : LayoutBuilder(
+                    builder: (context, box) {
+                      const gap = 10.0;
+                      const minCardWidth = 248.0;
+                      final crossAxisCount =
+                          ((box.maxWidth + gap) / (minCardWidth + gap))
+                              .floor()
+                              .clamp(1, 3);
+                      final cardWidth =
+                          (box.maxWidth - gap * (crossAxisCount - 1)) /
+                              crossAxisCount;
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final admission in admissions)
+                            SizedBox(
+                              width: cardWidth,
+                              child: _AdmissionCard(
+                                row: admission,
+                                listSchema: admissionListSchema,
+                                onOpen: () =>
+                                    _openAdmissionDetail(context, admission.id),
+                                onEdit: () => _openEditAdmissionDialog(
+                                    context, admission),
+                                onDelete: () =>
+                                    _deleteAdmission(context, admission.id),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -236,60 +256,92 @@ class _AdmissionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = (row.values['admitDate'] ?? '-').toString();
+    final title = (row.values['admitDate'] ?? '-').toString().trim();
     final status = (row.values['status'] ?? '').toString();
+    final isInHospital = status == '在院';
+    final infoRows = _buildInfoRows();
 
     return Card(
       child: InkWell(
         onTap: onOpen,
         borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-          child: Row(
-            children: [
-              Expanded(
+        child: Stack(
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 152),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 24, 10),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1F3149),
-                            ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFFD4E3F7),
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.calendar_month_rounded,
+                                  size: 14,
+                                  color: Color(0xFF3E6A9D),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              Flexible(
+                                child: Text(
+                                  title.isEmpty ? '-' : title,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1F3149),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (status.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isInHospital
+                                        ? const Color(0xFFE8F7F3)
+                                        : const Color(0xFFF5F9FF),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: isInHospital
+                                          ? const Color(0xFFBDE6DD)
+                                          : const Color(0xFFD9E5F4),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    status,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: isInHospital
+                                          ? const Color(0xFF0F695F)
+                                          : const Color(0xFF596C84),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                        if (status.isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: status == '在院'
-                                  ? const Color(0xFFE8F7F3)
-                                  : const Color(0xFFF5F9FF),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: status == '在院'
-                                    ? const Color(0xFFBDE6DD)
-                                    : const Color(0xFFD9E5F4),
-                              ),
-                            ),
-                            child: Text(
-                              status,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: status == '在院'
-                                    ? const Color(0xFF0F695F)
-                                    : const Color(0xFF596C84),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(width: 5),
+                        const SizedBox(width: 6),
                         _InlineAction(
                           title: '编辑入院记录',
                           icon: Icons.edit_rounded,
@@ -304,32 +356,106 @@ class _AdmissionCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    FieldGrid(
-                      schema: listSchema,
-                      values: row.values,
-                      compact: true,
+                    const SizedBox(height: 7),
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE4EBF6),
                     ),
+                    const SizedBox(height: 6),
+                    for (var i = 0; i < infoRows.length; i++)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: i == infoRows.length - 1 ? 0 : 5,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              width: 66,
+                              child: Text(
+                                infoRows[i].label,
+                                style: const TextStyle(
+                                  color: Color(0xFF6D829E),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                infoRows[i].value,
+                                style: const TextStyle(
+                                  color: Color(0xFF20364F),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),
-              const SizedBox(width: 4),
-              const SizedBox(
-                width: 18,
-                child: Center(
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    size: 20,
-                    color: Color(0xFF7E95B3),
-                  ),
+            ),
+            const Positioned(
+              right: 2,
+              top: 0,
+              bottom: 0,
+              child: Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  size: 20,
+                  color: Color(0xFF7E95B3),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  List<_AdmissionInfoRow> _buildInfoRows() {
+    final rows = <_AdmissionInfoRow>[];
+    for (final field in listSchema) {
+      if (field.key == 'status') continue;
+      final raw = row.values[field.key];
+      final text = (raw ?? '-').toString().trim();
+      rows.add(
+        _AdmissionInfoRow(
+          label: field.label,
+          value: text.isEmpty ? '-' : text,
+        ),
+      );
+      if (rows.length >= 4) break;
+    }
+    if (rows.isEmpty) {
+      return const <_AdmissionInfoRow>[
+        _AdmissionInfoRow(label: '字段', value: '暂无可视字段'),
+      ];
+    }
+    return rows;
+  }
+}
+
+class _AdmissionInfoRow {
+  const _AdmissionInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
 }
 
 class _InlineAction extends StatelessWidget {
@@ -349,11 +475,123 @@ class _InlineAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: title,
-      child: IconButton(
+      child: SizedBox(
+        width: 30,
+        height: 30,
+        child: IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, size: 16),
+          visualDensity: VisualDensity.compact,
+          style: IconButton.styleFrom(
+            backgroundColor: color.withValues(alpha: 0.12),
+            foregroundColor: color,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(9),
+            ),
+            padding: EdgeInsets.zero,
+            minimumSize: const Size(30, 30),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderIconAction extends StatelessWidget {
+  const _HeaderIconAction({
+    required this.title,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: title,
+      child: FilledButton.tonal(
         onPressed: onTap,
-        icon: Icon(icon, size: 18),
-        visualDensity: VisualDensity.compact,
-        color: color,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(34, 34),
+          maximumSize: const Size(34, 34),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Icon(icon, size: 18),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FF),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFD7E4F3)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF57708D),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptySectionHint extends StatelessWidget {
+  const _EmptySectionHint({
+    required this.text,
+    required this.icon,
+  });
+
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDDE8F6)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF768CA8)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF7A8CA4),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

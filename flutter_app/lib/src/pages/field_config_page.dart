@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
+import '../widgets/app_dropdown_form_field.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/editor_dialog.dart';
 import '../widgets/section_card.dart';
@@ -42,14 +43,14 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
         children: [
           SectionCard(
             title: '配置模块',
-            child: DropdownButtonFormField<String>(
-              initialValue: module,
+            child: AppDropdownFormField<String>(
+              selectedValue: module,
               items: const [
-                DropdownMenuItem(value: 'patient', child: Text('病人信息')),
-                DropdownMenuItem(value: 'admission', child: Text('入院记录')),
-                DropdownMenuItem(value: 'daily', child: Text('日常记录')),
-                DropdownMenuItem(value: 'templateDisease', child: Text('病种模板')),
-                DropdownMenuItem(value: 'templateVersion', child: Text('版本列表')),
+                AppDropdownOption(value: 'patient', label: '病人信息'),
+                AppDropdownOption(value: 'admission', label: '入院记录'),
+                AppDropdownOption(value: 'daily', label: '日常记录'),
+                AppDropdownOption(value: 'templateDisease', label: '病种模板'),
+                AppDropdownOption(value: 'templateVersion', label: '版本列表'),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -317,33 +318,37 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
               title: '基本信息',
               child: Column(
                 children: [
-                  TextFormField(
-                    controller: _keyController,
-                    enabled: !keyLocked,
-                    decoration: const InputDecoration(
-                      labelText: '字段键名 *',
-                      hintText: '例如: bloodSugar',
+                  _buildInlineInputRow(
+                    label: '字段键名 *',
+                    child: TextFormField(
+                      controller: _keyController,
+                      enabled: !keyLocked,
+                      decoration: const InputDecoration(
+                        hintText: '例如: bloodSugar',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请填写字段键名';
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return '请填写字段键名';
-                      }
-                      return null;
-                    },
                   ),
                   const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _labelController,
-                    decoration: const InputDecoration(
-                      labelText: '字段名称 *',
-                      hintText: '例如: 血型',
+                  _buildInlineInputRow(
+                    label: '字段名称 *',
+                    child: TextFormField(
+                      controller: _labelController,
+                      decoration: const InputDecoration(
+                        hintText: '例如: 血型',
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return '请填写字段名称';
+                        }
+                        return null;
+                      },
                     ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return '请填写字段名称';
-                      }
-                      return null;
-                    },
                   ),
                 ],
               ),
@@ -351,30 +356,28 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
             const SizedBox(height: 10),
             EditorPanel(
               title: '字段类型',
-              description: typeLocked ? '系统字段类型不可修改' : '不同类型会影响录入控件样式',
-              child: DropdownButtonFormField<FieldType>(
-                initialValue: _type,
-                decoration: const InputDecoration(labelText: '选择字段类型'),
-                items: const [
-                  DropdownMenuItem(value: FieldType.text, child: Text('文本')),
-                  DropdownMenuItem(value: FieldType.number, child: Text('数字')),
-                  DropdownMenuItem(value: FieldType.date, child: Text('日期')),
-                  DropdownMenuItem(
-                      value: FieldType.textarea, child: Text('多行文本')),
-                  DropdownMenuItem(
-                      value: FieldType.select, child: Text('下拉选项')),
-                  DropdownMenuItem(
-                      value: FieldType.images, child: Text('图片上传')),
-                ],
-                onChanged: typeLocked
-                    ? null
-                    : (value) {
-                        if (value == null) return;
-                        setState(() {
-                          _type = value;
-                          _errorText = null;
-                        });
-                      },
+              child: _buildInlineInputRow(
+                label: '字段类型',
+                child: AppDropdownFormField<FieldType>(
+                  selectedValue: _type,
+                  hintText: '选择字段类型',
+                  isEnabled: !typeLocked,
+                  items: const [
+                    AppDropdownOption(value: FieldType.text, label: '文本'),
+                    AppDropdownOption(value: FieldType.number, label: '数字'),
+                    AppDropdownOption(value: FieldType.date, label: '日期'),
+                    AppDropdownOption(value: FieldType.textarea, label: '多行文本'),
+                    AppDropdownOption(value: FieldType.select, label: '下拉选项'),
+                    AppDropdownOption(value: FieldType.images, label: '图片上传'),
+                  ],
+                  onChanged: (value) {
+                    if (value == null || typeLocked) return;
+                    setState(() {
+                      _type = value;
+                      _errorText = null;
+                    });
+                  },
+                ),
               ),
             ),
             if (_type == FieldType.select) ...[
@@ -388,7 +391,6 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                 children: [
                   _buildToggleRow(
                     title: '是否必填',
-                    subtitle: canToggleRequired ? '开启后录入时必须填写' : '系统字段，不可修改',
                     value: _required,
                     onChanged: canToggleRequired
                         ? (value) {
@@ -401,7 +403,6 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                   const SizedBox(height: 8),
                   _buildToggleRow(
                     title: '是否列表展示',
-                    subtitle: '关闭后仅在详情页显示',
                     value: _showInList,
                     onChanged: (value) {
                       setState(() {
@@ -519,9 +520,6 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     final isNursing = _isNursingLevelField;
     return EditorPanel(
       title: isNursing ? '护理等级配置' : '下拉选项配置',
-      description: isNursing
-          ? '护理等级是系统字段，不可删除；可配置每个等级对应颜色，首页卡片会自动联动。'
-          : '逐项配置下拉选项，支持直观颜色选择。',
       child: Column(
         children: [
           for (var i = 0; i < _selectOptions.length; i += 1) ...[
@@ -558,11 +556,22 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              SizedBox(
+                width: 58,
+                child: Text(
+                  '选项${index + 1}',
+                  style: const TextStyle(
+                    color: Color(0xFF244161),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: TextFormField(
                   controller: item.labelController,
-                  decoration: InputDecoration(
-                    labelText: '选项 ${index + 1}',
+                  decoration: const InputDecoration(
                     hintText: '请输入选项名称',
                   ),
                 ),
@@ -678,9 +687,42 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
     return Color(parsed);
   }
 
+  Widget _buildInlineInputRow({
+    required String label,
+    required Widget child,
+    bool alignTop = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final labelWidth = constraints.maxWidth < 430 ? 88.0 : 108.0;
+        return Row(
+          crossAxisAlignment:
+              alignTop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: labelWidth,
+              child: Padding(
+                padding: EdgeInsets.only(top: alignTop ? 8 : 0),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF244161),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: child),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildToggleRow({
     required String title,
-    required String subtitle,
     required bool value,
     ValueChanged<bool>? onChanged,
   }) {
@@ -695,27 +737,13 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
         child: Row(
           children: [
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Color(0xFF213852),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Color(0xFF6A809D),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF213852),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
               ),
             ),
             Switch(
@@ -1073,10 +1101,10 @@ class _FieldRow extends StatelessWidget {
                     onTap: onEdit,
                   ),
                   _RowAction(
-                    title: field.showInList ? '设为隐藏' : '设为显示',
+                    title: field.showInList ? '当前可见（点击设为隐藏）' : '当前隐藏（点击设为显示）',
                     icon: field.showInList
-                        ? Icons.visibility_off_rounded
-                        : Icons.visibility_rounded,
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
                     color: const Color(0xFF637A97),
                     onTap: onToggleShow,
                   ),

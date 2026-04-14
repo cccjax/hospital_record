@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/app_models.dart';
+import 'app_dropdown_form_field.dart';
 import 'editor_dialog.dart';
 
 typedef DynamicFormSubmit = FutureOr<String?> Function(
@@ -109,15 +111,61 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
   }
 
   Widget _buildFieldCard(FieldSchema field) {
+    final editable = !field.locked || _canEditLockedField(field);
+    final labelText = field.required ? '${field.label} *' : field.label;
     return EditorPanel(
-      title: field.required ? '${field.label} *' : field.label,
-      description: _fieldDescription(field),
-      child: _buildFieldInput(field),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final labelWidth = constraints.maxWidth < 430 ? 86.0 : 108.0;
+          return Row(
+            crossAxisAlignment: field.type == FieldType.textarea
+                ? CrossAxisAlignment.start
+                : CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: labelWidth,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    top: field.type == FieldType.textarea ? 10 : 0,
+                  ),
+                  child: Text(
+                    labelText,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF244161),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildFieldInput(
+                  field,
+                  editable: editable,
+                ),
+              ),
+              if (!editable) ...[
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 14,
+                  color: Color(0xFF7890AB),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildFieldInput(FieldSchema field) {
-    final editable = !field.locked || _canEditLockedField(field);
+  Widget _buildFieldInput(
+    FieldSchema field, {
+    required bool editable,
+  }) {
     if (field.type == FieldType.select) {
       if (field.options.isEmpty) {
         final controller = _controllers.putIfAbsent(
@@ -143,16 +191,15 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
           ? current
           : field.options.first;
       _selectValues[field.key] = safeValue;
-      return DropdownButtonFormField<String>(
-        initialValue: safeValue,
-        decoration: const InputDecoration(
-          hintText: '请选择',
-        ),
+      return AppDropdownFormField<String>(
+        selectedValue: safeValue,
+        hintText: '请选择',
+        isEnabled: editable,
         items: field.options
             .map(
-              (option) => DropdownMenuItem<String>(
+              (option) => AppDropdownOption<String>(
                 value: option,
-                child: Text(option),
+                label: option,
               ),
             )
             .toList(),
@@ -162,29 +209,54 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
           }
           return null;
         },
-        onChanged: !editable
-            ? null
-            : (value) {
-                setState(() {
-                  _selectValues[field.key] = value ?? '';
-                });
-              },
+        onChanged: (value) {
+          if (!editable) return;
+          setState(() {
+            _selectValues[field.key] = value ?? '';
+          });
+        },
       );
     }
 
     final controller = _controllers[field.key]!;
+    if (field.type == FieldType.date) {
+      return TextFormField(
+        controller: controller,
+        enabled: editable,
+        readOnly: true,
+        keyboardType: TextInputType.none,
+        decoration: const InputDecoration(
+          hintText: '请选择日期',
+          suffixIcon: Icon(Icons.calendar_month_rounded, size: 18),
+        ),
+        onTap: !editable
+            ? null
+            : () async {
+                final selected = await _pickDate(controller.text);
+                if (selected == null) {
+                  return;
+                }
+                controller.text = DateFormat('yyyy-MM-dd').format(selected);
+              },
+        validator: (value) {
+          if (field.required && (value == null || value.trim().isEmpty)) {
+            return '请填写${field.label}';
+          }
+          return null;
+        },
+      );
+    }
+
     return TextFormField(
       controller: controller,
       enabled: editable,
-      maxLines: field.type == FieldType.textarea ? 4 : 1,
+      maxLines: field.type == FieldType.textarea ? 3 : 1,
       keyboardType: switch (field.type) {
         FieldType.number => TextInputType.number,
-        FieldType.date => TextInputType.datetime,
         _ => TextInputType.text,
       },
       decoration: InputDecoration(
         hintText: switch (field.type) {
-          FieldType.date => 'YYYY-MM-DD',
           FieldType.number => '请输入数字',
           _ => '请输入内容',
         },
@@ -196,6 +268,59 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
         return null;
       },
     );
+  }
+
+  Future<DateTime?> _pickDate(String rawValue) async {
+    final initialDate = _parseDate(rawValue) ?? DateTime.now();
+    final firstDate = DateTime(1900, 1, 1);
+    final lastDate = DateTime(2100, 12, 31);
+    final safeInitialDate = initialDate.isBefore(firstDate)
+        ? firstDate
+        : initialDate.isAfter(lastDate)
+            ? lastDate
+            : initialDate;
+    return showDatePicker(
+      context: context,
+      locale: const Locale('zh', 'CN'),
+      initialDate: safeInitialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: '选择日期',
+      cancelText: '取消',
+      confirmText: '确定',
+      initialEntryMode: DatePickerEntryMode.calendarOnly,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            datePickerTheme: const DatePickerThemeData(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              headerBackgroundColor: Color(0xFFEAF4FF),
+              headerForegroundColor: Color(0xFF1F456E),
+              surfaceTintColor: Colors.transparent,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+  }
+
+  DateTime? _parseDate(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    final parsed = DateTime.tryParse(normalized);
+    if (parsed != null) {
+      return parsed;
+    }
+    try {
+      return DateFormat('yyyy-MM-dd').parseStrict(normalized);
+    } catch (_) {
+      return null;
+    }
   }
 
   Widget _buildErrorBanner() {
@@ -232,25 +357,10 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
     );
   }
 
-  String _fieldDescription(FieldSchema field) {
-    if (field.locked && !_canEditLockedField(field)) {
-      return '系统字段，当前仅支持查看。';
-    }
-    if (field.locked && _canEditLockedField(field)) {
-      return '系统字段，支持录入与修改。';
-    }
-    return switch (field.type) {
-      FieldType.number => '仅支持数字录入',
-      FieldType.date => '建议使用 YYYY-MM-DD 格式',
-      FieldType.textarea => '支持多行文本',
-      FieldType.select => '从备选项中选择',
-      FieldType.images => '支持拍照与相册多图上传',
-      FieldType.text => '请输入文本内容',
-    };
-  }
-
   bool _canEditLockedField(FieldSchema field) {
-    if (field.key == 'nursingLevel' || field.key == 'name') {
+    if (field.key == 'nursingLevel' ||
+        field.key == 'name' ||
+        field.key == 'diseaseCode') {
       return true;
     }
     if (field.key == 'admissionNo') {

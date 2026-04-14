@@ -5,6 +5,7 @@ import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
+import '../widgets/paged_card_grid.dart';
 import '../widgets/responsive_layout.dart';
 import 'patient_detail_page.dart';
 
@@ -88,6 +89,10 @@ class _CardDensitySpec {
 class _HomeTabPageState extends State<HomeTabPage> {
   late final TextEditingController _searchController;
   _HomeCardDensity _cardDensity = _HomeCardDensity.standard;
+  PagedCardPageState _patientCardPageState = const PagedCardPageState(
+    pageCount: 0,
+    currentPage: 0,
+  );
 
   @override
   void initState() {
@@ -108,6 +113,17 @@ class _HomeTabPageState extends State<HomeTabPage> {
   void _setCardDensity(_HomeCardDensity density) {
     if (_cardDensity == density) return;
     setState(() => _cardDensity = density);
+  }
+
+  void _onPatientPageStateChanged(PagedCardPageState next) {
+    if (_patientCardPageState.pageCount == next.pageCount &&
+        _patientCardPageState.currentPage == next.currentPage) {
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _patientCardPageState = next;
+    });
   }
 
   @override
@@ -246,79 +262,106 @@ class _HomeTabPageState extends State<HomeTabPage> {
             );
           }
 
-          return ResponsiveBody(
-            layout: layout,
-            child: ListView(
-              padding: layout.listPadding(bottom: 100),
-              children: [
-                _HeroCard(
-                  patientCount: state.patientCount,
-                  inHospitalCount: state.inHospitalCount,
-                  filterActive: state.patientInHospitalOnly,
-                  onToggleFilter: state.toggleInHospitalFilter,
-                  nursingLevels: nursingLevels,
-                  activeNursingLevel: nursingLevelFilter,
-                  nursingLevelCounts: nursingLevelCounts,
-                  nursingLevelColors: nursingLevelColors,
-                  onSelectNursingLevel: state.setPatientNursingLevelFilter,
-                ),
-                const SizedBox(height: 12),
-                if (isCompactToolbar) ...[
-                  Row(
-                    children: [
-                      buildDensitySwitch(),
-                      const Spacer(),
-                      buildAddButton(),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  buildSearchField(),
-                ] else
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      buildDensitySwitch(),
-                      const SizedBox(width: 8),
-                      Expanded(child: buildSearchField()),
-                      const SizedBox(width: 8),
-                      buildAddButton(),
-                    ],
-                  ),
-                const SizedBox(height: 12),
-                if (patients.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 20),
-                    child: Center(
-                      child: Text(
-                        '暂无病人记录',
-                        style: TextStyle(color: Color(0xFF7488A4)),
-                      ),
+          return Stack(
+            children: [
+              ResponsiveBody(
+                layout: layout,
+                child: ListView(
+                  padding: layout.listPadding(bottom: 24),
+                  children: [
+                    _HeroCard(
+                      patientCount: state.patientCount,
+                      inHospitalCount: state.inHospitalCount,
+                      filterActive: state.patientInHospitalOnly,
+                      onToggleFilter: state.toggleInHospitalFilter,
+                      nursingLevels: nursingLevels,
+                      activeNursingLevel: nursingLevelFilter,
+                      nursingLevelCounts: nursingLevelCounts,
+                      nursingLevelColors: nursingLevelColors,
+                      onSelectNursingLevel: state.setPatientNursingLevelFilter,
                     ),
-                  )
-                else
-                  LayoutBuilder(
-                    builder: (context, box) {
-                      const gap = 10.0;
-                      final baseExtent = (layout.isTablet
-                              ? density.baseExtentTablet
-                              : density.baseExtentPhone) +
-                          visibleFieldCount * density.extentPerField;
-                      final maxColumns = layout.isTablet ? 5 : 3;
-                      final crossAxisCount =
-                          ((box.maxWidth + gap) / (baseExtent + gap))
-                              .floor()
-                              .clamp(1, maxColumns);
-                      final cardWidth =
-                          (box.maxWidth - gap * (crossAxisCount - 1)) /
-                              crossAxisCount;
-                      return Wrap(
-                        spacing: gap,
-                        runSpacing: gap,
+                    const SizedBox(height: 12),
+                    if (isCompactToolbar) ...[
+                      Row(
                         children: [
-                          for (final patient in patients)
-                            SizedBox(
-                              width: cardWidth,
-                              child: _PatientCard(
+                          buildDensitySwitch(),
+                          const Spacer(),
+                          buildAddButton(),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      buildSearchField(),
+                    ] else
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          buildDensitySwitch(),
+                          const SizedBox(width: 8),
+                          Expanded(child: buildSearchField()),
+                          const SizedBox(width: 8),
+                          buildAddButton(),
+                        ],
+                      ),
+                    const SizedBox(height: 12),
+                    if (patients.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 20),
+                        child: Center(
+                          child: Text(
+                            '暂无病人记录',
+                            style: TextStyle(color: Color(0xFF7488A4)),
+                          ),
+                        ),
+                      )
+                    else
+                      LayoutBuilder(
+                        builder: (context, box) {
+                          const gap = 10.0;
+                          final baseExtent = (layout.isTablet
+                                  ? density.baseExtentTablet
+                                  : density.baseExtentPhone) +
+                              visibleFieldCount * density.extentPerField;
+                          final maxColumns = layout.isTablet ? 5 : 3;
+                          final crossAxisCount =
+                              ((box.maxWidth + gap) / (baseExtent + gap))
+                                  .floor()
+                                  .clamp(1, maxColumns);
+                          final infoRowCount = listSchema
+                              .where((field) => field.key != 'nursingLevel')
+                              .length
+                              .clamp(1, 18);
+                          final estimatedCardHeight =
+                              _estimatePatientCardHeight(
+                            density: density,
+                            infoRowCount: infoRowCount,
+                          );
+                          final estimatedHeaderHeight =
+                              _estimateHomeHeaderHeight(
+                            viewportWidth: constraints.maxWidth,
+                            compactToolbar: isCompactToolbar,
+                            nursingLevelCount: nursingLevels.length,
+                          );
+                          final availableGridHeight =
+                              (constraints.maxHeight - estimatedHeaderHeight)
+                                  .clamp(220.0, 1600.0);
+                          final rowsPerPage = ((availableGridHeight + gap) /
+                                  (estimatedCardHeight + gap))
+                              .floor()
+                              .clamp(layout.isTablet ? 2 : 1,
+                                  layout.isTablet ? 6 : 5);
+
+                          return PagedCardGrid(
+                            itemCount: patients.length,
+                            crossAxisCount: crossAxisCount,
+                            rowsPerPage: rowsPerPage,
+                            spacing: gap,
+                            runSpacing: gap,
+                            itemHeight: estimatedCardHeight,
+                            showInlineIndicator: false,
+                            onPageStateChanged: _onPatientPageStateChanged,
+                            itemBuilder: (context, index) {
+                              final patient = patients[index];
+                              return _PatientCard(
                                 patient: patient,
                                 listSchema: listSchema,
                                 density: density,
@@ -329,14 +372,32 @@ class _HomeTabPageState extends State<HomeTabPage> {
                                     editing: patient),
                                 onDelete: () => _deletePatient(
                                     context, patient.admissionNo),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  )
-              ],
-            ),
+                              );
+                            },
+                          );
+                        },
+                      )
+                  ],
+                ),
+              ),
+              if (_patientCardPageState.pageCount > 1)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 8,
+                  child: IgnorePointer(
+                    child: ResponsiveBody(
+                      layout: layout,
+                      child: PagedCardPageIndicator(
+                        pageCount: _patientCardPageState.pageCount,
+                        currentPage: _patientCardPageState.currentPage,
+                        backgroundColor: const Color(0xA6FFFFFF),
+                        borderColor: const Color(0xB7C6DBED),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         },
       ),
@@ -407,6 +468,44 @@ class _HomeTabPageState extends State<HomeTabPage> {
       }
     }
     return next;
+  }
+
+  double _estimatePatientCardHeight({
+    required _CardDensitySpec density,
+    required int infoRowCount,
+  }) {
+    final safeRowCount = infoRowCount.clamp(1, 18).toDouble();
+    final lineBlock = 13.5 * density.rowLineHeight;
+    final contentHeight =
+        safeRowCount * lineBlock + (safeRowCount - 1) * density.rowSpacing;
+    final estimated = density.cardVerticalPadding * 2 +
+        35 +
+        density.dividerTopGap +
+        1 +
+        density.contentTopGap +
+        contentHeight +
+        10;
+    final minHeight = density == _CardDensitySpec.compact ? 132.0 : 142.0;
+    return estimated < minHeight ? minHeight : estimated;
+  }
+
+  double _estimateHomeHeaderHeight({
+    required double viewportWidth,
+    required bool compactToolbar,
+    required int nursingLevelCount,
+  }) {
+    final chipsPerRow = viewportWidth >= 820
+        ? 5
+        : viewportWidth >= 620
+            ? 4
+            : 3;
+    final nursingRows =
+        ((nursingLevelCount + 1 + chipsPerRow - 1) / chipsPerRow)
+            .floor()
+            .clamp(1, 6);
+    final heroHeight = 144.0 + (nursingRows - 1) * 34.0;
+    final toolbarHeight = compactToolbar ? 96.0 : 44.0;
+    return heroHeight + 12.0 + toolbarHeight + 12.0;
   }
 }
 
