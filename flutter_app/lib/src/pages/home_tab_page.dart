@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
 import '../widgets/paged_card_grid.dart';
@@ -89,6 +90,8 @@ class _CardDensitySpec {
 class _HomeTabPageState extends State<HomeTabPage> {
   late final TextEditingController _searchController;
   _HomeCardDensity _cardDensity = _HomeCardDensity.standard;
+  bool _bulkDeleteMode = false;
+  final Set<String> _selectedPatientNos = <String>{};
   PagedCardPageState _patientCardPageState = const PagedCardPageState(
     pageCount: 0,
     currentPage: 0,
@@ -126,6 +129,61 @@ class _HomeTabPageState extends State<HomeTabPage> {
     });
   }
 
+  void _toggleBulkDeleteMode() {
+    setState(() {
+      if (_bulkDeleteMode) {
+        _bulkDeleteMode = false;
+        _selectedPatientNos.clear();
+      } else {
+        _bulkDeleteMode = true;
+      }
+    });
+  }
+
+  void _togglePatientSelection(String admissionNo) {
+    if (!_bulkDeleteMode) return;
+    setState(() {
+      if (_selectedPatientNos.contains(admissionNo)) {
+        _selectedPatientNos.remove(admissionNo);
+      } else {
+        _selectedPatientNos.add(admissionNo);
+      }
+    });
+  }
+
+  Future<void> _confirmBulkDelete(
+    BuildContext context,
+    List<PatientRecord> visiblePatients,
+  ) async {
+    final visibleSet = visiblePatients.map((e) => e.admissionNo).toSet();
+    final targetNos = _selectedPatientNos
+        .where((admissionNo) => visibleSet.contains(admissionNo))
+        .toList();
+    if (targetNos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先选择要删除的病人')),
+      );
+      return;
+    }
+
+    final confirmed = await showDeleteConfirmDialog(
+      context,
+      title: '批量删除病人',
+      content: '将删除已选择的 ${targetNos.length} 位病人及关联数据，是否继续？',
+    );
+    if (!confirmed || !context.mounted) return;
+    final state = context.read<HospitalAppState>();
+    for (final admissionNo in targetNos) {
+      state.deletePatient(admissionNo);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _bulkDeleteMode = false;
+      _selectedPatientNos.clear();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<HospitalAppState>();
@@ -139,6 +197,10 @@ class _HomeTabPageState extends State<HomeTabPage> {
         .length
         .clamp(3, 10);
     final patients = state.filteredPatients;
+    final visiblePatientNoSet = patients.map((e) => e.admissionNo).toSet();
+    final selectedVisibleCount = _selectedPatientNos
+        .where((admissionNo) => visiblePatientNoSet.contains(admissionNo))
+        .length;
     final nursingLevels = state.patientNursingLevels;
     final nursingLevelFilter = state.patientNursingLevelFilter;
     final nursingLevelCounts = state.patientNursingLevelCounts;
@@ -249,16 +311,40 @@ class _HomeTabPageState extends State<HomeTabPage> {
           }
 
           Widget buildAddButton() {
-            return Tooltip(
-              message: '新增病人',
-              child: FilledButton.tonal(
-                onPressed: () => _openPatientDialog(context),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(44, 44),
-                  padding: EdgeInsets.zero,
-                ),
-                child: const Icon(Icons.add_rounded),
-              ),
+            return AppAddIconButton(
+              tooltip: '新增病人',
+              onPressed:
+                  _bulkDeleteMode ? null : () => _openPatientDialog(context),
+              size: 44,
+              iconSize: 22,
+              borderRadius: 12,
+            );
+          }
+
+          Widget buildDeleteButton() {
+            return _HomeDeleteButton(
+              mode: _bulkDeleteMode,
+              selectionCount: selectedVisibleCount,
+              onPressed: patients.isEmpty
+                  ? null
+                  : () {
+                      if (_bulkDeleteMode) {
+                        _confirmBulkDelete(context, patients);
+                      } else {
+                        _toggleBulkDeleteMode();
+                      }
+                    },
+            );
+          }
+
+          Widget buildCancelDeleteButton() {
+            return AppToneIconButton(
+              icon: Icons.close_rounded,
+              tooltip: '退出删除模式',
+              onPressed: _bulkDeleteMode ? _toggleBulkDeleteMode : null,
+              size: 44,
+              iconSize: 21,
+              borderRadius: 12,
             );
           }
 
@@ -286,7 +372,13 @@ class _HomeTabPageState extends State<HomeTabPage> {
                         children: [
                           buildDensitySwitch(),
                           const Spacer(),
+                          if (_bulkDeleteMode) ...[
+                            buildCancelDeleteButton(),
+                            const SizedBox(width: 8),
+                          ],
                           buildAddButton(),
+                          const SizedBox(width: 8),
+                          buildDeleteButton(),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -299,9 +391,28 @@ class _HomeTabPageState extends State<HomeTabPage> {
                           const SizedBox(width: 8),
                           Expanded(child: buildSearchField()),
                           const SizedBox(width: 8),
+                          if (_bulkDeleteMode) ...[
+                            buildCancelDeleteButton(),
+                            const SizedBox(width: 8),
+                          ],
                           buildAddButton(),
+                          const SizedBox(width: 8),
+                          buildDeleteButton(),
                         ],
                       ),
+                    if (_bulkDeleteMode) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        selectedVisibleCount == 0
+                            ? '已进入删除模式，请点击卡片进行多选'
+                            : '已选择 $selectedVisibleCount 位病人，点击删除按钮确认',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF5E7088),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     if (patients.isEmpty)
                       const Padding(
@@ -322,10 +433,20 @@ class _HomeTabPageState extends State<HomeTabPage> {
                                   : density.baseExtentPhone) +
                               visibleFieldCount * density.extentPerField;
                           final maxColumns = layout.isTablet ? 5 : 3;
-                          final crossAxisCount =
+                          final columnUpperBound =
+                              patients.length.clamp(1, maxColumns);
+                          var crossAxisCount =
                               ((box.maxWidth + gap) / (baseExtent + gap))
                                   .floor()
-                                  .clamp(1, maxColumns);
+                                  .clamp(1, columnUpperBound);
+                          final minCardWidth = layout.isTablet ? 220.0 : 176.0;
+                          while (crossAxisCount > 1) {
+                            final cardWidth =
+                                (box.maxWidth - (crossAxisCount - 1) * gap) /
+                                    crossAxisCount;
+                            if (cardWidth >= minCardWidth) break;
+                            crossAxisCount--;
+                          }
                           final infoRowCount = listSchema
                               .where((field) => field.key != 'nursingLevel')
                               .length
@@ -366,12 +487,16 @@ class _HomeTabPageState extends State<HomeTabPage> {
                                 listSchema: listSchema,
                                 density: density,
                                 nursingLevelColors: nursingLevelColors,
+                                selectionMode: _bulkDeleteMode,
+                                selected: _selectedPatientNos
+                                    .contains(patient.admissionNo),
+                                onToggleSelection: () =>
+                                    _togglePatientSelection(
+                                        patient.admissionNo),
                                 onOpen: () => _openPatientDetail(
                                     context, patient.admissionNo),
                                 onEdit: () => _openPatientDialog(context,
                                     editing: patient),
-                                onDelete: () => _deletePatient(
-                                    context, patient.admissionNo),
                               );
                             },
                           );
@@ -441,17 +566,6 @@ class _HomeTabPageState extends State<HomeTabPage> {
     );
   }
 
-  Future<void> _deletePatient(BuildContext context, String admissionNo) async {
-    final confirmed = await showDeleteConfirmDialog(
-      context,
-      title: '删除病人',
-      content: '删除后将同步删除该病人的入院记录、日常记录、测评和影像资料，是否继续？',
-    );
-    if (!confirmed) return;
-    if (!context.mounted) return;
-    context.read<HospitalAppState>().deletePatient(admissionNo);
-  }
-
   Map<String, dynamic> _buildInitialValues(
     List<FieldSchema> schema,
     Map<String, dynamic> seed,
@@ -484,7 +598,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
         1 +
         density.contentTopGap +
         contentHeight +
-        10;
+        11;
     final minHeight = density == _CardDensitySpec.compact ? 132.0 : 142.0;
     return estimated < minHeight ? minHeight : estimated;
   }
@@ -781,18 +895,22 @@ class _PatientCard extends StatelessWidget {
     required this.listSchema,
     required this.density,
     required this.nursingLevelColors,
+    required this.selectionMode,
+    required this.selected,
+    required this.onToggleSelection,
     required this.onOpen,
     required this.onEdit,
-    required this.onDelete,
   });
 
   final PatientRecord patient;
   final List<FieldSchema> listSchema;
   final _CardDensitySpec density;
   final Map<String, String> nursingLevelColors;
+  final bool selectionMode;
+  final bool selected;
+  final VoidCallback onToggleSelection;
   final VoidCallback onOpen;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -800,15 +918,72 @@ class _PatientCard extends StatelessWidget {
         (patient.values['nursingLevel'] ?? '').toString().trim();
     final nursingColor = _parseHexColor(nursingLevelColors[nursingLevel]);
     final infoRows = _buildInfoRows();
+    final name = (patient.values['name'] ?? '-').toString();
+    final lineColor =
+        selected ? const Color(0xFF78AEE6) : const Color(0xFFDCE7F5);
+    final backgroundColor =
+        selected ? const Color(0xFFF4FAFF) : const Color(0xFFFFFFFF);
+
+    Widget buildNursingChip() {
+      return Container(
+        constraints: const BoxConstraints(maxWidth: 106),
+        padding: EdgeInsets.symmetric(
+          horizontal: 8,
+          vertical: density.chipVerticalPadding,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: nursingColor == null
+              ? const Color(0xFFF5F9FF)
+              : Color.alphaBlend(
+                  nursingColor.withValues(alpha: 0.20),
+                  const Color(0xFFF5F9FF),
+                ),
+          border: Border.all(
+            color: nursingColor == null
+                ? const Color(0xFFD9E5F4)
+                : nursingColor.withValues(alpha: 0.58),
+          ),
+        ),
+        child: Text(
+          nursingLevel,
+          style: TextStyle(
+            color: nursingColor == null
+                ? const Color(0xFF4E627D)
+                : const Color(0xFF314560),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+
+    Widget buildLeadingAction() {
+      if (selectionMode) {
+        return _SelectionToggle(
+          selected: selected,
+          onTap: onToggleSelection,
+        );
+      }
+      return _ActionText(
+        title: '编辑病人',
+        icon: Icons.edit_rounded,
+        color: const Color(0xFF2C89D8),
+        onTap: onEdit,
+      );
+    }
+
     return Card(
-      color: Colors.white,
+      color: backgroundColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFDCE7F5)),
+        side: BorderSide(color: lineColor),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: onOpen,
+        onTap: selectionMode ? onToggleSelection : onOpen,
         child: Stack(
           children: [
             Padding(
@@ -827,11 +1002,10 @@ class _PatientCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Flexible(
+                            Expanded(
                               child: Text(
-                                (patient.values['name'] ?? '-').toString(),
+                                name,
                                 style: TextStyle(
                                   fontSize: density.nameFontSize,
                                   fontWeight: FontWeight.w700,
@@ -843,53 +1017,15 @@ class _PatientCard extends StatelessWidget {
                             ),
                             if (nursingLevel.isNotEmpty) ...[
                               const SizedBox(width: 6),
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: density.chipVerticalPadding,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(999),
-                                  color: nursingColor == null
-                                      ? const Color(0xFFF5F9FF)
-                                      : Color.alphaBlend(
-                                          nursingColor.withValues(alpha: 0.20),
-                                          const Color(0xFFF5F9FF),
-                                        ),
-                                  border: Border.all(
-                                    color: nursingColor == null
-                                        ? const Color(0xFFD9E5F4)
-                                        : nursingColor.withValues(alpha: 0.58),
-                                  ),
-                                ),
-                                child: Text(
-                                  nursingLevel,
-                                  style: TextStyle(
-                                    color: nursingColor == null
-                                        ? const Color(0xFF4E627D)
-                                        : const Color(0xFF314560),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                              Flexible(
+                                child: buildNursingChip(),
                               ),
                             ],
                           ],
                         ),
                       ),
                       const SizedBox(width: 6),
-                      _ActionText(
-                        title: '编辑病人',
-                        icon: Icons.edit_rounded,
-                        color: const Color(0xFF2C89D8),
-                        onTap: onEdit,
-                      ),
-                      _ActionText(
-                        title: '删除病人',
-                        icon: Icons.delete_outline_rounded,
-                        color: const Color(0xFFD54E67),
-                        onTap: onDelete,
-                      ),
+                      buildLeadingAction(),
                     ],
                   ),
                   SizedBox(height: density.dividerTopGap),
@@ -1010,6 +1146,85 @@ Color? _parseHexColor(String? raw) {
   final parsed = int.tryParse(hex, radix: 16);
   if (parsed == null) return null;
   return Color(parsed);
+}
+
+class _HomeDeleteButton extends StatelessWidget {
+  const _HomeDeleteButton({
+    required this.mode,
+    required this.selectionCount,
+    required this.onPressed,
+  });
+
+  final bool mode;
+  final int selectionCount;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tooltip = mode
+        ? (selectionCount > 0 ? '确认删除已选($selectionCount)' : '确认删除已选')
+        : '进入删除模式';
+    final bg = mode ? const Color(0xFFFDECEE) : const Color(0xFFFFF4F6);
+    final bgPressed = mode ? const Color(0xFFFADCE0) : const Color(0xFFFCE3E7);
+    const bgDisabled = Color(0xFFF6F0F1);
+    final fg = mode ? const Color(0xFFB63A49) : const Color(0xFFC94A59);
+    const fgDisabled = Color(0xFFA79FA3);
+    final border = mode ? const Color(0xFFF0B7BF) : const Color(0xFFF0CDD3);
+    final borderPressed =
+        mode ? const Color(0xFFE79DA8) : const Color(0xFFEAB4BC);
+    return AppToneIconButton(
+      icon: mode ? Icons.delete_sweep_rounded : Icons.delete_outline_rounded,
+      onPressed: onPressed,
+      tooltip: tooltip,
+      size: 44,
+      iconSize: 21,
+      borderRadius: 12,
+      backgroundColor: bg,
+      backgroundPressedColor: bgPressed,
+      backgroundDisabledColor: bgDisabled,
+      foregroundColor: fg,
+      foregroundDisabledColor: fgDisabled,
+      borderColor: border,
+      borderPressedColor: borderPressed,
+      shadowColor: const Color(0x22C36A79),
+      overlayPressedColor: const Color(0x12B74757),
+      overlayHoverColor: const Color(0x0DB74757),
+    );
+  }
+}
+
+class _SelectionToggle extends StatelessWidget {
+  const _SelectionToggle({
+    required this.selected,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: selected ? '取消选择' : '选择病人',
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: IconButton(
+          onPressed: onTap,
+          icon: Icon(
+            selected
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked,
+            size: 19,
+          ),
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+          color: selected ? const Color(0xFF3A83CE) : const Color(0xFF8AA2C0),
+        ),
+      ),
+    );
+  }
 }
 
 class _ActionText extends StatelessWidget {

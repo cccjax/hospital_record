@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
@@ -402,13 +403,12 @@ class _VersionSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       title: catalog == TemplateCatalogType.assessment ? '病情评估版本' : '诊断模板版本',
-      action: Tooltip(
-        message:
+      action: AppAddIconButton(
+        tooltip:
             catalog == TemplateCatalogType.assessment ? '新增评估版本' : '新增诊断版本',
-        child: FilledButton(
-          onPressed: onAddVersion,
-          child: const Icon(Icons.add_rounded),
-        ),
+        onPressed: onAddVersion,
+        size: 40,
+        iconSize: 20,
       ),
       child: versions.isEmpty
           ? Padding(
@@ -541,6 +541,8 @@ class _VersionCard extends StatelessWidget {
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -570,65 +572,39 @@ class _VersionCard extends StatelessWidget {
                       padding: EdgeInsets.only(
                         bottom: i == infoRows.length - 1 ? 0 : 5,
                       ),
-                      child: infoRows[i].multiLine
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  infoRows[i].label,
-                                  style: const TextStyle(
-                                    color: Color(0xFF6D829E),
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  infoRows[i].value,
-                                  style: const TextStyle(
-                                    color: Color(0xFF20364F),
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.2,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            )
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: 68,
-                                  child: Text(
-                                    infoRows[i].label,
-                                    style: const TextStyle(
-                                      color: Color(0xFF6D829E),
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    infoRows[i].value,
-                                    style: const TextStyle(
-                                      color: Color(0xFF20364F),
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 68,
+                            child: Text(
+                              infoRows[i].label,
+                              style: const TextStyle(
+                                color: Color(0xFF6D829E),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              infoRows[i].value,
+                              style: const TextStyle(
+                                color: Color(0xFF20364F),
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w600,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -663,7 +639,6 @@ class _VersionCard extends StatelessWidget {
         _VersionInfoRow(
           label: field.label,
           value: text.isEmpty ? '-' : text,
-          multiLine: field.type == FieldType.textarea,
         ),
       );
     }
@@ -680,12 +655,10 @@ class _VersionInfoRow {
   const _VersionInfoRow({
     required this.label,
     required this.value,
-    this.multiLine = false,
   });
 
   final String label;
   final String value;
-  final bool multiLine;
 }
 
 class _TinyAction extends StatelessWidget {

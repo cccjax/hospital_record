@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
@@ -511,6 +512,17 @@ class _HeaderIconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAddAction = icon.codePoint == Icons.add_rounded.codePoint &&
+        icon.fontFamily == Icons.add_rounded.fontFamily;
+    if (isAddAction) {
+      return AppAddIconButton(
+        tooltip: title,
+        onPressed: onTap,
+        size: 34,
+        iconSize: 18,
+        borderRadius: 10,
+      );
+    }
     return Tooltip(
       message: title,
       child: FilledButton.tonal(

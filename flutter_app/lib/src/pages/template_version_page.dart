@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/editor_dialog.dart';
@@ -60,12 +61,11 @@ class TemplateVersionPage extends StatelessWidget {
             ),
           SectionCard(
             title: '测评项配置',
-            action: Tooltip(
-              message: '新增测评项',
-              child: FilledButton.tonal(
-                onPressed: () => _openItemDialog(context),
-                child: const Icon(Icons.add_rounded),
-              ),
+            action: AppAddIconButton(
+              tooltip: '新增测评项',
+              onPressed: () => _openItemDialog(context),
+              size: 38,
+              iconSize: 19,
             ),
             child: Column(
               children: [
@@ -91,12 +91,11 @@ class TemplateVersionPage extends StatelessWidget {
           ),
           SectionCard(
             title: '患病等级区间',
-            action: Tooltip(
-              message: '新增区间',
-              child: FilledButton.tonal(
-                onPressed: () => _openRuleDialog(context),
-                child: const Icon(Icons.add_rounded),
-              ),
+            action: AppAddIconButton(
+              tooltip: '新增区间',
+              onPressed: () => _openRuleDialog(context),
+              size: 38,
+              iconSize: 19,
             ),
             child: Column(
               children: [
@@ -146,8 +145,9 @@ class TemplateVersionPage extends StatelessWidget {
   }) async {
     final state = context.read<HospitalAppState>();
     String? errorText;
+    var deletePicking = false;
+    final selectedDraftIds = <String>{};
     final nameController = TextEditingController(text: editing?.name ?? '');
-    final quickController = TextEditingController();
     final drafts = (editing?.options ?? const <TemplateOption>[])
         .map(
           (option) => _OptionDraft(
@@ -165,11 +165,21 @@ class TemplateVersionPage extends StatelessWidget {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
+        void nudgeScore(_OptionDraft draft, double delta) {
+          final current =
+              double.tryParse(draft.scoreController.text.trim()) ?? 0;
+          final next = current + delta;
+          final text = _formatScore(next);
+          draft.scoreController.text = text;
+          draft.scoreController.selection =
+              TextSelection.collapsed(offset: text.length);
+        }
+
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return EditorDialog(
               title: editing == null ? '新增测评项' : '编辑测评项',
-              subtitle: '支持手动录入与快速批量生成选项',
+              subtitle: '请录入测评项及其评分选项',
               icon: Icons.rule_rounded,
               maxWidth: 640,
               actions: [
@@ -248,126 +258,296 @@ class TemplateVersionPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        _DialogInlineRow(
-                          label: '快速录入',
-                          child: TextField(
-                            controller: quickController,
-                            decoration: const InputDecoration(
-                              hintText: '示例：无症状:0,轻度:2,重度:5',
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              final parsed = _parseQuickOptions(
-                                quickController.text,
-                                state: state,
-                              );
-                              if (parsed.isEmpty) {
-                                setDialogState(() {
-                                  errorText = '快速录入格式无效，请使用“名称:分数”';
-                                });
-                                return;
-                              }
-                              drafts
-                                ..clear()
-                                ..addAll(parsed);
-                              setDialogState(() {
-                                errorText = null;
-                              });
-                            },
-                            icon: const Icon(Icons.auto_fix_high_rounded,
-                                size: 16),
-                            label: const Text('按快速录入生成'),
-                          ),
-                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 10),
                   EditorPanel(
-                    title: '选项与分值',
+                    title: null,
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (var i = 0; i < drafts.length; i++) ...[
-                          Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFFFF),
-                              borderRadius: BorderRadius.circular(12),
-                              border:
-                                  Border.all(color: const Color(0xFFD8E4F3)),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Text(
+                              '选项与分值',
+                              style: TextStyle(
+                                color: Color(0xFF244161),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
                             ),
-                            padding: const EdgeInsets.fromLTRB(10, 9, 8, 9),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 54,
-                                  child: Text(
-                                    '选项${i + 1}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF244161),
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 12.5,
+                            if (deletePicking) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                selectedDraftIds.isEmpty
+                                    ? '请选择要删除的选项'
+                                    : '已选中 ${selectedDraftIds.length} 项',
+                                style: TextStyle(
+                                  color: selectedDraftIds.isEmpty
+                                      ? const Color(0xFF7B8FA9)
+                                      : const Color(0xFFD34E66),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                            const Spacer(),
+                            AppToneIconButton(
+                              icon: Icons.add_rounded,
+                              tooltip: '新增选项',
+                              size: 32,
+                              iconSize: 18,
+                              borderRadius: 10,
+                              onPressed: deletePicking
+                                  ? null
+                                  : () {
+                                      drafts.add(_OptionDraft.empty(
+                                          state.createRuntimeId('tplo')));
+                                      setDialogState(() {
+                                        errorText = null;
+                                      });
+                                    },
+                            ),
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: deletePicking
+                                  ? (selectedDraftIds.isEmpty
+                                      ? '取消删除'
+                                      : '确认删除已选')
+                                  : '删除选项',
+                              child: SizedBox(
+                                width: 32,
+                                height: 32,
+                                child: IconButton(
+                                  onPressed: () async {
+                                    if (!deletePicking) {
+                                      setDialogState(() {
+                                        deletePicking = true;
+                                        selectedDraftIds.clear();
+                                        errorText = null;
+                                      });
+                                      return;
+                                    }
+                                    if (selectedDraftIds.isEmpty) {
+                                      setDialogState(() {
+                                        deletePicking = false;
+                                        errorText = null;
+                                      });
+                                      return;
+                                    }
+                                    final confirmed =
+                                        await showDeleteConfirmDialog(
+                                      dialogContext,
+                                      title: '删除选项',
+                                      content:
+                                          '确认删除已选中的 ${selectedDraftIds.length} 个选项吗？',
+                                    );
+                                    if (!confirmed) return;
+                                    setDialogState(() {
+                                      drafts.removeWhere((d) =>
+                                          selectedDraftIds.contains(d.id));
+                                      if (drafts.isEmpty) {
+                                        drafts.add(_OptionDraft.empty(
+                                            state.createRuntimeId('tplo')));
+                                      }
+                                      selectedDraftIds.clear();
+                                      deletePicking = false;
+                                      errorText = null;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    deletePicking
+                                        ? Icons.delete_forever_rounded
+                                        : Icons.delete_outline_rounded,
+                                    size: 18,
+                                  ),
+                                  style: IconButton.styleFrom(
+                                    visualDensity: VisualDensity.compact,
+                                    backgroundColor: const Color(0xFFFFF2F4),
+                                    foregroundColor: const Color(0xFFD34E66),
+                                    side: const BorderSide(
+                                        color: Color(0xFFF2CAD1)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: TextField(
-                                    controller: drafts[i].labelController,
-                                    decoration: const InputDecoration(
-                                      hintText: '选项名称',
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  width: 98,
-                                  child: TextField(
-                                    controller: drafts[i].scoreController,
-                                    decoration: const InputDecoration(
-                                      hintText: '分数',
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                IconButton(
-                                  onPressed: drafts.length <= 1
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        for (var i = 0; i < drafts.length; i++) ...[
+                          Builder(
+                            builder: (context) {
+                              final draft = drafts[i];
+                              final selected =
+                                  selectedDraftIds.contains(draft.id);
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: !deletePicking
                                       ? null
                                       : () {
-                                          drafts.removeAt(i);
                                           setDialogState(() {
-                                            errorText = null;
+                                            if (selected) {
+                                              selectedDraftIds.remove(draft.id);
+                                            } else {
+                                              selectedDraftIds.add(draft.id);
+                                            }
                                           });
                                         },
-                                  icon:
-                                      const Icon(Icons.delete_outline_rounded),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: deletePicking && selected
+                                          ? const Color(0xFFFFF2F4)
+                                          : const Color(0xFFFFFFFF),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: deletePicking && selected
+                                            ? const Color(0xFFF0C8CF)
+                                            : const Color(0xFFD8E4F3),
+                                      ),
+                                    ),
+                                    padding:
+                                        const EdgeInsets.fromLTRB(10, 9, 10, 9),
+                                    child: Row(
+                                      children: [
+                                        if (deletePicking) ...[
+                                          Icon(
+                                            selected
+                                                ? Icons.check_circle_rounded
+                                                : Icons
+                                                    .radio_button_unchecked_rounded,
+                                            size: 18,
+                                            color: selected
+                                                ? const Color(0xFFD34E66)
+                                                : const Color(0xFF8BA0B7),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        SizedBox(
+                                          width: 46,
+                                          child: Text(
+                                            '选项${i + 1}',
+                                            style: const TextStyle(
+                                              color: Color(0xFF244161),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 12.5,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: TextField(
+                                            enabled: !deletePicking,
+                                            controller: draft.labelController,
+                                            decoration: const InputDecoration(
+                                              hintText: '选项内容',
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        SizedBox(
+                                          width: 116,
+                                          child: Container(
+                                            height: 42,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFFFFF),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              border: Border.all(
+                                                  color:
+                                                      const Color(0xFFD3E0F1)),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                SizedBox(
+                                                  width: 28,
+                                                  child: IconButton(
+                                                    onPressed: deletePicking
+                                                        ? null
+                                                        : () {
+                                                            nudgeScore(
+                                                                draft, -1);
+                                                            setDialogState(() {
+                                                              errorText = null;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                        Icons.remove_rounded,
+                                                        size: 16),
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    color:
+                                                        const Color(0xFF5A7090),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  child: TextField(
+                                                    enabled: !deletePicking,
+                                                    controller:
+                                                        draft.scoreController,
+                                                    textAlign: TextAlign.center,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                      hintText: '分数',
+                                                      border: InputBorder.none,
+                                                      enabledBorder:
+                                                          InputBorder.none,
+                                                      focusedBorder:
+                                                          InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.symmetric(
+                                                              horizontal: 0,
+                                                              vertical: 10),
+                                                    ),
+                                                    keyboardType:
+                                                        const TextInputType
+                                                            .numberWithOptions(
+                                                      decimal: true,
+                                                      signed: true,
+                                                    ),
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  width: 28,
+                                                  child: IconButton(
+                                                    onPressed: deletePicking
+                                                        ? null
+                                                        : () {
+                                                            nudgeScore(
+                                                                draft, 1);
+                                                            setDialogState(() {
+                                                              errorText = null;
+                                                            });
+                                                          },
+                                                    icon: const Icon(
+                                                        Icons.add_rounded,
+                                                        size: 16),
+                                                    visualDensity:
+                                                        VisualDensity.compact,
+                                                    color:
+                                                        const Color(0xFF5A7090),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ],
-                            ),
+                              );
+                            },
                           ),
                           if (i != drafts.length - 1) const SizedBox(height: 8),
                         ],
-                        const SizedBox(height: 8),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              drafts.add(_OptionDraft.empty(
-                                  state.createRuntimeId('tplo')));
-                              setDialogState(() {
-                                errorText = null;
-                              });
-                            },
-                            icon: const Icon(Icons.add_rounded, size: 16),
-                            label: const Text('新增选项'),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -595,32 +775,12 @@ class TemplateVersionPage extends StatelessWidget {
     return null;
   }
 
-  List<_OptionDraft> _parseQuickOptions(
-    String raw, {
-    required HospitalAppState state,
-  }) {
-    final text = raw.trim();
-    if (text.isEmpty) return const <_OptionDraft>[];
-    final segments = text.split(',');
-    final drafts = <_OptionDraft>[];
-    for (final seg in segments) {
-      final unit = seg.trim();
-      if (unit.isEmpty) continue;
-      final pair = unit.split(':');
-      if (pair.length < 2) return const <_OptionDraft>[];
-      final label = pair.first.trim();
-      final scoreRaw = pair.sublist(1).join(':').trim();
-      final score = double.tryParse(scoreRaw);
-      if (label.isEmpty || score == null) return const <_OptionDraft>[];
-      drafts.add(
-        _OptionDraft(
-          id: state.createRuntimeId('tplo'),
-          labelController: TextEditingController(text: label),
-          scoreController: TextEditingController(text: score.toString()),
-        ),
-      );
+  String _formatScore(double value) {
+    final roundedInt = value.roundToDouble();
+    if ((value - roundedInt).abs() < 0.000001) {
+      return roundedInt.toInt().toString();
     }
-    return drafts;
+    return value.toStringAsFixed(1);
   }
 
   Future<void> _deleteItem(BuildContext context, String itemId) async {

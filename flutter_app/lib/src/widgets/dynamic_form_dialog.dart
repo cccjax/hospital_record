@@ -219,6 +219,7 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
     }
 
     final controller = _controllers[field.key]!;
+    final isTextarea = field.type == FieldType.textarea;
     if (field.type == FieldType.date) {
       return TextFormField(
         controller: controller,
@@ -250,14 +251,19 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
     return TextFormField(
       controller: controller,
       enabled: editable,
-      maxLines: field.type == FieldType.textarea ? 3 : 1,
+      minLines: isTextarea ? 3 : 1,
+      maxLines: isTextarea ? null : 1,
       keyboardType: switch (field.type) {
         FieldType.number => TextInputType.number,
+        FieldType.textarea => TextInputType.multiline,
         _ => TextInputType.text,
       },
+      textInputAction:
+          isTextarea ? TextInputAction.newline : TextInputAction.done,
       decoration: InputDecoration(
         hintText: switch (field.type) {
           FieldType.number => '请输入数字',
+          FieldType.textarea => '请输入内容（支持换行）',
           _ => '请输入内容',
         },
       ),

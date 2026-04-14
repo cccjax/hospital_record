@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/dialog_utils.dart';
 import '../widgets/dynamic_form_dialog.dart';
 import '../widgets/paged_card_grid.dart';
@@ -76,12 +77,11 @@ class _TemplateTabPageState extends State<TemplateTabPage> {
                   children: [
                     SectionCard(
                       title: '病种模板中心',
-                      action: Tooltip(
-                        message: '新增病种',
-                        child: FilledButton(
-                          onPressed: () => _openDiseaseDialog(context),
-                          child: const Icon(Icons.add_rounded),
-                        ),
+                      action: AppAddIconButton(
+                        tooltip: '新增病种',
+                        onPressed: () => _openDiseaseDialog(context),
+                        size: 40,
+                        iconSize: 20,
                       ),
                       child: TextField(
                         controller: _searchController,
@@ -280,7 +280,11 @@ class _BundleGrid extends StatelessWidget {
             (visibleFieldCount - 3).clamp(0, 8).toDouble() * 0.16;
         final cardAspectRatio =
             (baseAspectRatio - extraRowPenalty).clamp(1.16, 2.0);
-        final cardHeight = cardWidth / cardAspectRatio;
+        final estimatedMinHeight = 92.0 + visibleFieldCount * 27.0;
+        final measuredHeight = cardWidth / cardAspectRatio;
+        final cardHeight = measuredHeight < estimatedMinHeight
+            ? estimatedMinHeight
+            : measuredHeight;
         const estimatedHeaderHeight = 132.0;
         final availableGridHeight =
             (viewportHeight - estimatedHeaderHeight).clamp(220.0, 1500.0);
@@ -374,6 +378,8 @@ class _BundleCard extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF1F3149),
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -405,65 +411,39 @@ class _BundleCard extends StatelessWidget {
                       padding: EdgeInsets.only(
                         bottom: i == infoRows.length - 1 ? 0 : 6,
                       ),
-                      child: infoRows[i].multiLine
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  infoRows[i].label,
-                                  style: const TextStyle(
-                                    color: Color(0xFF6D829E),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  infoRows[i].value,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF20364F),
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w600,
-                                    height: 1.32,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: 68,
-                                  child: Text(
-                                    infoRows[i].label,
-                                    style: const TextStyle(
-                                      color: Color(0xFF6D829E),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.28,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    infoRows[i].value,
-                                    style: const TextStyle(
-                                      color: Color(0xFF20364F),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      height: 1.28,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 68,
+                            child: Text(
+                              infoRows[i].label,
+                              style: const TextStyle(
+                                color: Color(0xFF6D829E),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                height: 1.28,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              infoRows[i].value,
+                              style: const TextStyle(
+                                color: Color(0xFF20364F),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                height: 1.28,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -499,7 +479,6 @@ class _BundleCard extends StatelessWidget {
         _BundleInfoRow(
           label: field.label,
           value: text.isEmpty ? '-' : text,
-          multiLine: field.type == FieldType.textarea,
         ),
       );
     }
@@ -516,12 +495,10 @@ class _BundleInfoRow {
   const _BundleInfoRow({
     required this.label,
     required this.value,
-    this.multiLine = false,
   });
 
   final String label;
   final String value;
-  final bool multiLine;
 }
 
 class _TinyAction extends StatelessWidget {

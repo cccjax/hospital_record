@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/app_dropdown_form_field.dart';
 import '../widgets/dialog_utils.dart';
@@ -60,23 +61,29 @@ class _FieldConfigPageState extends State<FieldConfigPage> {
           ),
           SectionCard(
             title: '字段列表',
-            action: Wrap(
-              spacing: 8,
+            action: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                FilledButton.tonal(
+                AppToneIconButton(
+                  tooltip: _sortMode ? '完成排序' : '调整顺序',
+                  icon:
+                      _sortMode ? Icons.check_rounded : Icons.swap_vert_rounded,
                   onPressed: () {
                     setState(() {
                       _sortMode = !_sortMode;
                     });
                   },
-                  child: Text(_sortMode ? '完成排序' : '调整顺序'),
+                  size: 40,
+                  iconSize: 20,
+                  borderRadius: 11,
                 ),
-                Tooltip(
-                  message: '新增字段',
-                  child: FilledButton(
-                    onPressed: () => _openFieldDialog(context, module),
-                    child: const Icon(Icons.add_rounded),
-                  ),
+                const SizedBox(width: 8),
+                AppAddIconButton(
+                  tooltip: '新增字段',
+                  onPressed: () => _openFieldDialog(context, module),
+                  size: 40,
+                  iconSize: 20,
                 ),
               ],
             ),
@@ -529,10 +536,11 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
           const SizedBox(height: 10),
           Align(
             alignment: Alignment.centerLeft,
-            child: FilledButton.tonalIcon(
+            child: AppAddTextButton(
               onPressed: _addOption,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('新增选项'),
+              label: '新增选项',
+              iconSize: 16,
+              height: 34,
             ),
           ),
         ],
@@ -542,6 +550,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
 
   Widget _buildOptionRow(int index) {
     final item = _selectOptions[index];
+    final isNursing = _isNursingLevelField;
     final color = _parseHexColor(item.colorHex) ?? const Color(0xFFDCE7F5);
 
     return Container(
@@ -557,7 +566,7 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                width: 58,
+                width: isNursing ? 50 : 58,
                 child: Text(
                   '选项${index + 1}',
                   style: const TextStyle(
@@ -573,16 +582,19 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                   controller: item.labelController,
                   decoration: const InputDecoration(
                     hintText: '请输入选项名称',
+                    isDense: true,
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 11, vertical: 10),
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               InkWell(
                 onTap: () => _pickOptionColor(index),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  width: 44,
-                  height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: color,
                     borderRadius: BorderRadius.circular(12),
@@ -595,28 +607,42 @@ class _FieldEditorDialogState extends State<_FieldEditorDialog> {
                   ),
                 ),
               ),
-              const SizedBox(width: 4),
-              IconButton(
-                onPressed: item.colorHex == null && !_isNursingLevelField
-                    ? null
-                    : () {
-                        setState(() {
-                          item.colorHex = _isNursingLevelField
-                              ? _presetColors[index % _presetColors.length]
-                              : null;
-                        });
-                      },
-                icon: const Icon(Icons.restart_alt_rounded),
-                tooltip: _isNursingLevelField ? '恢复建议色' : '清空颜色',
-                visualDensity: VisualDensity.compact,
-              ),
-              IconButton(
+              const SizedBox(width: 6),
+              if (!isNursing)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: IconButton(
+                    onPressed: item.colorHex == null
+                        ? null
+                        : () {
+                            setState(() {
+                              item.colorHex = null;
+                            });
+                          },
+                    icon: const Icon(Icons.restart_alt_rounded),
+                    tooltip: '清空颜色',
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              AppToneIconButton(
+                icon: Icons.delete_outline_rounded,
+                tooltip: '删除选项',
                 onPressed: _selectOptions.length <= 1
                     ? null
                     : () => _removeOption(index),
-                icon: const Icon(Icons.delete_outline_rounded),
-                tooltip: '删除选项',
-                visualDensity: VisualDensity.compact,
+                size: 38,
+                iconSize: 19,
+                borderRadius: 11,
+                backgroundColor: const Color(0xFFFFF4F6),
+                backgroundPressedColor: const Color(0xFFFCE3E7),
+                backgroundDisabledColor: const Color(0xFFF7F1F2),
+                foregroundColor: const Color(0xFFC94A59),
+                foregroundDisabledColor: const Color(0xFFB4A4A8),
+                borderColor: const Color(0xFFF0CDD3),
+                borderPressedColor: const Color(0xFFEAB4BC),
+                shadowColor: const Color(0x22C36A79),
+                overlayPressedColor: const Color(0x12B74757),
+                overlayHoverColor: const Color(0x0DB74757),
               ),
             ],
           ),

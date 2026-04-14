@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
+import '../widgets/app_add_button.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/assessment_score_bar.dart';
 import '../widgets/dialog_utils.dart';
@@ -510,20 +511,90 @@ class _AdmissionDetailPageState extends State<AdmissionDetailPage> {
   }
 
   void _previewImage(BuildContext context, ImagingItem image) {
+    final imageBytes = _decodeDataUri(image.src);
     showDialog<void>(
       context: context,
-      builder: (context) {
+      barrierColor: const Color(0xCC091423),
+      builder: (dialogContext) {
         return Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.all(20),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.memory(
-                _decodeDataUri(image.src),
-                fit: BoxFit.contain,
-              ),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFF0B1626),
+              border: Border.all(color: const Color(0x334A6A92)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x66000B16),
+                  blurRadius: 26,
+                  offset: Offset(0, 12),
+                ),
+              ],
+            ),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: InteractiveViewer(
+                      minScale: 1,
+                      maxScale: 5,
+                      panEnabled: true,
+                      scaleEnabled: true,
+                      child: ColoredBox(
+                        color: const Color(0xFF0B1626),
+                        child: Center(
+                          child: Image.memory(
+                            imageBytes,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(999),
+                      onTap: () => Navigator.of(dialogContext).pop(),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0x80111F32),
+                          border: Border.all(color: const Color(0x4D8AA8CA)),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          size: 20,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Positioned(
+                  left: 14,
+                  right: 14,
+                  bottom: 12,
+                  child: Text(
+                    '双指可放大/缩小，拖动可查看细节',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFCEE0F6),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
@@ -766,22 +837,24 @@ class _HeaderIconAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: title,
-      child: FilledButton.tonal(
+    final isAddAction = icon.codePoint == Icons.add_rounded.codePoint &&
+        icon.fontFamily == Icons.add_rounded.fontFamily;
+    if (isAddAction) {
+      return AppAddIconButton(
+        tooltip: title,
         onPressed: onTap,
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(38, 38),
-          maximumSize: const Size(38, 38),
-          padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(11),
-          ),
-          visualDensity: VisualDensity.compact,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: Icon(icon, size: 20),
-      ),
+        size: 38,
+        iconSize: 20,
+        borderRadius: 11,
+      );
+    }
+    return AppToneIconButton(
+      icon: icon,
+      tooltip: title,
+      onPressed: onTap,
+      size: 38,
+      iconSize: 20,
+      borderRadius: 11,
     );
   }
 }
@@ -813,9 +886,23 @@ class _AddAssessmentMenuButtonState extends State<_AddAssessmentMenuButton> {
           onTap: _openMenu,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFEEF5FF),
+                  Color(0xFFE4F0FF),
+                ],
+              ),
               borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: const Color(0xFFD6E4F5)),
+              border: Border.all(color: AppAddButtonTokens.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: AppAddButtonTokens.shadow,
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -825,13 +912,13 @@ class _AddAssessmentMenuButtonState extends State<_AddAssessmentMenuButton> {
                   Icon(
                     Icons.add_rounded,
                     size: 18,
-                    color: Color(0xFF305F90),
+                    color: AppAddButtonTokens.foreground,
                   ),
                   SizedBox(width: 4),
                   Text(
                     '新增测评',
                     style: TextStyle(
-                      color: Color(0xFF305F90),
+                      color: AppAddButtonTokens.foreground,
                       fontWeight: FontWeight.w700,
                       fontSize: 12.5,
                     ),
@@ -840,7 +927,7 @@ class _AddAssessmentMenuButtonState extends State<_AddAssessmentMenuButton> {
                   Icon(
                     Icons.arrow_drop_down_rounded,
                     size: 20,
-                    color: Color(0xFF305F90),
+                    color: AppAddButtonTokens.foreground,
                   ),
                 ],
               ),
