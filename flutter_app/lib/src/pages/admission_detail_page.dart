@@ -1180,6 +1180,7 @@ class _DailyCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = (row.values['recordDate'] ?? '-').toString().trim();
     final infoRows = _buildInfoRows();
+    final sketchImages = _extractImageSources(row.values['quickSketches']);
 
     return Card(
       child: InkWell(
@@ -1295,6 +1296,35 @@ class _DailyCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                    if (sketchImages.isNotEmpty) ...[
+                      const SizedBox(height: 7),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(
+                            width: 66,
+                            child: Text(
+                              '速记白板',
+                              style: TextStyle(
+                                color: Color(0xFF6D829E),
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: _DailySketchPreview(
+                              src: sketchImages.first,
+                              count: sketchImages.length,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1344,6 +1374,27 @@ class _DailyCard extends StatelessWidget {
     }
     return rows;
   }
+
+  List<String> _extractImageSources(dynamic raw) {
+    if (raw is! List) return const <String>[];
+    final results = <String>[];
+    for (final item in raw) {
+      if (item is String) {
+        final text = item.trim();
+        if (text.isNotEmpty) {
+          results.add(text);
+        }
+        continue;
+      }
+      if (item is Map) {
+        final src = item['src'];
+        if (src is String && src.trim().isNotEmpty) {
+          results.add(src.trim());
+        }
+      }
+    }
+    return results;
+  }
 }
 
 class _DailyInfoRow {
@@ -1354,6 +1405,82 @@ class _DailyInfoRow {
 
   final String label;
   final String value;
+}
+
+class _DailySketchPreview extends StatelessWidget {
+  const _DailySketchPreview({
+    required this.src,
+    required this.count,
+  });
+
+  final String src;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final bytes = _DailySketchThumbCache.decode(src);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 84,
+            height: 56,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F7FF),
+              border: Border.all(color: const Color(0xFFD7E5F7)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: bytes == null
+                ? const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 17,
+                      color: Color(0xFF8BA2BE),
+                    ),
+                  )
+                : Image.memory(
+                    bytes,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                  ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              count > 1 ? '已添加 $count 张白板' : '已添加 1 张白板',
+              style: const TextStyle(
+                color: Color(0xFF526D8A),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DailySketchThumbCache {
+  static final Map<String, Uint8List?> _cache = <String, Uint8List?>{};
+
+  static Uint8List? decode(String src) {
+    return _cache.putIfAbsent(src, () {
+      final raw = src.trim();
+      if (raw.isEmpty) return null;
+      try {
+        final payload = raw.contains(',') ? raw.split(',').last : raw;
+        return base64Decode(payload);
+      } catch (_) {
+        return null;
+      }
+    });
+  }
 }
 
 class _AssessmentCard extends StatelessWidget {

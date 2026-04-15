@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/app_models.dart';
 import '../state/hospital_app_state.dart';
 import '../widgets/app_back_button.dart';
 import '../widgets/field_grid.dart';
@@ -28,6 +32,10 @@ class DailyDetailPage extends StatelessWidget {
     final patient =
         admission == null ? null : state.findPatient(admission.admissionNo);
     final schema = state.schemaOf('daily');
+    final detailSchema =
+        schema.where((field) => field.type != FieldType.images).toList();
+    final imageSchema =
+        schema.where((field) => field.type == FieldType.images).toList();
     final patientName = (patient?.values['name'] ?? '-').toString().trim();
     final admissionNo = admission?.admissionNo ?? '-';
     final admitDate = (admission?.values['admitDate'] ?? '-').toString().trim();
@@ -46,13 +54,23 @@ class DailyDetailPage extends StatelessWidget {
           SectionCard(
             title: '日常记录详情',
             child: FieldGrid(
-              schema: schema,
+              schema: detailSchema,
               values: daily.values,
               variant: FieldGridVariant.table,
               compact: true,
               showColumnDivider: false,
             ),
           ),
+          if (imageSchema.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SectionCard(
+              title: '速记白板',
+              child: _ImageFieldSection(
+                schema: imageSchema,
+                values: daily.values,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -71,6 +89,257 @@ class DailyDetailPage extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.w800),
       ),
     );
+  }
+}
+
+class _ImageFieldSection extends StatelessWidget {
+  const _ImageFieldSection({
+    required this.schema,
+    required this.values,
+  });
+
+  final List<FieldSchema> schema;
+  final Map<String, dynamic> values;
+
+  @override
+  Widget build(BuildContext context) {
+    final groups = <_ImageFieldGroup>[];
+    for (final field in schema) {
+      final images = _normalizeImageValues(values[field.key]);
+      groups.add(
+        _ImageFieldGroup(
+          label: field.label,
+          images: images,
+        ),
+      );
+    }
+
+    final hasAnyImage = groups.any((group) => group.images.isNotEmpty);
+    if (!hasAnyImage) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text(
+          '暂无速记白板内容',
+          style: TextStyle(
+            color: Color(0xFF6F859F),
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final group in groups) ...[
+          if (group.images.isNotEmpty) ...[
+            if (schema.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  group.label,
+                  style: const TextStyle(
+                    color: Color(0xFF294666),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final src in group.images)
+                  _ImageThumb(
+                    src: src,
+                    onOpen: () => _showImagePreview(context, src),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ],
+    );
+  }
+
+  List<String> _normalizeImageValues(dynamic raw) {
+    if (raw is! List) return const <String>[];
+    final list = <String>[];
+    for (final item in raw) {
+      if (item is String) {
+        final text = item.trim();
+        if (text.isNotEmpty) list.add(text);
+        continue;
+      }
+      if (item is Map) {
+        final src = item['src'];
+        if (src is String && src.trim().isNotEmpty) {
+          list.add(src.trim());
+        }
+      }
+    }
+    return list;
+  }
+
+  Future<void> _showImagePreview(BuildContext context, String src) async {
+    final bytes = _decodeImage(src);
+    if (bytes == null) return;
+    await showDialog<void>(
+      context: context,
+      barrierColor: const Color(0xCC091423),
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.all(14),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    child: InteractiveViewer(
+                      minScale: 0.8,
+                      maxScale: 4.5,
+                      child: Center(
+                        child: Image.memory(
+                          bytes,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Material(
+                  color: const Color(0x80111F32),
+                  borderRadius: BorderRadius.circular(999),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => Navigator.of(dialogContext).pop(),
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Uint8List? _decodeImage(String src) {
+    final raw = src.trim();
+    if (raw.isEmpty) return null;
+    try {
+      final payload = raw.contains(',') ? raw.split(',').last : raw;
+      return base64Decode(payload);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+class _ImageFieldGroup {
+  const _ImageFieldGroup({
+    required this.label,
+    required this.images,
+  });
+
+  final String label;
+  final List<String> images;
+}
+
+class _ImageThumb extends StatefulWidget {
+  const _ImageThumb({
+    required this.src,
+    required this.onOpen,
+  });
+
+  final String src;
+  final VoidCallback onOpen;
+
+  @override
+  State<_ImageThumb> createState() => _ImageThumbState();
+}
+
+class _ImageThumbState extends State<_ImageThumb> {
+  static final Map<String, Uint8List?> _bytesCache = <String, Uint8List?>{};
+
+  late Uint8List? _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = _decodeImage(widget.src);
+  }
+
+  @override
+  void didUpdateWidget(covariant _ImageThumb oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.src != widget.src) {
+      _bytes = _decodeImage(widget.src);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: Material(
+        color: const Color(0xFFF1F7FF),
+        child: InkWell(
+          onTap: widget.onOpen,
+          child: SizedBox(
+            width: 102,
+            height: 74,
+            child: _bytes == null
+                ? const Center(
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 18,
+                      color: Color(0xFF8BA2BE),
+                    ),
+                  )
+                : Image.memory(
+                    _bytes!,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Uint8List? _decodeImage(String src) {
+    return _bytesCache.putIfAbsent(src, () {
+      final raw = src.trim();
+      if (raw.isEmpty) return null;
+      try {
+        final payload = raw.contains(',') ? raw.split(',').last : raw;
+        return base64Decode(payload);
+      } catch (_) {
+        return null;
+      }
+    });
   }
 }
 

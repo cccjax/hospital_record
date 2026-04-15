@@ -187,6 +187,16 @@ AppData buildDefaultAppData(IdFactory createId) {
           computed: false,
           options: <String>[],
         ),
+        FieldSchema(
+          key: 'quickSketches',
+          label: '速记白板',
+          type: FieldType.images,
+          required: false,
+          locked: true,
+          showInList: false,
+          computed: false,
+          options: <String>[],
+        ),
       ],
       'templateDisease': const <FieldSchema>[
         FieldSchema(

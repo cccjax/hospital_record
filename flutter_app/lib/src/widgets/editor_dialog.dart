@@ -9,7 +9,11 @@ class EditorDialog extends StatelessWidget {
     this.subtitle,
     this.icon = Icons.edit_note_rounded,
     this.maxWidth = 560,
+    this.maxHeightFactor = 0.88,
+    this.insetPadding =
+        const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
     this.bodyPadding = const EdgeInsets.fromLTRB(16, 14, 16, 12),
+    this.scrollableBody = true,
   });
 
   final String title;
@@ -18,18 +22,22 @@ class EditorDialog extends StatelessWidget {
   final Widget child;
   final List<Widget> actions;
   final double maxWidth;
+  final double maxHeightFactor;
+  final EdgeInsets insetPadding;
   final EdgeInsets bodyPadding;
+  final bool scrollableBody;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final safeHeightFactor = maxHeightFactor.clamp(0.5, 1.0).toDouble();
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: insetPadding,
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: maxWidth,
-          maxHeight: media.size.height * 0.88,
+          maxHeight: media.size.height * safeHeightFactor,
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -58,12 +66,20 @@ class EditorDialog extends StatelessWidget {
                   subtitle: subtitle,
                   icon: icon,
                 ),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: bodyPadding,
-                    child: child,
+                if (scrollableBody)
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: bodyPadding,
+                      child: child,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: Padding(
+                      padding: bodyPadding,
+                      child: child,
+                    ),
                   ),
-                ),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),

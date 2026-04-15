@@ -54,6 +54,7 @@ class HospitalAppState extends ChangeNotifier {
     },
     'daily': <String>{
       'recordDate',
+      'quickSketches',
     },
     'templateDisease': <String>{
       'diseaseName',
@@ -91,6 +92,7 @@ class HospitalAppState extends ChangeNotifier {
       'temperature': '体温(℃)',
       'bloodPressure': '血压',
       'notes': '病情记录',
+      'quickSketches': '速记白板',
     },
     'templateDisease': <String, String>{
       'diseaseName': '病种名称',
@@ -1512,6 +1514,29 @@ class HospitalAppState extends ChangeNotifier {
     _enforceSystemFieldRule('admission', 'admitDate', forceRequired: true);
     _enforceSystemFieldRule('admission', 'status', forceRequired: true);
     _enforceSystemFieldRule('daily', 'recordDate', forceRequired: true);
+    _enforceSystemFieldRule('daily', 'quickSketches');
+
+    final dailySchema = schemaOf('daily');
+    final sketchIdx = dailySchema.indexWhere((e) => e.key == 'quickSketches');
+    if (sketchIdx >= 0) {
+      final current = dailySchema[sketchIdx];
+      dailySchema[sketchIdx] = current.copyWith(
+        label: _normalizeFieldLabel('daily', 'quickSketches', current.label),
+        type: FieldType.images,
+        required: false,
+        locked: true,
+        showInList: false,
+        computed: false,
+        options: const <String>[],
+        optionColors: const <String, String>{},
+      );
+      data = data.copyWith(
+        schemas: <String, List<FieldSchema>>{
+          ...data.schemas,
+          'daily': dailySchema,
+        },
+      );
+    }
 
     _enforceSystemFieldRule('templateDisease', 'diseaseName');
     _enforceSystemFieldRule('templateDisease', 'diseaseCode');
@@ -1586,6 +1611,11 @@ class HospitalAppState extends ChangeNotifier {
       moduleKey: 'patient',
       field: _buildDefaultNursingLevelField(),
     );
+    _ensureSchemaField(
+      next,
+      moduleKey: 'daily',
+      field: _buildDefaultDailySketchField(),
+    );
     data = data.copyWith(schemas: _normalizeSchemaFields(next));
   }
 
@@ -1624,6 +1654,19 @@ class HospitalAppState extends ChangeNotifier {
         '\u4E8C\u7EA7\u62A4\u7406': '#FFEFB5',
         '\u4E09\u7EA7\u62A4\u7406': '#DDF4CC',
       },
+    );
+  }
+
+  FieldSchema _buildDefaultDailySketchField() {
+    return const FieldSchema(
+      key: 'quickSketches',
+      label: '\u901F\u8BB0\u767D\u677F',
+      type: FieldType.images,
+      required: false,
+      locked: true,
+      showInList: false,
+      computed: false,
+      options: <String>[],
     );
   }
 
