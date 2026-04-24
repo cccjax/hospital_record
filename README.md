@@ -5,6 +5,10 @@
 - Flutter 正式实现（`flutter_app/`，当前主线）
 
 ## 本版重点
+- 本地持久化升级：应用主数据与安全配置改为文件优先存储，兼容旧版 `SharedPreferences` 数据自动迁移
+- 密码保护升级：新设置/修改的密码保存为 PBKDF2-SHA256 哈希，旧明文密码在首次验证成功后自动升级
+- UI 视觉升级：编辑/新增弹窗改为更轻的表单面板，页面区块卡片和入院详情摘要增强层次感
+- 速记白板升级：画布最大化、工具栏悬浮固定、支持撤销/重做、白板预览卡片更清晰
 - 模板体系升级：病种下拆分「病情评估模板」与「诊断模板」
 - 模板版本页与字段配置联动：`templateVersion` 字段可在版本页直接展示/维护
 - 护理等级作为系统字段保留（不可删除），并支持在病人信息中编辑
@@ -40,6 +44,13 @@ flutter test
 - 建议优先使用 `flutter analyze lib test`，避免分析 `build/` 目录导致耗时增加。
 - 如果你在根目录执行 `flutter analyze`，可能会出现 `Analyzing Administrator...` 这类误判路径现象。
 
+## 数据与安全
+- 主数据文件：`hospital_record_data_v1.json`
+- 安全配置文件：`hospital_record_security_v1.json`
+- 文件目录：由系统应用支持目录提供，代码入口见 `flutter_app/lib/src/data/local_storage_repository.dart`
+- 旧版数据：仍会从 `SharedPreferences` 读取；首次读取成功后会写入新的 JSON 文件
+- 密码：新密码不再保存明文，旧明文密码会在用户验证成功后自动升级为哈希
+
 ## 打包 APK
 ```bash
 cd flutter_app
@@ -62,7 +73,10 @@ flutter build apk --release
 ## 交接文档
 - `HANDOFF.md`
 - `SWITCH_CHECKLIST.md`
+- `docs/data_and_security.md`
+- `docs/architecture.md`
 
-## 版本说明（2026-04-14）
-- 文档与代码已同步到“分页滑动 + 悬浮分页点 + 模板/首页卡片联动渲染”版本。
-- 若需要提交生产包，建议先在真机回归：首页分页、模板分页、字段配置联动、病种新增编辑流程。
+## 版本说明（2026-04-24）
+- 文档与代码已同步到“文件持久化 + 密码哈希 + 基础回归测试”版本。
+- 本版保留旧数据兼容迁移，但建议升级后先做一次导出备份，再继续日常使用。
+- 若需要提交生产包，建议先在真机回归：首页分页、模板分页、字段配置联动、病种新增编辑流程、数据导入导出、密码保护。

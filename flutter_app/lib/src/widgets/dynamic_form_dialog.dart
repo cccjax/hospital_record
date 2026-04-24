@@ -88,9 +88,8 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
   Widget build(BuildContext context) {
     return EditorDialog(
       title: widget.title,
-      subtitle: '带 * 为必填，请核对后保存',
       icon: Icons.edit_note_rounded,
-      maxWidth: 620,
+      maxWidth: 700,
       actions: [
         AppCancelButton(
           label: '取消',
@@ -113,11 +112,17 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
                 title: '暂无可编辑字段',
                 description: '请先在字段配置中新增字段。',
                 child: SizedBox.shrink(),
+              )
+            else
+              _FormSurface(
+                children: [
+                  for (var i = 0; i < widget.schema.length; i++)
+                    _FormSurfaceRow(
+                      showDivider: i != widget.schema.length - 1,
+                      child: _buildFieldCard(widget.schema[i]),
+                    ),
+                ],
               ),
-            for (final field in widget.schema) ...[
-              _buildFieldCard(field),
-              const SizedBox(height: 10),
-            ],
             if (_errorText != null) _buildErrorBanner(),
           ],
         ),
@@ -130,52 +135,51 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
     final isStackField =
         field.type == FieldType.textarea || field.type == FieldType.images;
     final labelText = field.required ? '${field.label} *' : field.label;
-    return EditorPanel(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final labelWidth = constraints.maxWidth < 430 ? 86.0 : 108.0;
-          return Row(
-            crossAxisAlignment: isStackField
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: labelWidth,
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    top: isStackField ? 10 : 0,
-                  ),
-                  child: Text(
-                    labelText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF244161),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final labelWidth = constraints.maxWidth < 430 ? 88.0 : 116.0;
+        return Row(
+          crossAxisAlignment: isStackField
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: labelWidth,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: isStackField ? 11 : 0,
+                ),
+                child: Text(
+                  labelText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF203A59),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13.5,
+                    letterSpacing: 0.1,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildFieldInput(
-                  field,
-                  editable: editable,
-                ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _buildFieldInput(
+                field,
+                editable: editable,
               ),
-              if (!editable) ...[
-                const SizedBox(width: 6),
-                const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 14,
-                  color: Color(0xFF7890AB),
-                ),
-              ],
+            ),
+            if (!editable) ...[
+              const SizedBox(width: 7),
+              const Icon(
+                Icons.lock_outline_rounded,
+                size: 15,
+                color: Color(0xFF7890AB),
+              ),
             ],
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -999,6 +1003,66 @@ class _DynamicFormDialogState extends State<DynamicFormDialog> {
       _submitting = false;
       _errorText = message;
     });
+  }
+}
+
+class _FormSurface extends StatelessWidget {
+  const _FormSurface({
+    required this.children,
+  });
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD8E5F4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C173B5D),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+}
+
+class _FormSurfaceRow extends StatelessWidget {
+  const _FormSurfaceRow({
+    required this.child,
+    required this.showDivider,
+  });
+
+  final Widget child;
+  final bool showDivider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+          child: child,
+        ),
+        if (showDivider)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14),
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              color: Color(0xFFE7EFF8),
+            ),
+          ),
+      ],
+    );
   }
 }
 

@@ -12,7 +12,7 @@ class EditorDialog extends StatelessWidget {
     this.maxHeightFactor = 0.88,
     this.insetPadding =
         const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-    this.bodyPadding = const EdgeInsets.fromLTRB(16, 14, 16, 12),
+    this.bodyPadding = const EdgeInsets.fromLTRB(18, 16, 18, 14),
     this.scrollableBody = true,
   });
 
@@ -41,23 +41,32 @@ class EditorDialog extends StatelessWidget {
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(26),
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: <Color>[Color(0xFFFFFFFF), Color(0xFFF5F9FF)],
+              colors: <Color>[
+                Color(0xFFFFFFFF),
+                Color(0xFFF6FAFF),
+                Color(0xFFEFF8F6),
+              ],
             ),
-            border: Border.all(color: const Color(0xFFDCE8F7)),
+            border: Border.all(color: const Color(0xFFCFE0F2)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x240F2847),
-                blurRadius: 20,
-                offset: Offset(0, 12),
+                color: Color(0x260E263F),
+                blurRadius: 28,
+                offset: Offset(0, 18),
+              ),
+              BoxShadow(
+                color: Color(0x120E766E),
+                blurRadius: 40,
+                offset: Offset(-12, -10),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(26),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -82,11 +91,11 @@ class EditorDialog extends StatelessWidget {
                   ),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                  padding: const EdgeInsets.fromLTRB(16, 11, 16, 15),
                   decoration: const BoxDecoration(
-                    color: Color(0xF9FBFDFF),
+                    color: Color(0xF6FFFFFF),
                     border: Border(
-                      top: BorderSide(color: Color(0xFFD8E3F2)),
+                      top: BorderSide(color: Color(0xFFD4E3F3)),
                     ),
                   ),
                   child: Wrap(
@@ -121,9 +130,16 @@ class EditorPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDDE8F6)),
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFDCE7F4)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D133B5F),
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
@@ -176,12 +192,16 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 13),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 15),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: <Color>[Color(0xFFEFF6FF), Color(0xFFE3FFF8)],
+          colors: <Color>[
+            Color(0xFFF7FBFF),
+            Color(0xFFEAF8F7),
+            Color(0xFFEAF2FF),
+          ],
         ),
         border: Border(
           bottom: BorderSide(color: Color(0xFFD8E5F4)),
@@ -190,17 +210,28 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 34,
-            height: 34,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              color: const Color(0xFF0D766E).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(13),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: <Color>[Color(0xFF0D766E), Color(0xFF2E8DE6)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF0D766E).withValues(alpha: 0.18),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
             alignment: Alignment.center,
             child: Icon(
               icon,
               size: 19,
-              color: const Color(0xFF0D766E),
+              color: Colors.white,
             ),
           ),
           const SizedBox(width: 10),

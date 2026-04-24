@@ -15,11 +15,13 @@ dependencies:
   cupertino_icons: ^1.0.8
   provider: ^6.1.2
   shared_preferences: ^2.3.2
+  path_provider: ^2.1.5
   image_picker: ^1.1.2
   file_picker: ^8.1.2
   local_auth: ^2.3.0
   uuid: ^4.5.1
   intl: ^0.20.2
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_test:

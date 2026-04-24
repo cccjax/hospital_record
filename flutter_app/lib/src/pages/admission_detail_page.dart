@@ -635,28 +635,48 @@ class _HeroSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFFF8FBFF),
-        border: Border.all(color: const Color(0xFFE7EEF8)),
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: <Color>[
+            Color(0xFFFFFFFF),
+            Color(0xFFEAF8F7),
+            Color(0xFFEAF2FF),
+          ],
+        ),
+        border: Border.all(color: const Color(0xFFD1E0F0)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x120F2744),
-            blurRadius: 10,
-            offset: Offset(0, 4),
+            color: Color(0x17112F4D),
+            blurRadius: 20,
+            offset: Offset(0, 12),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.person_rounded,
-              size: 18,
-              color: Color(0xFF3F6E9F),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: <Color>[Color(0xFF0D766E), Color(0xFF2E8DE6)],
+                ),
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                size: 20,
+                color: Colors.white,
+              ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 10),
             Expanded(
               child: Wrap(
                 spacing: 8,
@@ -669,7 +689,7 @@ class _HeroSummary extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w900,
                       color: Color(0xFF1F3149),
                     ),
                   ),
@@ -704,9 +724,9 @@ class _HeroChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F9FF),
+        color: const Color(0xF4FFFFFF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD9E5F4)),
+        border: Border.all(color: const Color(0xFFD0DFF0)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -718,9 +738,9 @@ class _HeroChip extends StatelessWidget {
             Text(
               text,
               style: const TextStyle(
-                color: Color(0xFF4E627D),
+                color: Color(0xFF425A77),
                 fontSize: 12.5,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -1419,49 +1439,57 @@ class _DailySketchPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bytes = _DailySketchThumbCache.decode(src);
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
-            width: 84,
-            height: 56,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F7FF),
-              border: Border.all(color: const Color(0xFFD7E5F7)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: bytes == null
-                ? const Center(
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      size: 17,
-                      color: Color(0xFF8BA2BE),
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBFF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFDCE8F6)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: Container(
+              width: 88,
+              height: 58,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F7FF),
+                border: Border.all(color: const Color(0xFFD7E5F7)),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: bytes == null
+                  ? const Center(
+                      child: Icon(
+                        Icons.broken_image_outlined,
+                        size: 17,
+                        color: Color(0xFF8BA2BE),
+                      ),
+                    )
+                  : Image.memory(
+                      bytes,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
                     ),
-                  )
-                : Image.memory(
-                    bytes,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                  ),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
+          const SizedBox(width: 8),
+          Expanded(
             child: Text(
-              count > 1 ? '已添加 $count 张白板' : '已添加 1 张白板',
+              count > 1 ? '$count 张速记白板' : '1 张速记白板',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: Color(0xFF526D8A),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                color: Color(0xFF405B78),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                height: 1.25,
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

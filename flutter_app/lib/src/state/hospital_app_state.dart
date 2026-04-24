@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../data/local_storage_repository.dart';
 import '../models/app_models.dart';
 import '../models/default_data.dart';
+import '../utils/password_codec.dart';
 
 class HospitalAppState extends ChangeNotifier {
   HospitalAppState({
@@ -127,11 +128,7 @@ class HospitalAppState extends ChangeNotifier {
   };
 
   AppData data = AppData.empty();
-  SecuritySettings security = const SecuritySettings(
-    passwordEnabled: false,
-    passwordValue: '',
-    biometricEnabled: false,
-  );
+  SecuritySettings security = SecuritySettings.empty;
   bool sessionUnlocked = true;
   String? _lastErrorMessage;
 
@@ -148,11 +145,9 @@ class HospitalAppState extends ChangeNotifier {
     String? originalDataJson;
     if (snapshot == null) {
       data = buildDefaultAppData(_createId);
-      security = const SecuritySettings(
-        passwordEnabled: false,
-        passwordValue: '',
-        biometricEnabled: false,
-      );
+      security = SecuritySettings.empty;
+      await repository.saveData(data);
+      await repository.saveSecurity(security);
     } else {
       data = snapshot.data;
       security = snapshot.security;
@@ -1400,7 +1395,7 @@ class HospitalAppState extends ChangeNotifier {
   Future<void> enableOrChangePassword(String password) async {
     security = security.copyWith(
       passwordEnabled: true,
-      passwordValue: password,
+      passwordValue: PasswordCodec.createHash(password),
     );
     sessionUnlocked = true;
     await repository.saveSecurity(security);
@@ -1428,8 +1423,14 @@ class HospitalAppState extends ChangeNotifier {
 
   bool verifyPassword(String password) {
     if (!isPasswordEnabled) return true;
-    final ok = password == security.passwordValue;
+    final ok = PasswordCodec.verify(password, security.passwordValue);
     sessionUnlocked = ok;
+    if (ok && PasswordCodec.shouldUpgrade(security.passwordValue)) {
+      security = security.copyWith(
+        passwordValue: PasswordCodec.createHash(password),
+      );
+      unawaited(repository.saveSecurity(security));
+    }
     notifyListeners();
     return ok;
   }

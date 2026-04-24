@@ -534,6 +534,12 @@ class SecuritySettings {
     this.biometricEnabled = false,
   });
 
+  static const SecuritySettings empty = SecuritySettings(
+    passwordEnabled: false,
+    passwordValue: '',
+    biometricEnabled: false,
+  );
+
   final bool passwordEnabled;
   final String passwordValue;
   final bool biometricEnabled;

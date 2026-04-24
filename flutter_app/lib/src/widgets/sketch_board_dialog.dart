@@ -57,6 +57,7 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
   ];
 
   final List<_SketchStroke> _strokes = <_SketchStroke>[];
+  final List<_SketchStroke> _redoStrokes = <_SketchStroke>[];
   late final List<_PenPreset> _presets;
 
   int _selectedPresetIndex = 0;
@@ -80,12 +81,12 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
   Widget build(BuildContext context) {
     return EditorDialog(
       title: widget.title,
-      subtitle: '长按色块可自定义颜色和粗细',
+      subtitle: '工具栏固定在画布上方，长按色块可自定义颜色和粗细',
       icon: Icons.draw_rounded,
       maxWidth: 1400,
       maxHeightFactor: 0.96,
       insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      bodyPadding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      bodyPadding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       scrollableBody: false,
       actions: [
         AppCancelButton(
@@ -98,141 +99,211 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
           label: _saving ? '保存中...' : '保存白板',
         ),
       ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          _buildToolbar(),
-          const SizedBox(height: 8),
-          const Text(
-            '提示：网格线位于底层，擦除后会透出网格线',
-            style: TextStyle(
-              color: Color(0xFF5E7592),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+          Positioned.fill(child: _buildCanvas()),
+          Positioned(
+            left: 10,
+            top: 10,
+            right: 10,
+            child: _buildToolbar(),
           ),
+          if (_errorText == null)
+            Positioned(
+              right: 14,
+              bottom: 14,
+              child: _SketchStatusPill(
+                strokes: _strokes.length,
+                showGrid: _showGrid,
+                eraser: _eraser,
+              ),
+            ),
           if (_errorText != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                _errorText!,
-                style: const TextStyle(
-                  color: Color(0xFFB74857),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
+            Positioned(
+              left: 14,
+              right: 14,
+              bottom: 14,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xF9FFF2F3),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFF0C3CA)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x1CB74857),
+                      blurRadius: 14,
+                      offset: Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 15,
+                        color: Color(0xFFB74857),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _errorText!,
+                          style: const TextStyle(
+                            color: Color(0xFFB74857),
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _buildCanvas(),
-          ),
         ],
       ),
     );
   }
 
   Widget _buildToolbar() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        for (var i = 0; i < _presets.length; i++)
-          _ColorChip(
-            color: _presets[i].color,
-            selected: !_eraser && i == _selectedPresetIndex,
-            onTap: () {
-              setState(() {
-                _eraser = false;
-                _selectedPresetIndex = i;
-              });
-            },
-            onLongPress: () => _editPreset(i),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xEFFFFFFF),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xCCD8E5F4)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1A0B2742),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
-        AppToneTextButton(
-          label: '编辑当前色',
-          icon: Icons.palette_outlined,
-          onPressed: () => _editPreset(_selectedPresetIndex),
-          minWidth: 92,
-          height: 32,
-          fontSize: 11.6,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (var i = 0; i < _presets.length; i++)
+                  _ColorChip(
+                    color: _presets[i].color,
+                    selected: !_eraser && i == _selectedPresetIndex,
+                    width: _presets[i].width,
+                    onTap: () {
+                      setState(() {
+                        _eraser = false;
+                        _selectedPresetIndex = i;
+                      });
+                    },
+                    onLongPress: () => _editPreset(i),
+                  ),
+                AppToneTextButton(
+                  label: '画笔',
+                  icon: Icons.palette_outlined,
+                  onPressed: () => _editPreset(_selectedPresetIndex),
+                  minWidth: 70,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                ),
+                AppToneTextButton(
+                  label: _eraser ? '擦除中' : '橡皮擦',
+                  icon: Icons.auto_fix_off_rounded,
+                  onPressed: () {
+                    setState(() {
+                      _eraser = !_eraser;
+                    });
+                  },
+                  minWidth: 82,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                  backgroundColor: _eraser
+                      ? const Color(0xFFFFEFE9)
+                      : const Color(0xFFF2F7FF),
+                  backgroundPressedColor: _eraser
+                      ? const Color(0xFFFFE3D8)
+                      : const Color(0xFFE8F1FE),
+                  borderColor: _eraser ? const Color(0xFFF2C7B8) : null,
+                  borderPressedColor: _eraser ? const Color(0xFFE3B39D) : null,
+                  foregroundColor: _eraser ? const Color(0xFFB25B33) : null,
+                ),
+                _WidthSelector(
+                  value: _selectedWidth,
+                  onChanged: (next) {
+                    setState(() {
+                      final current = _presets[_selectedPresetIndex];
+                      _presets[_selectedPresetIndex] =
+                          current.copyWith(width: next);
+                    });
+                  },
+                ),
+                AppToneTextButton(
+                  label: '撤销',
+                  icon: Icons.undo_rounded,
+                  onPressed: _strokes.isEmpty ? null : _undoStroke,
+                  minWidth: 64,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                ),
+                AppToneTextButton(
+                  label: '重做',
+                  icon: Icons.redo_rounded,
+                  onPressed: _redoStrokes.isEmpty ? null : _redoStroke,
+                  minWidth: 64,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                ),
+                AppToneTextButton(
+                  label: _showGrid ? '隐藏网格' : '网格',
+                  icon: Icons.grid_on_rounded,
+                  onPressed: () {
+                    setState(() {
+                      _showGrid = !_showGrid;
+                    });
+                  },
+                  minWidth: 70,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                ),
+                AppToneTextButton(
+                  label: '清空',
+                  icon: Icons.layers_clear_rounded,
+                  onPressed: _strokes.isEmpty ? null : _clearBoard,
+                  minWidth: 64,
+                  height: 34,
+                  fontSize: 12,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                  backgroundColor: const Color(0xFFFFF3F4),
+                  backgroundPressedColor: const Color(0xFFFFE9EC),
+                  borderColor: const Color(0xFFF6CBD1),
+                  borderPressedColor: const Color(0xFFE9B5BE),
+                  foregroundColor: const Color(0xFFB24D5C),
+                  foregroundDisabledColor: const Color(0xFFCAA3AA),
+                  shadowColor: const Color(0x24CB7481),
+                ),
+              ],
+            ),
+          ),
         ),
-        AppToneTextButton(
-          label: _eraser ? '橡皮开启' : '橡皮擦',
-          icon: Icons.auto_fix_off_rounded,
-          onPressed: () {
-            setState(() {
-              _eraser = !_eraser;
-            });
-          },
-          minWidth: 88,
-          height: 32,
-          fontSize: 11.8,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          backgroundColor:
-              _eraser ? const Color(0xFFFFEFE9) : const Color(0xFFF2F7FF),
-          backgroundPressedColor:
-              _eraser ? const Color(0xFFFFE3D8) : const Color(0xFFE8F1FE),
-          borderColor: _eraser ? const Color(0xFFF2C7B8) : null,
-          borderPressedColor: _eraser ? const Color(0xFFE3B39D) : null,
-          foregroundColor: _eraser ? const Color(0xFFB25B33) : null,
-        ),
-        _WidthSelector(
-          value: _selectedWidth,
-          onChanged: (next) {
-            setState(() {
-              final current = _presets[_selectedPresetIndex];
-              _presets[_selectedPresetIndex] = current.copyWith(width: next);
-            });
-          },
-        ),
-        AppToneTextButton(
-          label: '撤销',
-          icon: Icons.undo_rounded,
-          onPressed: _strokes.isEmpty
-              ? null
-              : () {
-                  setState(() {
-                    _strokes.removeLast();
-                  });
-                },
-          minWidth: 64,
-          height: 32,
-          fontSize: 11.8,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        ),
-        AppToneTextButton(
-          label: '清空',
-          icon: Icons.layers_clear_rounded,
-          onPressed: _strokes.isEmpty ? null : _clearBoard,
-          minWidth: 64,
-          height: 32,
-          fontSize: 11.8,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          backgroundColor: const Color(0xFFFFF3F4),
-          backgroundPressedColor: const Color(0xFFFFE9EC),
-          borderColor: const Color(0xFFF6CBD1),
-          borderPressedColor: const Color(0xFFE9B5BE),
-          foregroundColor: const Color(0xFFB24D5C),
-          foregroundDisabledColor: const Color(0xFFCAA3AA),
-          shadowColor: const Color(0x24CB7481),
-        ),
-        AppToneTextButton(
-          label: _showGrid ? '隐藏网格' : '显示网格',
-          icon: Icons.grid_on_rounded,
-          onPressed: () {
-            setState(() {
-              _showGrid = !_showGrid;
-            });
-          },
-          minWidth: 82,
-          height: 32,
-          fontSize: 11.8,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        ),
-      ],
+      ),
     );
   }
 
@@ -244,12 +315,19 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
         _canvasSize = Size(width, height);
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(20),
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: _canvasBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD4E2F2)),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFC8D9EA)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x16122E49),
+                  blurRadius: 16,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -284,6 +362,21 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
     if (!mounted || !confirmed) return;
     setState(() {
       _strokes.clear();
+      _redoStrokes.clear();
+    });
+  }
+
+  void _undoStroke() {
+    if (_strokes.isEmpty) return;
+    setState(() {
+      _redoStrokes.add(_strokes.removeLast());
+    });
+  }
+
+  void _redoStroke() {
+    if (_redoStrokes.isEmpty) return;
+    setState(() {
+      _strokes.add(_redoStrokes.removeLast());
     });
   }
 
@@ -442,6 +535,7 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
     _strokes
       ..clear()
       ..addAll(parsed);
+    _redoStrokes.clear();
   }
 
   Color _parseColor(dynamic raw) {
@@ -500,6 +594,7 @@ class _SketchBoardDialogState extends State<_SketchBoardDialog> {
     if (_canvasSize.width <= 0 || _canvasSize.height <= 0) return;
     setState(() {
       _errorText = null;
+      _redoStrokes.clear();
       _strokes.add(
         _SketchStroke(
           color: _eraser ? const Color(0x00000000) : _selectedColor,
@@ -905,12 +1000,14 @@ class _ColorChip extends StatelessWidget {
   const _ColorChip({
     required this.color,
     required this.selected,
+    required this.width,
     required this.onTap,
     required this.onLongPress,
   });
 
   final Color color;
   final bool selected;
+  final double width;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -922,15 +1019,17 @@ class _ColorChip extends StatelessWidget {
         onTap: onTap,
         onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(999),
-        child: Container(
-          width: 24,
-          height: 24,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          width: selected ? 32 : 28,
+          height: selected ? 32 : 28,
           decoration: BoxDecoration(
-            color: color,
             shape: BoxShape.circle,
+            color: Colors.white,
             border: Border.all(
-              color: selected ? const Color(0xFF1A3450) : Colors.white,
-              width: selected ? 2.4 : 1.4,
+              color:
+                  selected ? const Color(0xFF1A3450) : const Color(0xFFFFFFFF),
+              width: selected ? 2.0 : 1.2,
             ),
             boxShadow: const [
               BoxShadow(
@@ -939,6 +1038,86 @@ class _ColorChip extends StatelessWidget {
                 offset: Offset(0, 2),
               ),
             ],
+          ),
+          alignment: Alignment.center,
+          child: Container(
+            width: selected ? 22 : 20,
+            height: selected ? 22 : 20,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Container(
+                width: width.clamp(2.0, 8.0),
+                height: width.clamp(2.0, 8.0),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.84),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SketchStatusPill extends StatelessWidget {
+  const _SketchStatusPill({
+    required this.strokes,
+    required this.showGrid,
+    required this.eraser,
+  });
+
+  final int strokes;
+  final bool showGrid;
+  final bool eraser;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(999),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xE8FFFFFF),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: const Color(0xCFE0EAF6)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  eraser ? Icons.auto_fix_off_rounded : Icons.edit_rounded,
+                  size: 13,
+                  color: eraser
+                      ? const Color(0xFFB25B33)
+                      : const Color(0xFF0D766E),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '$strokes 笔',
+                  style: const TextStyle(
+                    color: Color(0xFF425B78),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (showGrid) ...[
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.grid_on_rounded,
+                    size: 13,
+                    color: Color(0xFF4F74A0),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),
